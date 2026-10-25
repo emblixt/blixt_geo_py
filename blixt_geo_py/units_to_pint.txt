@@ -1,0 +1,28 @@
+## Additions
+API = 1 * dimensionless = api
+us = 1e-6 * second
+ohmm = [resistivity] = ohm * meter = Ωm
+fract = 1 * dimensionless
+## unitless = 1 * dimensionless
+micro- = 1e-6 = µ-
+## fraction =  [] = frac
+percent = 1e-2 fraction = pct
+ppm = 1e-6 fraction
+
+@alias fract = Dec
+@alias fract = FRAC
+@alias degC = degc
+@alias ohm = Ohm
+@alias ohmm = Ohmm
+@alias ohmm = OHMM
+@alias foot = FT
+@alias foot = F
+@alias us = US
+@alias meter = M
+@alias inch = IN
+@alias cc = CC
+@alias gram = G
+@alias gram = gm
+@alias API = GAPI
+@alias API = gAPI
+@alias API = gapi
