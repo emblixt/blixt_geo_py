@@ -1,40 +1,40 @@
-import os, sys
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import pint
-from matplotlib.lines import Line2D
-from matplotlib.font_manager import FontProperties
-import numpy as np
 import logging
-import inspect
+import os
+import sys
 from copy import deepcopy
-import bruges.rockphysics.anisotropy as bra
-from .. import ureg, Q_
 from tkinter import Tk
 from tkinter.filedialog import asksaveasfilename
 
-from bokeh.models import ColumnDataSource, Span, Select, Button, Slider, CheckboxGroup, Div, CustomJS
-from bokeh.models import PanTool,WheelZoomTool, ResetTool, SaveTool, CrosshairTool, HoverTool, TextInput
+import bruges.rockphysics.anisotropy as bra
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+import pint
 from bokeh.events import RangesUpdate
-from bokeh.plotting import show, row, column, figure
 from bokeh.io import output_file
+from bokeh.models import ColumnDataSource, Span, Select, Button, Slider, CheckboxGroup, Div, CustomJS
+from bokeh.models import PanTool, WheelZoomTool, ResetTool, SaveTool, CrosshairTool, HoverTool, TextInput
+from bokeh.plotting import show, row, column, figure
+from matplotlib.font_manager import FontProperties
+from matplotlib.lines import Line2D
 
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\plotting', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
+from .. import Q_
+
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\plotting', ''))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-import blixt_rp.core.well_new as cw
-import blixt_rp.rp.rp_core as rp
-from blixt_rp.core.core import StratUnit, Interval, Intervals, LogTable, Template, Cutoffs, LithoFluids
-from blixt_rp.core.log_curve_new import LogCurve, _to_depth, replace_data
-from blixt_rp.plotting.log_plotter import (LogPlotter, LogColumn, Line, WellPlotter,  add_strat_table, add_color_amp,
+import blixt_geo_py.core.well_new as cw
+import blixt_geo_py.rp.rp_core as rp
+from blixt_geo_py.core.core import Intervals, LogTable, Template, Cutoffs, LithoFluids
+from blixt_geo_py.core.log_curve import LogCurve, _to_depth, replace_data
+from blixt_geo_py.plotting.log_plotter import (LogPlotter, LogColumn, Line, WellPlotter,  add_strat_table, add_color_amp,
                                            select_column)
-import blixt_utils.utils as uu
 import blixt_utils.misc.wavelets as bumw
 from blixt_utils.utils import nan_corrcoef, print_info
-from blixt_rp.core.seismic import SeismicTraces, interpolate_along_offset
-from blixt_rp.core.models import Model, LaminarModel, global_base_case_name, calc_synth_cds, create_traces, find_extremes
+from blixt_geo_py.core.seismic import SeismicTraces, interpolate_along_offset
+from blixt_geo_py.core.models import Model, LaminarModel, global_base_case_name, calc_synth_cds, create_traces
 
 logger = logging.getLogger(__name__)
 
@@ -637,7 +637,7 @@ def compare_synth_with_seismic(
         {'near': 10., 'mid': 20., 'far': 30.}
         which is useful if we have extracted the seismic along the well bore and saved them in a las file.
     :param model:
-        blixt_rp.core.models.Model object
+        blixt_geo_py.core.models.Model object
         Object that holds a subsurface model with N layers
         This function only allows 1D models
     :param litho_fluids:
@@ -654,7 +654,6 @@ def compare_synth_with_seismic(
         if true, the Well synthetics are not plotted (but always calculated?)
     :return:
     """
-    from blixt_rp.core.models import update_1d_model_function
     if width is None:
         width = 1000.
     if height is None:
@@ -1069,7 +1068,7 @@ def compare_synth_with_seismic(
         def update_m_function():
             from bokeh.models import GlyphRenderer
             from bokeh.models.glyphs import Image, ImageRGBA, ImageURL
-            from blixt_rp.core.models import total_cds_thickness
+            from blixt_geo_py.core.models import total_cds_thickness
             print('MODEL UPDATED')
 
             # Update the elastic properties based on the new model
@@ -1522,7 +1521,7 @@ def get_wiggles_in_depth(
        (M, N) size np.ndarray.
        M seismic traces, each of length N
     """
-    from blixt_rp.rp.rp_core import reflectivity
+    from blixt_geo_py.rp.rp_core import reflectivity
     # Get kwargs:
     c_f = kwargs.pop('center_frequency', 30.)  # Hz
     duration = kwargs.pop('duration', 0.512)  # seconds

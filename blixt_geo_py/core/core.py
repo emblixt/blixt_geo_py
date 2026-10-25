@@ -1,37 +1,34 @@
 """
-Collection of objects and methods used throughout blixt_rp
+Collection of objects and methods used throughout blixt_geo_py
 
 """
-import os, sys
+import logging
+import os
+import sys
 from copy import deepcopy
+from datetime import datetime
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-
-from .. import Q_
-import pint
 import pandas as pd
-import logging
-
-from bokeh.models import (Slider, ColorPicker, Range1d, LinearAxis, LogAxis, Span, Legend, ColumnDataSource, Text,
-                          CustomJS, CustomJSTransform, LinearColorMapper, CheckboxEditor, Select)
+import pint
 from bokeh.models import (DataTable, PanTool, BoxZoomTool, WheelZoomTool, ResetTool, SaveTool, CrosshairTool,
                           HoverTool, TextInput)
-from bokeh.plotting import figure, show
+from bokeh.models import (Slider, ColorPicker, Range1d, LinearAxis, LogAxis, Span, Legend, ColumnDataSource, Text,
+                          CustomJS, CustomJSTransform, LinearColorMapper, CheckboxEditor, Select)
 from bokeh.plotting import column, row
-from datetime import datetime
-import matplotlib as mpl
+from bokeh.plotting import figure, show
 
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\core', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
+from .. import Q_
 
-from blixt_utils.utils import add_one, fix_well_name, cycle_colors, isnan, print_info
-from blixt_utils.misc.attribdict import AttribDict
-from blixt_rp.rp_utils.version import info
-from blixt_utils.misc.masks import create_mask, combine_masks
-from blixt_utils.io.io import write_sums_and_averages
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
+
+from blixt_geo_py.rp_utils.version import info
+from blixt_geo_py.rp_utils.utils import fix_well_name, isnan, print_info
+from blixt_geo_py.misc.attribdict import AttribDict
 
 logger = logging.getLogger(__name__)
 
@@ -269,7 +266,6 @@ class CutoffRule:
             Is over-ruled by param, operator and limit
 
         """
-        from blixt_utils.utils import print_info
         raise_unit_error = False
         self.interval_cutoff = False
 
@@ -410,7 +406,7 @@ class ClassificationTable:
 
         :param rules:
             list
-            List of blixt_rp.core.core.CutoffRules objects
+            List of blixt_geo_py.core.core.CutoffRules objects
         :param width:
             int
         """
@@ -490,7 +486,7 @@ class ClassificationTable:
             The data cds is in the format specified by the CrossPlotter class
         :return:
         """
-        import blixt_utils.misc.masks as masks
+        import blixt_geo_py.misc.masks as masks
         cutoffs = []
         rules = []
         use_status = []
@@ -577,8 +573,6 @@ class ClassificationTable:
             dt, add_row, delete_row, update_table, use_cutoffs
         """
         from bokeh.models import DataTable, Button, CheckboxGroup, Div
-        from blixt_rp.core.core import CutoffRule
-        import blixt_utils.misc.masks as masks
 
         orig_data = None
 
@@ -617,53 +611,6 @@ class ClassificationTable:
             self.use_status = use_status
             self.cutoffs = cutoffs
 
-        # def use_cutoffs_callback(attr, old, new):
-        #     # Test using the create_mask() function instead
-        #     if data_cds is not None:
-        #         # Take a copy of the original data, and original mask
-        #         _dict = dict(data_cds.data)
-        #         orig_mask = data_cds.data['mask']
-
-        #         if len(new) == 1:  # 'Use cutoffs' is active
-        #             if verbose:
-        #                 print('Use cutoffs, ', old, new)
-        #             mask = masks.combine_masks([orig_mask, self.create_mask(cds, data_cds)])
-        #         else:
-        #             if verbose:
-        #                 print('Reset cutoffs, ', old, new)
-        #             # mask = np.ones(len(data_cds.data['mask']), dtype=bool)
-        #             mask = orig_mask
-
-
-        #         # Modify the mask in the data_cds
-        #         _dict['mask'] = mask
-        #         # Update the cds
-        #         data_cds.data = _dict
-
-            # if len(new) == 1 and data_cds is not None:
-            #     print('Use cutoffs, ', old, new)
-            #     update_table_callback()
-            #     if len(self.cutoffs) > 0:  # There are active cutoffs
-            #         new_data = dict(data_cds.data)
-            #         _mask = None
-            #         for _i, _rule in enumerate(self.cutoffs):
-            #             _this_mask = masks.create_mask(
-            #                 data_cds.data[_rule.param],
-            #                 _rule.operator,
-            #                 _rule.limit
-            #             )
-            #             if _i == 0:  # First cutoff rule
-            #                 _mask = _this_mask
-            #             else:  # Append new cutoff rule using AND
-            #                 _mask = masks.combine_masks([_mask, _this_mask])
-            #         # apply mask
-            #         for _key in list(new_data.keys()):
-            #             new_data[_key] = new_data[_key][_mask]
-            #         data_cds.data = new_data
-            # else:
-            #     print('Do not use cutoffs, ', old, new)
-            #     data_cds.data = orig_data
-
         def add_row_function():
             new_data = dict(cds.data)
             new_data['use'].append(False)
@@ -685,43 +632,6 @@ class ClassificationTable:
                     new_data[_x].append(cds.data[_x][_i])
             cds.selected.indices = []
             cds.data = new_data
-
-        # def use_color_classification(attr, old, new):
-        #     print(attr, old, new)
-        #     if new == 'Classification':
-        #         update_table_callback()
-        #         if len(self.rules) > 0:
-        #             print(list(self.classes.keys()))
-        #             new_data = dict(data_cds.data)
-        #             # Add 'non-classified' to all data points first
-        #             new_data['legend_group'][:] = 'No class'
-        #             new_data['color'][:] = 'gray'
-        #             new_data['marker'][:] = 'dot'
-        #             # Add specific style to classified data
-        #             for _i, _class in enumerate(self.classes.keys()):  # iterate over all classes
-        #                 _mask = None
-        #                 for _j, _rule in enumerate(self.classes[_class]):  # iterate over all rules within this class
-        #                     _this_mask = masks.create_mask(
-        #                         data_cds.data[_rule.param],
-        #                         _rule.operator,
-        #                         _rule.limit
-        #                     )
-        #                     if _j == 0:
-        #                         _mask = _this_mask
-        #                     else:  # Append rule using AND
-        #                         _mask = masks.combine_masks([_mask, _this_mask])
-        #                 new_data['legend_group'][_mask] = _class
-        #                 new_data['color'][_mask] = cnames[_i]
-        #                 new_data['marker'][_mask] = markers[_i]
-        #             print('Classification ON. {} data points with classes {} '.format(
-        #                 len(new_data['legend_group']), list(set(new_data['legend_group']))))
-        #             data_cds.data = new_data
-        #     else:
-        #         # TODO
-        #        # This doesnt work properly. The classification doesn't reset
-        #         print('Classification OFF. {} data points with classes {} '.format(
-        #             len(orig_data['legend_group']), list(set(list(orig_data['legend_group'])))))
-        #         data_cds.data = orig_data
 
         title = Div(text =
                     """
@@ -756,7 +666,7 @@ class ClassificationTable:
         # if (color_menu is not None) and (data_cds is not None):
         #     color_menu.on_change('value', use_color_classification)
 
-        return column(title, dt, sizing_mode='stretch_width'), add_row, delete_row, update_table  #, use_cutoffs
+        return column(title, dt, sizing_mode='stretch_width'), row(add_row, delete_row, update_table)  #, use_cutoffs
 
 
 class Cutoffs:
@@ -778,7 +688,6 @@ class Cutoffs:
             Is over-ruled by cutoffs when it is set
         """
         import re
-        from blixt_utils.utils import print_info
         self.name = name
 
         # over-rule from_string when cutoffs are set
@@ -823,7 +732,6 @@ class Cutoffs:
         return ', '.join([str(m) for m in self.cutoffs])
 
     def append(self, new_cutoffs):
-        from blixt_utils.utils import print_info
         if isinstance(new_cutoffs, list):
             for i, co in enumerate(new_cutoffs[:]):
                 if co.param in self.cutoff_params:
@@ -1149,7 +1057,7 @@ class Interval:
         :param depth_type:
             str
         """
-        import blixt_rp.core.log_curve_new as brlc
+        import blixt_geo_py.core.log_curve as brlc
         self.well = well
         if depth_type is None:
             depth_type = 'md'
@@ -1507,7 +1415,7 @@ class WorkingIntervalsTable:
         """
 
         :param intervals:
-            blixt_rp.core.core.Intervals object
+            blixt_geo_py.core.core.Intervals object
 
         :param width:
         """
@@ -1702,8 +1610,6 @@ class WorkingIntervalsTable:
         :return:
         """
         from bokeh.models import DataTable, CheckboxGroup, Div
-        import blixt_utils.misc.masks as masks
-
 
         active_intervals = ColumnDataSource(self.active_intervals_dict(cds))
 
@@ -1738,40 +1644,6 @@ class WorkingIntervalsTable:
         )
 
         cds.js_on_change('patching', source_callback)  # 'patching' is necessary. Don't know what it means
-
-        # def use_wis_callback(attr, old, new):
-        #     if verbose:
-        #         print('APPLY SUCCESSFUL:', source.data['use'])
-        #     if data_source is not None:
-        #         # Take a copy of the original data, and original mask
-        #         _dict = dict(data_source.data)
-        #         orig_mask = data_source.data['mask']
-
-        #         if len(new) == 1:  # 'Use cutoffs' is active
-        #             _mask = self.create_mask(
-        #                 source,
-        #                 Q_(data_source.data['md'], 'm'),
-        #                 list(data_source.data['source_name']))
-        #             mask = masks.combine_masks([orig_mask, _mask])
-        #         else:  # Reset mask
-        #             mask = orig_mask
-
-        #         # Modify the mask in source
-        #         _dict['mask'] = mask
-        #         # Update the source
-        #         data_source.data = _dict
-
-        #         if verbose:
-        #             print(data_source.data['md'][data_source.data['mask']][:5])
-        #             print(data_source.data['md'][data_source.data['mask']][-5:])
-
-        # if data_source is not None:
-        #     use_wis = CheckboxGroup(labels=['Apply working intervals'], active=[])
-        #     use_wis.on_change('active', use_wis_callback)
-        # else:
-        #     use_wis = Div(text='', width=10, height=10)
-        # use_wis = Div(text='', width=10, height=10)
-
 
         title = Div(text =
                     """
@@ -2024,7 +1896,6 @@ class LithoFluid:
         :param avg_type:
         :return:
         """
-        from blixt_utils.io.io import read_sums_and_averages
         postfix = ''
         if avg_type is None:
             avg_type = 'mean'
@@ -2064,9 +1935,9 @@ class LithoFluid:
 
         """
         import matplotlib.pyplot as plt
-        import blixt_rp.rp_utils.avo_monte_carlo as havo
-        from blixt_utils.plotting import helpers as uhelp
-        from blixt_utils.plotting import crossplot as xp
+        import blixt_geo_py.rp_utils.avo_monte_carlo as havo
+        # from blixt_utils.plotting import helpers as uhelp
+        # from blixt_utils.plotting import crossplot as xp
         if label is None:
             label = self.name
         if color is None:
@@ -2103,7 +1974,7 @@ class LithoFluid:
                        case: str | None = None,
                        color: str | None = None,
                        thickness: float | pint.Quantity = Q_(25., 'm')):
-        from blixt_rp.core.models import Layer
+        from blixt_geo_py.core.models import Layer
         if name is None:
             name = self.name
         if isinstance(thickness, float):
@@ -2156,7 +2027,7 @@ class LithoFluid:
         :return:
             LithoFluid with fluid substituted results
         """
-        from blixt_rp.rp.rp_core import gassmann_vel, por_from_mass_balance, k_from_v, k_dry
+        from blixt_geo_py.rp.rp_core import gassmann_vel, por_from_mass_balance, k_from_v, k_dry
 
         if tag is None:
             tag = 'hc'
@@ -2285,7 +2156,7 @@ class LithoFluids:
         :param avg_type:
         :return:
         """
-        from blixt_utils.io.io import read_sums_and_averages
+        # from blixt_utils.io.io import read_sums_and_averages
         postfix = ''
         if avg_type is None:
             avg_type = 'mean'

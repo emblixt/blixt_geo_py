@@ -1,13 +1,14 @@
-import unittest
 import os
 import sys
+import unittest
+
 import matplotlib.pyplot as plt
 
 # Add to path to avoid having to install libraries, useful in development
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\unit_tests', ''))
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-import blixt_rp.rp_utils.avo_monte_carlo as havo
+import blixt_geo_py.rp_utils.avo_monte_carlo as havo
 import blixt_utils.misc.wavelets as bumw
 
 wavelet = bumw.ricker(0.096, 0.001, 25)

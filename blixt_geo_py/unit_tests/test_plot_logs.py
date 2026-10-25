@@ -1,42 +1,39 @@
-import unittest
 import os
 import sys
-import numpy as np
-import matplotlib.pyplot as plt
-import time
-
-from bokeh.models import ColumnDataSource, Spinner, Select, Button, Slider, CheckboxGroup, Div
-from bokeh.plotting import show, row, column
-from bokeh.io import output_file
+import unittest
 from tkinter import Tk
 from tkinter.filedialog import asksaveasfilename
 
 import bruges.rockphysics.anisotropy as bra
+import matplotlib.pyplot as plt
+import numpy as np
 import pint.errors
-from math import isclose
+from bokeh.io import output_file
+from bokeh.models import ColumnDataSource, Spinner, Select, Button, Slider, CheckboxGroup, Div
+from bokeh.plotting import show, row, column
 
-from .. import ureg, Q_
+from .. import Q_
 
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\unit_tests', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 # from AkerBP_PL932.PL923_AVO import cutoffs
-from blixt_rp.core.log_curve_new import LogCurve, Depth, is_equivalent, read_las, read_general_ascii
-from blixt_rp.core.core import Template, LogTable, Intervals, Cutoffs, CutoffRule
-from blixt_rp.core.well_new import Well
-from blixt_rp.core.project_new import Project
-import blixt_rp.plotting.plot_logs_new as bupp
-from blixt_rp.plotting.log_plotter import LogColumn, Line, add_lines, add_strat_table, LogPlotter, select_column, select_line
-from blixt_rp.core.seismic import SeismicTraces, interpolate_along_offset
+from blixt_geo_py.core.log_curve import read_las, read_general_ascii
+from blixt_geo_py.core.core import Template, LogTable, Intervals, Cutoffs, CutoffRule
+from blixt_geo_py.core.well_new import Well
+from blixt_geo_py.core.project_new import Project
+import blixt_geo_py.plotting.plot_logs_new as bupp
+from blixt_geo_py.plotting.log_plotter import LogColumn, Line, add_lines, add_strat_table, LogPlotter
+from blixt_geo_py.core.seismic import SeismicTraces, interpolate_along_offset
 
 test_file_dir = str(os.path.dirname(__file__).replace(
-    'blixt_rp\\unit_tests',
+    'blixt_geo_py\\unit_tests',
     'test_data'))
 output_file(os.path.join(test_file_dir, 'plot.html'))
 
-project_table = os.path.join(test_file_dir.replace('test_data', 'excels'), 'project_table_new.xlsx')
+project_table = os.path.join(test_file_dir.replace('test_data', 'excels'), 'project_table.xlsx')
 project_table2 = "C:\\Users\\emb\\OneDrive - Petrolia NOCO AS\\Technical work\\PL1221\\PL1221 project_new.xlsx"
 
 las_file1 = os.path.join(test_file_dir, "L-30.las")

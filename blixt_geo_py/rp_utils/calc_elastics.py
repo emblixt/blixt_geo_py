@@ -2,18 +2,19 @@
 Functionality designed to plot and calculate the elastic rock properties around a given depth (top) with the goal to
 show how the rock properties changes across this depth and how that can affect the seismic signature
 """
-import numpy as np
-import matplotlib.pyplot as plt
 import os
-import pandas as pd
 
-from blixt_utils.plotting.helpers import axis_plot, annotate_plot, header_plot, wiggle_plot, set_up_column_plot
-from blixt_utils.misc.templates import default_templates
-from blixt_rp.core.well import Project, LogCurve
-import blixt_rp.rp.rp_core as rp
-from blixt_rp.core.models import Model, Layer, plot_wiggles
 import blixt_utils.misc.wavelets as bumw
-import blixt_rp.plotting.plot_logs as rpp
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from blixt_utils.misc.templates import default_templates
+from blixt_utils.plotting.helpers import axis_plot, annotate_plot, header_plot, wiggle_plot, set_up_column_plot
+
+import blixt_geo_py.plotting.plot_logs as rpp
+import blixt_geo_py.rp.rp_core as rp
+from blixt_geo_py.core.models import Model, Layer
+from blixt_geo_py.core.well import Project, LogCurve
 
 h_above = 50.
 h_below = 50.
@@ -350,7 +351,7 @@ def calc_ai_around_top(
 
 
 def test_calc_elastics():
-    dir_path = os.path.dirname(os.path.realpath(__file__)).replace('\\blixt_rp\\rp_utils', '')
+    dir_path = os.path.dirname(os.path.realpath(__file__)).replace('\\blixt_geo_py\\rp_utils', '')
     project_table = os.path.join(dir_path, 'excels', 'project_table.xlsx')
     wp = Project(project_table=project_table)
     wells = wp.load_all_wells(unit_convert_using_template=True)

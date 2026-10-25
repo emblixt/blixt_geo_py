@@ -1,8 +1,9 @@
-import unittest
-import numpy as np
 import os
+import unittest
 
-from blixt_rp.rp import rp_core as rp
+import numpy as np
+
+from blixt_geo_py.rp import rp_core as rp
 
 
 def create_test_data(length, constant_fractions):
@@ -13,9 +14,9 @@ def create_test_data(length, constant_fractions):
 
 
 def create_test_wells():
-    import blixt_rp.core.well as brcw
+    import blixt_geo_py.core.well as brcw
     project_table = str(os.path.dirname(__file__).replace(
-        'blixt_rp\\unit_tests', 'excels\\project_table.xlsx'))
+        'blixt_geo_py\\unit_tests', 'excels\\project_table.xlsx'))
     wp = brcw.Project(name='MyProject', project_table=project_table)
     wells = wp.load_all_wells()
     templates = wp.load_all_templates()
@@ -60,8 +61,8 @@ class VrhTestCase(unittest.TestCase):
             self.assertTrue(io_error)
 
     def test_wells(self):
-        import blixt_rp.core.fluids as flds
-        import blixt_rp.core.minerals as mnrls
+        import blixt_geo_py.core.fluids as flds
+        import blixt_geo_py.core.minerals as mnrls
 
         wp, wells, templates, wis = create_test_wells()
         log_table = {'P velocity': 'vp_dry', 'S velocity': 'vs_dry', 'Density': 'rho_dry', 'Porosity': 'phie',

@@ -1,32 +1,30 @@
-import matplotlib as mpl
-import os, sys
-from copy import deepcopy
+import os
+import sys
 
 import bokeh.plotting
+import bruges
+import matplotlib as mpl
 import numpy as np
-from openpyxl.styles.builtins import title
-from pandas import DataFrame
-from typing import Literal
-from bokeh.plotting import figure, show
-from bokeh.layouts import row, column, Spacer
-from bokeh.models import (Slider, ColorPicker, Line, LinearAxis, Span, Legend, ColumnDataSource, Text,
-                          CustomJS, LinearColorMapper, NumberFormatter, Button, CheckboxGroup)
-from bokeh.models import PanTool,WheelZoomTool, ResetTool, SaveTool, CrosshairTool, HoverTool, ColorBar, LogColorMapper
-from bokeh.models import (DataTable, NumberEditor, SelectEditor, StringEditor, StringFormatter,
-                          IntEditor, TableColumn, CheckboxEditor, NumericInput, VArea)
 from bokeh.io import output_file, curdoc
 from bokeh.layouts import gridplot
+from bokeh.layouts import row, column, Spacer
+from bokeh.models import (DataTable, NumberEditor, SelectEditor, StringEditor, StringFormatter,
+                          IntEditor, TableColumn, CheckboxEditor, NumericInput, VArea)
+from bokeh.models import PanTool, WheelZoomTool, ResetTool, SaveTool, CrosshairTool, HoverTool, ColorBar, LogColorMapper
+from bokeh.models import (Slider, ColorPicker, Line, LinearAxis, Span, Legend, ColumnDataSource, Text,
+                          CustomJS, LinearColorMapper, NumberFormatter, Button, CheckboxGroup)
+from bokeh.plotting import figure, show
+from openpyxl.styles.builtins import title
+from pandas import DataFrame
 
-import bruges
-
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\plotting', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\plotting', ''))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-import blixt_rp.rp_utils.avo_monte_carlo as havo
-from blixt_rp.core.core import LithoFluid, LithoFluids
-import blixt_rp.rp.rp_core as rp
+import blixt_geo_py.rp_utils.avo_monte_carlo as havo
+from blixt_geo_py.core.core import LithoFluid, LithoFluids
+import blixt_geo_py.rp.rp_core as rp
 
 tools = [
     PanTool(),

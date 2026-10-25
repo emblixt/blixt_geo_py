@@ -2,15 +2,12 @@
 Calculates the TOC using the functions from Passey et al. 1990 "A practical model for organic richness ...",
 which are implemented in rp_core.py
 """
-from datetime import datetime
-import numpy as np
 import matplotlib.pyplot as plt
-
-from blixt_rp.rp_utils.version import info
+import numpy as np
+from blixt_geo_py.core.log_curve import LogCurve
+from blixt_utils.misc.templates import default_templates
 from blixt_utils.plotting.helpers import axis_plot, annotate_plot, header_plot, deltalogr_plot, set_up_column_plot, \
     axis_plot_with_color_gradient
-from blixt_rp.core.log_curve import LogCurve
-from blixt_utils.misc.templates import default_templates
 
 text_style = {'fontsize': 'x-small', 'bbox': {'facecolor': 'w', 'alpha': 0.5}}
 
@@ -138,7 +135,7 @@ def calc_toc(
         input r0 and ac0 as baseline
 
     """
-    from blixt_rp.rp.rp_core import delta_log_r, toc_from_delta_log_r
+    from blixt_geo_py.rp.rp_core import delta_log_r, toc_from_delta_log_r
     if r0 is None:
         r0 = 2.1
     if ac0 is None:

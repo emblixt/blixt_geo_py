@@ -1,8 +1,7 @@
 import unittest
-import os
-
 
 import pint
+
 from .. import ureg, Q_
 
 
@@ -48,7 +47,7 @@ class UnitsTestCase(unittest.TestCase):
         self.assertIsInstance(r4, pint.Quantity)
 
     def test_units(self):
-        from blixt_rp.core.log_curve_new import fix_units_for_pint, is_equivalent
+        from blixt_geo_py.core.log_curve import fix_units_for_pint, is_equivalent
         print(fix_units_for_pint('m3'))
         nM = ureg.Unit('nM')
         nmol_L = ureg.Unit('nmol/L')

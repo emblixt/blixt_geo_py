@@ -1,8 +1,10 @@
-import unittest
 import os
-from blixt_rp.core.well import Project
-from blixt_rp.core.well import Well
+import unittest
+
 import numpy as np
+
+from blixt_geo_py.core.well import Project
+from blixt_geo_py.core.well import Well
 
 def_lb_name = 'Logs'  # default Block name
 def_msk_name = 'Mask'  # default mask name

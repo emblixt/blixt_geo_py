@@ -8,19 +8,19 @@ half space model with top "Layer 1" and base "Layer 2"
 @author: mblixt
 """
 import os
-import numpy as np
-import matplotlib.pyplot as plt
+
+import blixt_utils.misc.wavelets as bumw
 import matplotlib.colors as colors
+import matplotlib.pyplot as plt
+import numpy as np
 import scipy.stats
+from blixt_utils.plotting import crossplot as myxp
+from blixt_utils.utils import find_value
 from matplotlib.font_manager import FontProperties
 from matplotlib.lines import Line2D
 
-import blixt_rp.rp.rp_core as rp
-from blixt_utils.plotting import crossplot as myxp
-from blixt_rp.plotting import plot_reflectivity as mypr
-
-import blixt_utils.misc.wavelets as bumw
-from blixt_utils.utils import find_value
+import blixt_geo_py.rp.rp_core as rp
+from blixt_geo_py.plotting import plot_reflectivity as mypr
 
 msymbols = np.array(['o', 's', 'v', '^', '<', '>', 'p', '*', 'h', 'H', '+', 'x',
                      'D', 'd', '|', '_', '.', '1', '2', '3', '4', '8'])
@@ -353,7 +353,7 @@ def layered_model(target_thickness, target,  background,
     :param verbose:
     :return:
     """
-    from blixt_rp.core.models import build_layered_model, laminar_model_analysis
+    from blixt_geo_py.core.models import build_layered_model, laminar_model_analysis
 
     dt = wavelet['header']['Sample rate']  # should be given in seconds
     if dt > 0.1:
@@ -387,7 +387,7 @@ def evaluate_layered_model(model, wavelet, extract_at, extract_on='exact', verbo
     :param verbose:
     :return:
     """
-    from blixt_rp.core.models import laminar_model_analysis
+    from blixt_geo_py.core.models import laminar_model_analysis
     def signed_max_amplitude(_x, _center, _width):
         _data = _x[_center - _width:_center + _width]
         _max = np.max(_data)

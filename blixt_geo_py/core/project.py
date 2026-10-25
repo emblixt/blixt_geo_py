@@ -2,34 +2,30 @@
 """
 Module for handling a Project, consisting of many wells
 """
-from datetime import datetime
-import numpy as np
-import pandas as pd
 import logging
-import re
 import os
 import sys
-import matplotlib.pyplot as plt
-from scipy.interpolate import interp1d
-from matplotlib.font_manager import FontProperties
+from datetime import datetime
 
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\core', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
+import numpy as np
+import pandas as pd
+from matplotlib.font_manager import FontProperties
+from scipy.interpolate import interp1d
+
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-from blixt_rp.core.well_new import Well
-from blixt_rp.core.core import LogTable
+from blixt_geo_py.core.well_new import Well
+from blixt_geo_py.core.core import LogTable
 
 from blixt_utils.misc.attribdict import AttribDict
-from blixt_rp.rp_utils.version import info
 from blixt_utils.misc.templates import log_header_to_template as l2tmpl
 from blixt_utils.utils import log_table_in_smallcaps as small_log_table
 import blixt_utils.io.io as uio
-import blixt_utils.misc.masks as msks
 from blixt_utils.utils import arrange_logging, print_info
 from blixt_utils.misc.convert_data import convert as cnvrt
-import blixt_rp.rp_utils.definitions as ud
 from blixt_utils.utils import isnan
 
 logger = logging.getLogger(__name__)
@@ -102,7 +98,7 @@ class Project(object):
             self.templates = None
 
             if project_table is None:
-                self.project_table = os.path.join(self.working_dir, 'excels', 'project_table_new.xlsx')
+                self.project_table = os.path.join(self.working_dir, 'excels', 'project_table.xlsx')
             elif not os.path.isfile(project_table):
                 self.project_table = os.path.join(self.working_dir, project_table)
             else:
@@ -263,7 +259,7 @@ class Project(object):
         :param verbose:
         :return:
         """
-        from blixt_rp.core.core import Template, LogTable
+        from blixt_geo_py.core.core import LogTable
 
         result = uio.project_wells_new(self.project_table, self.working_dir, do_rename=True)
 
@@ -315,7 +311,7 @@ class Project(object):
         self.load_all_templates()
 
     def load_all_templates(self):
-        from blixt_rp.core.core import Template, templates_from_table
+        from blixt_geo_py.core.core import Template, templates_from_table
         _templates = {}
         if self.project_table is not None:
             table = pd.read_excel(self.project_table, header=1, sheet_name='Templates', engine='openpyxl')
@@ -330,7 +326,7 @@ class Project(object):
             self.templates = _templates
 
     def load_all_wis(self):
-        from blixt_rp.core.core import Intervals
+        from blixt_geo_py.core.core import Intervals
         wis = Intervals()
         if self.project_table is not None:
             wis.read_blixt_tops(self.project_table)

@@ -6,34 +6,33 @@ Module for handling LogCurve objects
     GNU Lesser General Public License, Version 3
     (https://www.gnu.org/copyleft/lesser.html)
 """
-import sys
-import os.path
-from datetime import datetime
 import logging
+import os.path
+import sys
 from copy import deepcopy
-import numpy as np
-import matplotlib.pyplot as plt
-from bokeh.models import ColumnDataSource
-from pandas import DataFrame
-import xarray as xr
-import pint
+from datetime import datetime
 # from pint import UnitRegistry
 from math import isclose, ceil
 
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\core', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
+import matplotlib.pyplot as plt
+import numpy as np
+import pint
+import xarray as xr
+from bokeh.models import ColumnDataSource
+from pandas import DataFrame
+
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-from blixt_rp.core.core import Template, Cutoffs, LogTable
-from blixt_rp.core.param import Param
+from blixt_geo_py.core.core import Template, Cutoffs, LogTable
 from blixt_utils.signal_analysis.signal_analysis import smooth as _smooth
 from blixt_utils.misc.curve_fitting import residuals, linear_function, calculate_depth_trend, calculate_blocking
-from blixt_rp.rp_utils.definitions import allowed_depth_formats
 from blixt_utils.misc.convert_data import convert
 from blixt_utils.misc import masks as msks
 from blixt_utils.misc import templates as tmplts
-import blixt_rp.rp_utils.definitions as rud
+import blixt_geo_py.rp_utils.definitions as rud
 from blixt_utils.io.io import read_general_ascii_GENERAL as read_file
 
 
@@ -64,8 +63,8 @@ class Depth(object):
             str
             Any unit handled by pint.
             Extensions to pint default units should be added here:
-            blixt_rp/units_to_pint.txt
-            (jetbrains://pycharm/navigate/reference?project=PycharmProjects&path=blixt_rp/blixt_rp/units_to_pint.txt)
+            blixt_geo_py/units_to_pint.txt
+            (jetbrains://pycharm/navigate/reference?project=PycharmProjects&path=blixt_geo_py/blixt_geo_py/units_to_pint.txt)
         :param depth_type:
             str
             'md', 'tvd', 'owt', or 'twt'
@@ -190,7 +189,7 @@ class LogCurve(object):
     when the log data is given in 'm/s', it will be automatically converted to 'km/s'
 
     """
-    from blixt_rp.core.core import Template, Header
+    from blixt_geo_py.core.core import Template, Header
     def __init__(self,
                  name: str,
                  log_data: pint.Quantity,
@@ -225,7 +224,7 @@ class LogCurve(object):
         :param header:
             Header object or dict
         """
-        from blixt_rp.core.core import Template, Header
+        from blixt_geo_py.core.core import Template, Header
         from blixt_utils.utils import print_info
         if len(log_data) != len(depth):
             raise IOError('Length of log_data ({}) must equal length of depth ({})'.format(
@@ -316,7 +315,7 @@ class LogCurve(object):
 
         self._style = style
 
-    from blixt_rp.core.core import Template
+    from blixt_geo_py.core.core import Template
 
     def __len__(self):
         return len(self.data)
@@ -461,7 +460,7 @@ class LogCurve(object):
 
     @style.setter
     def style(self, style_template: Template | dict | None):
-        from blixt_rp.core.core import Template
+        from blixt_geo_py.core.core import Template
         if style_template is None:
             self._style = Template()
         elif isinstance(style_template, dict):
@@ -1312,7 +1311,7 @@ class LogCurve(object):
         Returns a (blixt_utils specific) Line object, which can be directly used in plot_logs.py
         :return:
         """
-        from blixt_rp.plotting.log_plotter import Line
+        from blixt_geo_py.plotting.log_plotter import Line
         self.style.name = self.name
         # _cds = ColumnDataSource(
         #     {str(self.name): self.data.magnitude, 'depth': self.depth.magnitude}
@@ -1423,7 +1422,7 @@ def read_las(file_name: str, verbose: bool = False, encoding: str = 'UTF8',
     from blixt_utils.utils import fix_well_name
     from blixt_utils.utils import print_info
     from blixt_utils.io.io import well_reader
-    from blixt_rp.core.core import Template, templates_from_table
+    from blixt_geo_py.core.core import Template, templates_from_table
 
     with open(file_name, "r", encoding=encoding) as f:
         lines = f.readlines()
@@ -1694,8 +1693,8 @@ def handle_depth(
         str
         Any unit handled by pint.
         Extensions to pint default units should be added here:
-        blixt_rp/units_to_pint.txt
-        (jetbrains://pycharm/navigate/reference?project=PycharmProjects&path=blixt_rp/blixt_rp/units_to_pint.txt)
+        blixt_geo_py/units_to_pint.txt
+        (jetbrains://pycharm/navigate/reference?project=PycharmProjects&path=blixt_geo_py/blixt_geo_py/units_to_pint.txt)
     :param verbose:
     :return:
         pint.Quantity

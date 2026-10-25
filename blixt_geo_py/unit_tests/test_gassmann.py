@@ -1,13 +1,14 @@
 import unittest
-import numpy as np
-import matplotlib.pyplot as plt
 
+import matplotlib.pyplot as plt
+import numpy as np
+from blixt_geo_py.core.log_curve import LogCurve
 from blixt_utils.misc.attribdict import AttribDict
-from blixt_rp import rp as rp, rp as moduli
-import blixt_rp.core.well as cw
-from blixt_rp.core.well import Well
-from blixt_rp.core.well import Block
-from blixt_rp.core.log_curve import LogCurve
+
+import blixt_geo_py.core.well as cw
+from blixt_geo_py import rp as rp, rp as moduli
+from blixt_geo_py.core.well import Block
+from blixt_geo_py.core.well import Well
 
 
 def avseth_gassmann(ksat1, kf1, kf2, kmin, phi):
@@ -241,8 +242,8 @@ class GMTest(unittest.TestCase):
 
 
     def test_fs(self):
-        from blixt_rp.core.fluids import Fluid, FluidMix
-        from blixt_rp.core.minerals import Mineral, MineralMix
+        from blixt_geo_py.core.fluids import Fluid, FluidMix
+        from blixt_geo_py.core.minerals import Mineral, MineralMix
         well, wis = create_well_and_wis('TEST', 500., 1500., 'TARGET', 1000., 1200.)
 
         print(well.block['Logs'].logs.keys(), wis)

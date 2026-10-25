@@ -17,35 +17,31 @@ A mineral is defined by its:
 
 @author: mblixt
 """
+import logging
+import os
+import sys
 import unittest
-
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 from copy import deepcopy
 from datetime import datetime
-from dataclasses import dataclass
-import sys
-import os
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import pint
 from bokeh.models import ColumnDataSource
 from bokeh.plotting import column, row
-import pint
 from pandas.core.indexes.base import maybe_extract_name
-import logging
 
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\core', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-from blixt_rp import Q_
+from blixt_geo_py import Q_
 from blixt_utils.misc.attribdict import AttribDict
-from blixt_rp.rp_utils.version import info
+from blixt_geo_py.rp_utils.version import info
 from blixt_utils.utils import isnan, print_info
-import blixt_utils.io.io as uio
-from blixt_rp import rp as rp
-import blixt_rp.rp_utils.definitions as ud
-from blixt_rp.core.core import Cutoffs, LogTable, Intervals
+from blixt_geo_py.core.core import Cutoffs, LogTable, Intervals
 
 logger = logging.getLogger(__name__)
 
@@ -386,7 +382,7 @@ class Mineral(object):
         :return:
             pint.Quantity with vp
         """
-        from blixt_rp.rp.rp_core import v_p
+        from blixt_geo_py.rp.rp_core import v_p
         vp = v_p(self.k, self.mu, self.rho)
         return vp.to('m/s')
 
@@ -650,8 +646,8 @@ class MineralMix(object):
 
 class TestCases(unittest.TestCase):
     def test_data(self):
-        from blixt_rp.core.project_new import Project
-        project_table = os.path.join(project_dir, 'blixt_rp\\excels\\project_table_new.xlsx')
+        from blixt_geo_py.core.project_new import Project
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx')
         project = Project(name='MyProject', project_table=project_table)
         project.load_all_wells()
         wis = project.load_all_wis()
@@ -665,14 +661,14 @@ class TestCases(unittest.TestCase):
         print(m.vp())
 
     def test_read_mineral_mixes(self):
-        project_table = os.path.join(project_dir, 'blixt_rp\\excels\\project_table_new.xlsx')
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx')
         my_mineral_mix = MineralMix()
         my_mineral_mix.read_excel(project_table)
         print(my_mineral_mix)
         print(my_mineral_mix.print_all_minerals())
 
     def test_calc_elastics(self):
-        from blixt_rp.core.core import LogTable, Intervals
+        from blixt_geo_py.core.core import LogTable
         project, wis = self.test_data()
         log_table = LogTable({
             'P velocity': 'vp_dry',
@@ -692,7 +688,7 @@ class TestCases(unittest.TestCase):
         if unit_test:
             from bokeh.io import output_file
             from bokeh.plotting import show, row, column
-            output_file(os.path.join(project_dir, 'blixt_rp\\results_folder\\plot.html'))
+            output_file(os.path.join(project_dir, 'blixt_geo_py\\results_folder\\plot.html'))
             show(column(table, row(add_row, delete_row, update)))
             return None, None, None, None
         else:

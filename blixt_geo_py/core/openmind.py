@@ -1,12 +1,7 @@
-import os
-import sys
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
-from matplotlib.font_manager import FontProperties
-
 import openmind.openmind_tool as openmind_tool
-import openmind.core.models as models
+from matplotlib.font_manager import FontProperties
+from matplotlib.lines import Line2D
 
 
 def get_info():

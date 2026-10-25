@@ -1,25 +1,26 @@
-import unittest
 import os
 import sys
+import unittest
+
 import matplotlib.pyplot as plt
 import numpy as np
 from bokeh.io import output_file
 from pint import DimensionalityError
 
-from blixt_rp.core.core import LithoFluid, LithoFluids, LithoFluidsTable
-from blixt_rp.core.seismic import AvoAnalyzer
+from blixt_geo_py.core.core import LithoFluids, LithoFluidsTable
+from blixt_geo_py.core.seismic import AvoAnalyzer
 
 # Add to path to avoid having to install libraries, useful in development
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\unit_tests', ''))
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
-output_file(os.path.join(project_dir, 'blixt_rp', 'test_data','plot.html'))
+output_file(os.path.join(project_dir, 'blixt_geo_py', 'test_data','plot.html'))
 
-from blixt_rp.core.models import (Model, Layer, ModelTable, LaminarModel, WedgeModel, FaultModel,
+from blixt_geo_py.core.models import (Model, Layer, ModelTable, LaminarModel, WedgeModel, FaultModel,
                                   plot_wiggles, build_layered_model, laminar_model_analysis,
                                   build_saturation_wedge, detect_change_in_cases, build_wedge)
-from blixt_rp.core.core import LithoFluid
+from blixt_geo_py.core.core import LithoFluid
 import blixt_utils.misc.wavelets as bumw
-from blixt_rp import Q_
+from blixt_geo_py import Q_
 
 # l1 = {'vp': 3000, 'vs': 1820, 'rho': 2.6}
 # l2 = {'vp': 2900, 'vs': 1620, 'rho': 2.2}
@@ -178,7 +179,7 @@ class TestCase(unittest.TestCase):
         ax.plot(twt, vp / 1000., twt, li)
 
     def test_quasi2d_layer(self, unit_test=True):
-        from blixt_rp.core.core import LithoFluid
+        from blixt_geo_py.core.core import LithoFluid
         def vp(_i):
             return Q_(3000. +  5. * _i, 'm/s')
         def vs(_i):
@@ -199,7 +200,7 @@ class TestCase(unittest.TestCase):
 
     def test_quasi2d(self, unit_test=True):
         from bokeh.plotting import show, row, column
-        from blixt_rp.core.core import LithoFluid, LithoFluids, LithoFluidsTable
+        from blixt_geo_py.core.core import LithoFluid, LithoFluids, LithoFluidsTable
 
         n_samplings = 11
 
@@ -299,7 +300,7 @@ class TestCase(unittest.TestCase):
         plt.show()
 
     def test_saturation_wedge(self):
-        from blixt_rp.rp.rp_core import rpt_parameters
+        from blixt_geo_py.rp.rp_core import rpt_parameters
         wavelet = bumw.ricker(0.096, 0.001, 25)
         dt = wavelet['header']['Sample rate']  # should be given in seconds
         rpts = rpt_parameters()
@@ -571,7 +572,7 @@ class TestCase(unittest.TestCase):
                  dip_selector, throw_selector, n_traces_selector, dx_selector)
 
     def test_faulted_horizons(self):
-        from blixt_rp.core.models import faulted_layer_top, faulted_layer_thickness
+        from blixt_geo_py.core.models import faulted_layer_top, faulted_layer_thickness
         T = [30., 50., 50., 30.]
         n_layers = len(T)
 

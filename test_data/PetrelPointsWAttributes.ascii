@@ -1,0 +1,19 @@
+# Petrel Points with attributes
+# Unit in X and Y direction: m
+# Unit in depth: m
+VERSION 1
+BEGIN HEADER
+X
+Y
+Z
+TWT auto
+INT,Discrete
+BOOL,Boolean
+STRING,String
+DATE,Date
+END HEADER
+488232.42 6723555.97 -2464.41 -2464.41 1      FALSE  "Very important" "1/8/2026" 
+489320.11 6724655.78 -2576.38 -2576.38 1      FALSE  "Less important" "2/8/2026" 
+490158.22 6728068.13 -2669.80 -2669.80 2      FALSE  "Contain number 7" "3/8/2026" 
+490833.93 6732055.52 -2700.26 -2700.26 2      TRUE   "Less important" "4/8/2026" 
+491145.59 6727355.46 -2694.95 -2694.95 3      TRUE   "Simple" "5/8/2026" 

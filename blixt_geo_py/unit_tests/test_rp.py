@@ -1,18 +1,18 @@
-import unittest
 import os
 import sys
-import numpy as np
+import unittest
+
 import matplotlib.pyplot as plt
+import numpy as np
 
 # Add to path to avoid having to install libraries, useful in development
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\unit_tests', ''))
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-from blixt_rp.core.well import Well
 import blixt_utils.io.io as uio
-from blixt_rp.core.well import Project
+from blixt_geo_py.core.well import Project
 from blixt_utils.misc.convert_data import convert as cnvrt
-import blixt_rp.rp.rp_core as rp
+import blixt_geo_py.rp.rp_core as rp
 
 
 def return_well_table():
@@ -30,7 +30,7 @@ def return_wis():
 class TestData(unittest.TestCase):
     wp = Project(
         name='TestProject',
-        project_table=os.path.join(project_dir, 'blixt_rp\\excels\\project_table.xlsx'),
+        project_table=os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx'),
         log_to_stdout=True)
     def test_data(self):
         print(TestData.wp.project_table)
@@ -71,8 +71,7 @@ class RpTestCase(unittest.TestCase):
     #     block_name='Logs')
 
     def test_mixes(self):
-        import blixt_rp.core.fluids as flds
-        import blixt_rp.core.minerals as mnrls
+        import blixt_geo_py.core.fluids as flds
 
         fluid_mix = flds.FluidMix()
         fluid_mix.read_excel(TestData.wp.project_table)
@@ -197,7 +196,7 @@ class RpTestCase(unittest.TestCase):
 
     def test_hashin_shtrikman(self):
         from bruges.rockphysics.bounds import hashin_shtrikman as bruges_hs
-        from blixt_rp.rp.rp_core import hashin_shtrikman as blixt_hs
+        from blixt_geo_py.rp.rp_core import hashin_shtrikman as blixt_hs
         f = [0.666, 1.-0.666]
         k = [36.6, 2.56]
         mu = [45., 0.0]

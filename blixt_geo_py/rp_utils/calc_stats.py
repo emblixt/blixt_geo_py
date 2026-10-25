@@ -1,20 +1,21 @@
-from datetime import datetime
-import numpy as np
 import logging
 import os
-import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
-from matplotlib.font_manager import FontProperties
-import seaborn as sns
-import pandas as pd
-import bruges.rockphysics.anisotropy as bra
+from datetime import datetime
 
 import blixt_utils.io.io as uio
+import bruges.rockphysics.anisotropy as bra
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
 from blixt_utils.plotting import crossplot as xp
 from blixt_utils.plotting import helpers as uhelp
-from blixt_utils.utils import nan_corrcoef, print_info
 from blixt_utils.utils import log_table_in_smallcaps as small_log_table
-import blixt_rp.rp_utils.definitions as ud
+from blixt_utils.utils import nan_corrcoef, print_info
+from matplotlib.font_manager import FontProperties
+from matplotlib.lines import Line2D
+
+import blixt_geo_py.rp_utils.definitions as ud
 
 logger = logging.getLogger(__name__)
 def_msk_name = 'Mask'  # default mask name

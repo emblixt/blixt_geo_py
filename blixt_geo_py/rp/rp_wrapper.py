@@ -6,33 +6,30 @@ New version started at Thu Apr 30 08:30 2026
 
 @author: mblixt
 """
+import logging
+import os
+import sys
 import unittest
+from typing import Callable
 
 import numpy as np
-import logging
-import sys
-import os
-from typing import Callable
 import pint
-
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.sources import ColumnDataSource
 from bokeh.models.widgets.tables import StringEditor
 from dask.array.chunk import nanmin
 
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\rp', ''))
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\rp', ''))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 
-import blixt_rp.rp_utils.definitions as ud
-import blixt_rp.rp.rp_core as rp
-from blixt_rp import Q_, ureg
-from blixt_rp.core.param import Param
+import blixt_geo_py.rp.rp_core as rp
+from blixt_geo_py import Q_
 from blixt_utils.utils import log_table_in_smallcaps as small_log_table
 from blixt_utils.utils import print_info
-from blixt_rp.plotting.cross_plotter import DataSource, cnames
-from blixt_rp.core.core import LogTable
+from blixt_geo_py.plotting.cross_plotter import DataSource
+from blixt_geo_py.core.core import LogTable
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +61,7 @@ _rpt_kwargs = {
 }
 
 test_file_dir = str(os.path.dirname(__file__).replace(
-    'blixt_rp\\rp',
+    'blixt_geo_py\\rp',
     'test_data'))
 las_fileA = os.path.join(test_file_dir, "Well A.las")
 
@@ -340,8 +337,8 @@ def rpt_to_moduli(v_p: list, v_s: list, rho: list, annotations: list) -> dict:
         list of strings used to annotate the different items in the v_p list
     :return:
     """
-    from blixt_rp.plotting.cross_plotter import cnames
-    from blixt_rp.rp.moduli import moduli_dict
+    from blixt_geo_py.plotting.cross_plotter import cnames
+    from blixt_geo_py.rp.moduli import moduli_dict
     moduli_keys = ['ai', 'vp/vs', 'mu', 'bulk', 'pr', 'lam', 'pmod', 'youngs']
     _dict = {'colors': [], 'labels': []}
     for _i, _c in enumerate(annotations):
@@ -560,8 +557,8 @@ def data_source_moduli(data_source: DataSource, log_table:LogTable, verbose = Fa
     :param log_table:
     :return:
     """
-    from blixt_rp.rp.moduli import moduli_dict
-    from blixt_rp.core.core import Template
+    from blixt_geo_py.rp.moduli import moduli_dict
+    from blixt_geo_py.core.core import Template
     from numpy import nanmin, nanmax
 
     if log_table.multi_log:
@@ -652,8 +649,8 @@ class TestCases(unittest.TestCase):
             print(rho[_i])
 
     def test_data_source_moduli(self):
-        from blixt_rp.core.well_new import Well
-        from blixt_rp.core.core import LogTable
+        from blixt_geo_py.core.well_new import Well
+        from blixt_geo_py.core.core import LogTable
         from numpy import nanmin, nanmax
         w = Well()
         w.read_las(las_fileA, True)
@@ -670,7 +667,7 @@ class TestCases(unittest.TestCase):
         from bokeh.plotting import figure, show
         from bokeh.models import ColumnDataSource
         from bokeh.io import output_file
-        output_file(os.path.join(project_dir, 'blixt_rp\\results_folder\\plot.html'))
+        output_file(os.path.join(project_dir, 'blixt_geo_py\\results_folder\\plot.html'))
 
         phi = Q_(np.linspace(0.05, 0.35, 4))
         sw = Q_([0.1, 0.5, 1.0], '')

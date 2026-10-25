@@ -13,33 +13,32 @@ NOTE, THIS FUNCTIONALITY WILL BE REPLACED WITH THE NEWER fluid_and_minerals.py
 @author: mblixt
 """
 import logging
+import os
+import sys
+import unittest
 from copy import deepcopy
 from datetime import datetime
+from typing import Literal, List
+
 import numpy as np
 import pandas as pd
-import unittest
-import os, sys
-from typing import Literal, List, Any
-from pathlib import Path
-from dataclasses import dataclass
-
+import pint
 from bokeh.io import output_file
 from bokeh.models import ColumnDataSource
 from bokeh.plotting import column, row
-import pint
 
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\core', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-from blixt_rp import Q_
-import blixt_rp.rp.rp_core as rp
-from blixt_rp.core.well_new import Well
+from blixt_geo_py import Q_
+import blixt_geo_py.rp.rp_core as rp
+from blixt_geo_py.core.well_new import Well
 from blixt_utils.misc.attribdict import AttribDict
-from blixt_rp.rp_utils.version import info
+from blixt_geo_py.rp_utils.version import info
 from blixt_utils.utils import isnan, print_info
-from blixt_rp.core.core import Interval, Intervals
+from blixt_geo_py.core.core import Interval, Intervals
 
 
 logger = logging.getLogger(__name__)
@@ -1217,7 +1216,7 @@ class FluidMix(object):
 
 class TestCases(unittest.TestCase):
     def test_read_fluid_mixes(self):
-        project_table = os.path.join(project_dir, 'blixt_rp\\excels\\project_table_new.xlsx')
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx')
         intervals = Intervals(name='MyIntervals')
         intervals.read_blixt_tops(project_table)
         # my_fluid_mixes = read_fluidmixes_from_excel(project_table, intervals)
@@ -1248,9 +1247,9 @@ class TestCases(unittest.TestCase):
         #     print(info_txt)
 
     def test_calc_elastics(self):
-        from blixt_rp.core.project_new import Project
+        from blixt_geo_py.core.project_new import Project
 
-        project_table = os.path.join(project_dir, 'blixt_rp\\excels\\project_table_new.xlsx')
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx')
         wp = Project(name='MyProject', project_table=project_table)
         wp.load_all_wells()
         wells = {_w.name.lower(): _w for _w in wp.wells}
@@ -1267,9 +1266,8 @@ class TestCases(unittest.TestCase):
         print(fmix.print_all_fluids(verbose=True))
 
     def test_data(self):
-        import os
 
-        from blixt_rp.core.well import Project
+        from blixt_geo_py.core.well import Project
         wp = Project(name='MyProject')
 
         # myfluids = FluidMix()
@@ -1299,21 +1297,20 @@ class TestCases(unittest.TestCase):
         if unit_test:
             from bokeh.io import output_file
             from bokeh.plotting import show, row, column
-            output_file(os.path.join(project_dir, 'blixt_rp\\results_folder\\plot.html'))
+            output_file(os.path.join(project_dir, 'blixt_geo_py\\results_folder\\plot.html'))
             show(column(table, row(add_row, delete_row, update)))
             return None, None, None, None
         else:
             return table, add_row, delete_row, update
 
     def test_fluidsub(self):
-        import matplotlib.pyplot as plt
-        from blixt_rp.core.core import LogTable, Cutoffs, CutoffRule
-        from blixt_rp.core.well_new import Well
-        from blixt_rp.core.log_curve_new import Depth, LogCurve
-        from blixt_rp.plotting.cross_plotter import CrossPlotter
+        from blixt_geo_py.core.core import LogTable, Cutoffs, CutoffRule
+        from blixt_geo_py.core.well_new import Well
+        from blixt_geo_py.core.log_curve import Depth, LogCurve
+        from blixt_geo_py.plotting.cross_plotter import CrossPlotter
 
         file_dir = str(os.path.dirname(__file__).replace(
-            'blixt_rp\\core',
+            'blixt_geo_py\\core',
             ''))
         project_table = os.path.join(file_dir, 'excels\\project_table_new.xlsx')
 

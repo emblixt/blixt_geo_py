@@ -4,25 +4,25 @@ Created on Tue Oct  1 15:25:40 2019
 
 @author: mblixt
 """
-import numpy as np
-import matplotlib.pyplot as plt
 import logging
+import os
+import sys
 # from dataclasses import dataclass
 from copy import deepcopy
-import sys
-import os
 
 import bruges.rockphysics.rockphysicsmodels as brr
+import matplotlib.pyplot as plt
+import numpy as np
 
-import blixt_rp.rp_utils.definitions as ud
-from blixt_rp.core.param import Param
+import blixt_geo_py.rp_utils.definitions as ud
+from blixt_geo_py.core.param import Param
 
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\rp', ''))
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\rp', ''))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 from blixt_utils.utils import log_table_in_smallcaps as small_log_table
 from blixt_utils.utils import print_info
 
-from blixt_rp import Q_
+from blixt_geo_py import Q_
 
 logger = logging.getLogger(__name__)
 

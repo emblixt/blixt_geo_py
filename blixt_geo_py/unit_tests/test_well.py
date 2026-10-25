@@ -1,20 +1,17 @@
-import unittest
 import os
-import numpy as np
+import unittest
+
 import matplotlib.pyplot as plt
-import time
+import numpy as np
 
-import pint.errors
-from math import isclose
-
+from blixt_geo_py.core.core import LogTable, Cutoffs, CutoffRule, Intervals
 from .. import Q_
-from blixt_rp.core.core import LogTable, Cutoffs, CutoffRule, Interval, Intervals
 
 test_file_dir = str(os.path.dirname(__file__).replace(
-    'blixt_rp\\unit_tests',
+    'blixt_geo_py\\unit_tests',
     'test_data'))
 
-project_table = os.path.join(test_file_dir.replace('test_data', 'excels'), 'project_table_new.xlsx')
+project_table = os.path.join(test_file_dir.replace('test_data', 'excels'), 'project_table.xlsx')
 
 las_file1 = os.path.join(test_file_dir, "L-30.las")
 log_table1 = LogTable({
@@ -58,8 +55,8 @@ data5 = Q_(np.linspace(6, 8, n) + np.random.random(n), 'Ohmm')
 depth5 = Q_(np.linspace(1400. * 3, 2500. * 3., n) + np.random.random(n), 'feet')
 
 def simple_test_well():
-    from blixt_rp.core.well_new import Well
-    from blixt_rp.core.log_curve_new import Depth, LogCurve
+    from blixt_geo_py.core.well_new import Well
+    from blixt_geo_py.core.log_curve import Depth, LogCurve
     lc1 = LogCurve('Long and regular', data1, Depth(depth1))
     lc2 = LogCurve('Long and irregular', data2, Depth(depth2))
     lc3 = LogCurve('Short and regular', data3, Depth(depth3))
@@ -79,8 +76,8 @@ class WellTestCase(unittest.TestCase):
             print(lc.name, len(lc), lc.is_evenly_spaced, lc.units, lc.depth_units,  lc.log_type)
 
     def test_harmonize_logs(self):
-        from blixt_rp.core.well_new import Well
-        from blixt_rp.core.log_curve_new import Depth, LogCurve
+        from blixt_geo_py.core.well_new import Well
+        from blixt_geo_py.core.log_curve import Depth, LogCurve
 
         _n = 1400
         # Create a well where the log with the greatest depth range is regular
@@ -150,8 +147,8 @@ class WellTestCase(unittest.TestCase):
 
 
     def test_create_well_from_las(self):
-        from blixt_rp.core.well_new import Well
-        from blixt_rp.core.core import LogTable
+        from blixt_geo_py.core.well_new import Well
+        from blixt_geo_py.core.core import LogTable
         w = Well()
         self.assertIsInstance(w, Well, 'Failed')
         w.read_las(las_file1, True)
@@ -186,7 +183,7 @@ class WellTestCase(unittest.TestCase):
         print(w.name)
 
     def test_add_log(self):
-        from blixt_rp.core.well_new import Well
+        from blixt_geo_py.core.well_new import Well
         w = Well()
         w.read_las(las_file1, True, log_table={'Sonic': 'dt'})
         for log in w.logs:
@@ -206,8 +203,8 @@ class WellTestCase(unittest.TestCase):
         print(mod_date1, mod_date2, mod_date3)
 
     def test_read_las(self):
-        from blixt_rp.core.well_new import Well
-        from blixt_rp.core.core import LogTable, Template
+        from blixt_geo_py.core.well_new import Well
+        from blixt_geo_py.core.core import Template
         well1 = Well()
         well1.read_las(las_file1, log_table=log_table1, template_file=project_table)
         print(well1.get_log_names)
@@ -224,19 +221,19 @@ class WellTestCase(unittest.TestCase):
         self.assertIsInstance(lc.style, Template)
 
     def test_old_well_type(self):
-        from blixt_rp.core.well import Well as OldWell
+        from blixt_geo_py.core.well import Well as OldWell
         w0 = OldWell()
         w0.read_las(las_file2)
         print(w0.header, w0.block['Logs'].header, w0.block['Logs'].logs)
 
     def test_write_las(self):
-        from blixt_rp.core.well_new import Well
+        from blixt_geo_py.core.well_new import Well
         well1 = Well()
         well1.read_las(las_file2, log_table=log_table2, template_file=project_table)
         well1.write_las('test.las')
 
     def test_las_and_data(self):
-        from blixt_rp.core.well_new import Well
+        from blixt_geo_py.core.well_new import Well
         well = Well()
         well.read_las(las_file2, log_table=log_table2, template_file=project_table)
         print(well.get_log_names)
@@ -256,7 +253,7 @@ class WellTestCase(unittest.TestCase):
         print(owt.style)
 
     def test_create_md_log(self):
-        from blixt_rp.core.well_new import Well
+        from blixt_geo_py.core.well_new import Well
         well = Well()
         well.read_las(las_file2, log_table=log_table2, template_file=project_table)
         well.read_general_ascii(data_file2,
@@ -280,7 +277,7 @@ class WellTestCase(unittest.TestCase):
 
 
     def test_well_trajectory(self):
-        from blixt_rp.core.well_new import Well, WellTrajectory
+        from blixt_geo_py.core.well_new import Well, WellTrajectory
         well = Well()
         well.read_las(las_file2, log_table=log_table2, template_file=project_table)
         well.read_general_ascii(data_file2_wellpath,
@@ -302,8 +299,7 @@ class WellTestCase(unittest.TestCase):
         print(len(md), len(wt.tvd_kb), len(wt.inc))
 
     def test_data_source(self):
-        from blixt_rp.core.well_new import Well
-        from blixt_rp.core.core import LogTable
+        from blixt_geo_py.core.well_new import Well
         w = Well()
         w.read_las(las_file1, True)
         wds = w.data_source()
@@ -332,8 +328,8 @@ class WellTestCase(unittest.TestCase):
         # Note! The cutoffs should potentially hold a working interval!!
 
     def test_data_source_with_logtable(self):
-        from blixt_rp.core.well_new import Well
-        from blixt_rp.core.core import LogTable
+        from blixt_geo_py.core.well_new import Well
+        from blixt_geo_py.core.core import LogTable
         w = Well()
         w.read_las(las_fileA, True)
         lt1 = LogTable(name='ptb5', log_table={'P velocity': 'vp_ptb5', 'S velocity': 'vs_ptb5', 'Density': 'rho_ptb5'})
@@ -350,8 +346,8 @@ class WellTestCase(unittest.TestCase):
             print('  -x-')
 
     def test_blocked_litho_fluids(self):
-        from blixt_rp.core.well_new import Well
-        from blixt_rp.core.core import StratUnit, Interval, LithoFluidsTable
+        from blixt_geo_py.core.well_new import Well
+        from blixt_geo_py.core.core import StratUnit, Interval, LithoFluidsTable
         from bokeh.io import output_file
         from bokeh.plotting import show
         well1 = Well()
@@ -376,8 +372,8 @@ class WellTestCase(unittest.TestCase):
         show(_lf_table)
 
     def test_one_d_model(self):
-        from blixt_rp.core.well_new import Well
-        from blixt_rp.core.core import StratUnit, Interval, LithoFluidsTable
+        from blixt_geo_py.core.well_new import Well
+        from blixt_geo_py.core.core import StratUnit, Interval
         from bokeh.io import output_file
         from bokeh.plotting import show
         well1 = Well()

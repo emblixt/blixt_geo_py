@@ -1,5 +1,6 @@
 import unittest
-from blixt_rp.core.project_new import Project
+
+from blixt_geo_py.core.project_new import Project
 
 
 class ProjectTestCase(unittest.TestCase):
@@ -12,7 +13,7 @@ class ProjectTestCase(unittest.TestCase):
             self.assertTrue(isinstance(wp, Project))
 
     def test_load_wells(self):
-        from blixt_rp.core.core import LogTable
+        from blixt_geo_py.core.core import LogTable
         log_table = LogTable({'Density': 'rho_dry', 'P velocity': 'vp_dry', 'S velocity': 'vs_dry',
                               'Porosity': 'PHIE', 'Volume': 'VCL'})
         for _log_table in (None, log_table):
@@ -42,7 +43,7 @@ class ProjectTestCase(unittest.TestCase):
         Set only Well A active in the project table (_new), because it has a rename in it
         :return:
         """
-        from blixt_rp.core.core import LogTable
+        from blixt_geo_py.core.core import LogTable
         log_table = LogTable({'Gamma ray': ['GR'], 'Resistivity': ['RDEP', 'RMED']})
         wp = Project(name='MyProject', log_to_stdout=True)
         wp.load_all_wells(log_table=log_table)

@@ -1,19 +1,21 @@
+import os
+import sys
 import unittest
+
 import numpy as np
-import os, sys
-from bokeh.plotting import figure, show
+from bokeh.io import output_file
 from bokeh.layouts import row, column, Spacer
 from bokeh.models import Button, CustomJS
-from bokeh.io import output_file
+from bokeh.plotting import figure, show
 
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\unit_tests', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-import blixt_rp.plotting.avo_chi_plotter as brap
+import blixt_geo_py.plotting.avo_chi_plotter as brap
 
-output_file(os.path.join(project_dir, 'blixt_rp\\test_data\\plot.html'))
+output_file(os.path.join(project_dir, 'blixt_geo_py\\test_data\\plot.html'))
 excel_file = "C:\\Users\\emb\\OneDrive - Petrolia NOCO AS\\Technical work\PL1221\\SumsAndAverages.xlsx"
 
 class SomeTests(unittest.TestCase):
@@ -84,7 +86,7 @@ class SomeTests(unittest.TestCase):
         # This script is called  by the main.py script under blixt_projects/bokeh_testing
         # And can be invoked by calling:
         # C:\Users\emb\Documents\PycharmProjects\blixt_projects>C:\Users\emb\Documents\PycharmProjects\venv\Scripts\bokeh serve --show bokeh_testing
-        import blixt_rp.plotting.avo_chi_plotter as brap
+        import blixt_geo_py.plotting.avo_chi_plotter as brap
         litho_fluids_list = []
         for _name in ['shale', 'brine_sst', 'oil_sst']:
             rt = brrp.LithoFluid(default=_name)

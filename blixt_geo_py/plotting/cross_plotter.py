@@ -4,31 +4,29 @@
 #           Similar to crossplot.py, but tried to modernize it
 #
 # ---------------------------------------------------------------------------------------------------
+import logging
+import os.path
+import sys
+import unittest
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pint
+from bokeh.models import PanTool, BoxZoomTool, WheelZoomTool, ResetTool, SaveTool, CrosshairTool, HoverTool, TextInput
 from bokeh.models import (Slider, ColorPicker, Range1d, LinearAxis, LogAxis, Span, Legend, ColumnDataSource, Text,
                           CustomJS, CustomJSTransform, LinearColorMapper, CheckboxEditor, Select)
-from bokeh.models import PanTool, BoxZoomTool, WheelZoomTool, ResetTool, SaveTool, CrosshairTool, HoverTool, TextInput
-from bokeh.plotting import figure, show
 from bokeh.plotting import column, row
-
-import sys
-import os.path
-import unittest
-import numpy as np
-import matplotlib.pyplot as plt
-import logging
-import pint
-from copy import deepcopy
-
+from bokeh.plotting import figure, show
 # from prompt_toolkit.shortcuts import button_dialog
 # from html5lib.constants import mathmlTextIntegrationPointElements
 from scipy.stats import wilcoxon
 
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\plotting', ''))
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\plotting', ''))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-from blixt_rp.core.core import Intervals, WorkingIntervalsTable
-from blixt_rp.core.core import Cutoffs, ClassificationTable, LogTable
+from blixt_geo_py.core.core import Intervals, WorkingIntervalsTable
+from blixt_geo_py.core.core import Cutoffs, ClassificationTable, LogTable
 from blixt_utils.utils import print_info
 
 logger = logging.getLogger(__name__)
@@ -190,7 +188,6 @@ class DataSource:
             True means data is kept
             False means the data is masked out
         """
-        from blixt_rp.core.core import Template
         self._name = name
         if templates is None:
             templates = {}
@@ -1103,7 +1100,7 @@ class CrossPlotter:
     def draw(self, cds: ColumnDataSource, set_all_intervals_active: bool = False, verbose: bool = False):
         from bokeh.models import CDSView, BooleanFilter, Button, Div
         import blixt_utils.misc.masks as masks
-        from blixt_rp import Q_
+        from blixt_geo_py import Q_
 
         self.xplot = self.fig()
 
@@ -1312,8 +1309,8 @@ class CrossPlotter:
 
 class TestCases(unittest.TestCase):
     def test_data(self, size_1: int = 500, size_2: int = 800):
-        from blixt_rp.core.core import Template, StratUnit, Interval, Intervals, CutoffRule, Cutoffs
-        from blixt_rp import Q_
+        from blixt_geo_py.core.core import Template, StratUnit, Interval, Intervals, CutoffRule, Cutoffs
+        from blixt_geo_py import Q_
         md1 = Q_(np.linspace(1000., 2000., size_1), 'm')
         md2 = Q_(np.linspace(800., 2500., size_2), 'm')
         l1_1 = Q_(np.random.normal(10., 1., size_1), 'm')
@@ -1374,28 +1371,28 @@ class TestCases(unittest.TestCase):
         # for _key, _item in _d.items():
         #     print(_key, _item[:5], _item[-5:], len(_item))
         # xp.show_plot('C:\\Users\marte\Downloads\plot.html')
-        xp.show_plot(d, os.path.join(project_dir, 'blixt_rp\\results_folder\\plot.html'))
+        xp.show_plot(d, os.path.join(project_dir, 'blixt_geo_py\\results_folder\\plot.html'))
 
     def test_from_las(self):
-        from blixt_rp.core.well_new import Well
-        las_fileA = os.path.join(project_dir, "blixt_rp\\test_data\\Well A.las")
+        from blixt_geo_py.core.well_new import Well
+        las_fileA = os.path.join(project_dir, "blixt_geo_py\\test_data\\Well A.las")
         w = Well()
         w.read_las(las_fileA, True)
         xp = CrossPlotter(
             {w.name: w.data_source()}
         )
         cds = xp.cds
-        xp.show_plot(cds, os.path.join(project_dir, 'blixt_rp\\results_folder\\plot.html'))
+        xp.show_plot(cds, os.path.join(project_dir, 'blixt_geo_py\\results_folder\\plot.html'))
 
     def test_from_well(self):
-        from blixt_rp.core.project_new import Project
-        from blixt_rp.core.core import LogTable, Intervals
+        from blixt_geo_py.core.project_new import Project
+        from blixt_geo_py.core.core import LogTable, Intervals
 
-        project_table = os.path.join(project_dir, 'blixt_rp\\excels\\project_table_new.xlsx')
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx')
 
         project = Project(
             name='testing',
-            working_dir= os.path.join(project_dir, 'blixt_rp'),
+            working_dir= os.path.join(project_dir, 'blixt_geo_py'),
             project_table=project_table
         )
         log_table = LogTable({'Density': 'rho_dry', 'P velocity': 'vp_dry', 'S velocity': 'vs_dry',
@@ -1410,7 +1407,7 @@ class TestCases(unittest.TestCase):
             {w.name: w.data_source() for w in project.wells}
         )
         cds = xp.cds
-        xp.show_plot(cds, os.path.join(project_dir, 'blixt_rp\\results_folder\\plot.html'))
+        xp.show_plot(cds, os.path.join(project_dir, 'blixt_geo_py\\results_folder\\plot.html'))
 
     def test_data_classification(self):
         ds1, ds2, wis, cutoffs = self.test_data()
@@ -1448,10 +1445,10 @@ class TestCases(unittest.TestCase):
 
 
     def test_moduli(self):
-        from blixt_rp.core.well_new import Well
-        from blixt_rp.core.core import LogTable
-        from blixt_rp.rp.rp_wrapper_new import data_source_moduli
-        las_fileA = os.path.join(project_dir, "blixt_rp\\test_data\\Well A.las")
+        from blixt_geo_py.core.well_new import Well
+        from blixt_geo_py.core.core import LogTable
+        from blixt_geo_py.rp.rp_wrapper_new import data_source_moduli
+        las_fileA = os.path.join(project_dir, "blixt_geo_py\\test_data\\Well A.las")
         w = Well()
         w.read_las(las_fileA, True)
         lt1 = LogTable(name='ptb5', log_table={'P velocity': 'vp_ptb5', 'S velocity': 'vs_ptb5', 'Density': 'rho_ptb5'})
@@ -1469,5 +1466,5 @@ class TestCases(unittest.TestCase):
             # {wds.name: wds for wds in [wds1]}
         )
         cds = xp.cds
-        xp.show_plot(cds, os.path.join(project_dir, 'blixt_rp\\results_folder\\plot.html'))
+        xp.show_plot(cds, os.path.join(project_dir, 'blixt_geo_py\\results_folder\\plot.html'))
 

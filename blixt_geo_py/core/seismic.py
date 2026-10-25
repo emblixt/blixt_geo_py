@@ -1,51 +1,44 @@
-﻿import pickle
+﻿import logging
 import os
+import pickle
 import sys
 import unittest
-from dataclasses import field
-
-import numpy as np
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-import logging
+from copy import deepcopy
 from itertools import cycle
-from typing import Literal
+
 import bruges
-from copy import deepcopy, copy
-import inspect
-
+import matplotlib as mpl
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
+import numpy as np
 import pint
-from bokeh.models.plots import GridPlot
-from bokeh.models import Tool
-from scipy.optimize import least_squares
-
-from bokeh.plotting import show, figure, column, row
+from bokeh.events import SelectionGeometry
 from bokeh.io import output_file
 from bokeh.models import ColumnDataSource, LinearColorMapper, DataTable, TableColumn, PointDrawTool, CheckboxEditor, \
     LassoSelectTool
-from bokeh.models import Span, CrosshairTool, HoverTool, LassoSelectTool, ColorBar, NumericInput, CustomJS, Select
 from bokeh.models import NumberFormatter, Button, HTMLTemplateFormatter, StringEditor
-from bokeh.events import SelectionGeometry
+from bokeh.models import Span, CrosshairTool, HoverTool, LassoSelectTool, ColorBar, NumericInput, CustomJS, Select
+from bokeh.models import Tool
+from bokeh.models.plots import GridPlot
+from bokeh.plotting import show, figure, column, row
+from scipy.optimize import least_squares
 
-
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\core', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-from blixt_rp import Q_
 import blixt_utils.misc.curve_fitting as mycf
 import blixt_utils.io.io as uio
 from blixt_utils.plotting.helpers import wiggle_plot
 import blixt_utils.plotting.crossplot as xp
-from blixt_rp.core.core import Template, CutoffRule, Cutoffs, LogTable, Header
-from blixt_rp.core.log_curve_new import read_las
+from blixt_geo_py.core.core import Template, LogTable
+from blixt_geo_py.core.log_curve import read_las
 from blixt_utils.utils import print_info
 
 # global variables
 # output_file('C:\\Users\marte\Documents\plot.html')
-output_file(os.path.join(project_dir, 'blixt_rp\\test_data\\plot.html'))
+output_file(os.path.join(project_dir, 'blixt_geo_py\\test_data\\plot.html'))
 logger = logging.getLogger(__name__)
 clrs = list(mcolors.BASE_COLORS.keys())
 clrs.remove('w')
@@ -334,7 +327,7 @@ class AvoAmplitudes:
         :return:
             dict
         """
-        from blixt_rp.core.models import calc_synth_cds
+        from blixt_geo_py.core.models import calc_synth_cds
 
         # We can only do this if a model is provided
         if model is None:
@@ -447,7 +440,7 @@ class AvoAmplitudes:
             follows the structure of self._cds_dict
         """
         from copy import deepcopy
-        from blixt_rp.core.models import calc_synth_cds
+        from blixt_geo_py.core.models import calc_synth_cds
         # create markers for the different cases, but save the 'circle' for the base case
         markers = ['star', 'diamond', 'hex', 'inverted_triangle', 'plus', 'square', 'triangle']
         _dict = deepcopy(self.emtpy_dict)
@@ -700,7 +693,7 @@ class AvoAnalyzer:
         from bokeh.models.plots import GridPlot
         from bokeh.plotting import Row
         from bokeh.plotting._figure import figure as _figure
-        from blixt_rp.plotting.log_plotter import select_column
+        from blixt_geo_py.plotting.log_plotter import select_column
 
         #
         # Determine how the seismic "figure" is given
@@ -828,7 +821,7 @@ class AvoAnalyzer:
             The source of the points drawn or added to the current figure
         :return:
         """
-        from blixt_rp.plotting.log_plotter import add_tool_to_layout
+        from blixt_geo_py.plotting.log_plotter import add_tool_to_layout
 
         _renderer = self.figure.scatter(x='x', y='y', fill_color='color', source=cds, line_color='black', size=10)
         draw_tool = PointDrawTool(renderers=[_renderer], empty_value='black')
@@ -2081,7 +2074,6 @@ def get_first_case_names(model):
 class TestCases(unittest.TestCase):
 
     def test_data_for_avo_analyzer(self, section_type: str | None = None, synthetic: bool = False):
-        from blixt_rp.plotting.log_plotter import select_column
         # Determine if input is of either section type 'real', 'avo' or 'synthetic'
         if section_type is None:
             section_type = 'avo section'
@@ -2116,7 +2108,7 @@ class TestCases(unittest.TestCase):
             c_amp = None
 
         elif section_type == 'line section' and synthetic:
-            from blixt_rp.core.models import WedgeModel
+            from blixt_geo_py.core.models import WedgeModel
             model = WedgeModel(n_traces=51)
             (title, lf_table, lf_controls, model_table, model_controls, grid, controls,
              seismic_cds) = model.draw_2d()
@@ -2139,7 +2131,7 @@ class TestCases(unittest.TestCase):
                     refl_points.append([20., depth[_j]])
 
         elif section_type == 'avo section' and synthetic:
-            from blixt_rp.core.models import LaminarModel
+            from blixt_geo_py.core.models import LaminarModel
             model = LaminarModel()
             (title, lf_table, lf_controls, _model_table,
              model_controls, grid, freq_slider, synth_cds_base) = model.draw()
@@ -2160,7 +2152,7 @@ class TestCases(unittest.TestCase):
         show(p)
 
     def test_interpolate(self):
-        from blixt_rp.plotting.log_plotter import LogColumn, LogPlotter
+        from blixt_geo_py.plotting.log_plotter import LogColumn, LogPlotter
         las_file = "C:\\Users\\emb\\OneDrive - Petrolia NOCO AS\\Technical work\\Tampen\\Wells\\34_3_3S_seismic.las"
         # las_file = "G:\\My Drive\\Work - Current and Recent\\GeoMind\\Clients\\AkerBP\\PL932 Kaldafjell AVO feasibility\\Wells\\34_3_3S_seismic.las"
         t = Template(**{'name': 'Seismic', 'units': 'dimensionless', 'line_color': 'b'})
@@ -2361,7 +2353,7 @@ class TestCases(unittest.TestCase):
 
 
     def test_amp_spectra(self):
-        from blixt_rp.core.wavelets import plot_cwt
+        from blixt_geo_py.core.wavelets import plot_cwt
         filename = "U:\\COMMON\\SAAS DEVELOPMENT\\TEST_DATA\\Test_angle_stacks\\KPSDM-NEAR_10deg_cropped.sgy"
         data, nsamples, sr, twt, ntraces, header, ilines, xlines = uio.read_segy(filename, byte_il=189, byte_xl=193)
 
@@ -2456,7 +2448,7 @@ class TestCases(unittest.TestCase):
         crossline_slice = zgy.sel(xline=22488)
 
     def test_create_traces_from_zgy(self):
-        import blixt_rp.plotting.log_plotter as bupp
+        import blixt_geo_py.plotting.log_plotter as bupp
         f = "R:\\3D\\UTM31\\Acquired Data\\CGG22M01-NVG21PH1\\CGG22M01_NVG21PH1-EW_FINAL_KPSDM_T_FAR_STK_16bit.zgy"
         xline_ranges = range(32253, 32255, 1)
         inline_ranges = range(4640, 5243, 1)

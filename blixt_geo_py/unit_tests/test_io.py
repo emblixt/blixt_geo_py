@@ -1,17 +1,16 @@
-import unittest
 import os
 import sys
+import unittest
 
-
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\unit_tests', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 import blixt_utils.io.io as uio
 from blixt_utils.misc.attribdict import AttribDict
-from blixt_rp.core.well_new import Well
-from blixt_rp.core.project_new import Project
+from blixt_geo_py.core.well_new import Well
+from blixt_geo_py.core.project_new import Project
 from blixt_utils.io.io import well_reader
 
 
@@ -20,7 +19,7 @@ import numpy as np
 def_lb_name = 'Logs'  # default Block name
 def_msk_name = 'Mask'  # default mask name
 
-test_data_dir = os.path.join(project_dir, 'blixt_rp\\test_data')
+test_data_dir = os.path.join(project_dir, 'blixt_geo_py\\test_data')
 las_file = os.path.join(test_data_dir, 'test_data/Well A.las')
 las_files = [os.path.join(test_data_dir, _las) for _las in ['Well A.las',
                                                              'Well A more data.las',

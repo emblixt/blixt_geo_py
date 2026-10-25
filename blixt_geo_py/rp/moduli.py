@@ -12,16 +12,17 @@ Using equations http://www.subsurfwiki.org/wiki/Elastic_modulus
 from Mavko, G, T Mukerji and J Dvorkin (2003), The Rock Physics Handbook,
 Cambridge University Press.
 """
-import numpy as np
-import sys
 import os
+import sys
 
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\rp', ''))
+import numpy as np
+
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\rp', ''))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 
-from blixt_rp import Q_, ureg
+from blixt_geo_py import ureg
 
 
 def youngs(vp=None, vs=None, rho=None, mu=None, lam=None, bulk=None, pr=None,

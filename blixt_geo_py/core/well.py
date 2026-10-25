@@ -19,29 +19,29 @@ Take inspiration from obspy and converter to create these objects
     GNU Lesser General Public License, Version 3
     (https://www.gnu.org/copyleft/lesser.html)
 """
-from copy import deepcopy
 
+import logging
+import os
+import sys
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import logging
-import os, sys
-import matplotlib.pyplot as plt
 import pint
+from matplotlib.font_manager import FontProperties
 from scipy.constants import degree
 from scipy.interpolate import interp1d
-from matplotlib.font_manager import FontProperties
 
-
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\core', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-from blixt_rp.core.core import Cutoffs, LithoFluid, LithoFluids
-from blixt_rp.core.log_curve_new import LogCurve, Depth
+from blixt_geo_py.core.core import Cutoffs, LithoFluid, LithoFluids
+from blixt_geo_py.core.log_curve import LogCurve, Depth
 from blixt_utils.utils import print_info
 import blixt_utils.misc.masks as msks
-from blixt_rp import ureg, Q_
+from blixt_geo_py import ureg, Q_
 
 # global variables
 supported_version = {2.0, 3.0}
@@ -94,7 +94,7 @@ class WellTrajectory:
                 Angles greater than 90° indicating "drilling up" rather than down.
 
         """
-        # from blixt_rp.core.log_curve_new import _interpolate
+        # from blixt_geo_py.core.log_curve_new import _interpolate
         self._md = md.to('meter')
         self.verbose = verbose
 
@@ -123,7 +123,7 @@ class WellTrajectory:
             input LogCurve
         :return:
         """
-        from blixt_rp.core.log_curve_new import _interpolate
+        from blixt_geo_py.core.log_curve import _interpolate
 
         if input_log is None:
             return None
@@ -185,8 +185,8 @@ class Well(object):
     so that they don't have to be regularly sampled, or with the same sampling.
     This also means that a LogCurve object can contain other data than typical log data, such as core samples.
     """
-    from blixt_rp.core.core import Header, LogTable, Template, Intervals
-    from blixt_rp.core.log_curve_new import LogCurve
+    from blixt_geo_py.core.core import Header, LogTable, Template, Intervals
+    from blixt_geo_py.core.log_curve import LogCurve
     from typing import List
 
     def __init__(self,
@@ -203,7 +203,7 @@ class Well(object):
         :param style:
             Template object or dict
         """
-        from blixt_rp.core.core import Header, Template
+        from blixt_geo_py.core.core import Header, Template
         if header is None:
             self.header = Header({})
         elif isinstance(header, dict):
@@ -258,7 +258,7 @@ class Well(object):
 
     @style.setter
     def style(self, style_template: Template | dict | None):
-        from blixt_rp.core.core import Template
+        from blixt_geo_py.core.core import Template
         if style_template is None:
             self._style = Template()
         elif isinstance(style_template, dict):
@@ -405,7 +405,7 @@ class Well(object):
                  if_log_exists: str = 'overwrite',
                  template_file: str | None = None):
         """
-        Uses the log_curve_new.py function 'read_las()' to read a las file
+        Uses the log_curve.py function 'read_las()' to read a las file
 
         :param file_name:
         :param verbose:
@@ -429,12 +429,12 @@ class Well(object):
         :param template_file:
             str
             full filename of .xlsx file that contains templates of each log type.
-            Of the format used by the project_table_new.xlsx file
+            Of the format used by the project_table.xlsx file
             Kelly bushing, water depth and other information is also extracted from the file
         :return:
         """
-        from blixt_rp.core.log_curve_new import read_las as _read_las
-        from blixt_rp.core.core import Template, templates_from_table
+        from blixt_geo_py.core.log_curve import read_las as _read_las
+        from blixt_geo_py.core.core import templates_from_table
         log_curves, well_dict = _read_las(file_name, verbose=verbose, encoding=encoding, log_table=log_table,
                                           template=template_file, rename_logs=rename_logs, only_md=True)
 
@@ -488,7 +488,7 @@ class Well(object):
                            if_log_exists: str = 'overwrite',
                            verbose: bool = False,
                            encoding: str | None = 'UTF8'):
-        from blixt_rp.core.log_curve_new import read_general_ascii as _read_general_ascii
+        from blixt_geo_py.core.log_curve import read_general_ascii as _read_general_ascii
         log_curves = _read_general_ascii(file_name, separator, data_begins_on_row, var_names, var_columns, var_units,
                                          var_types, verbose, encoding)
         if self.logs is None:
@@ -678,7 +678,7 @@ class Well(object):
         :return:
             DataSource
         """
-        from blixt_rp.plotting.cross_plotter import DataSource
+        from blixt_geo_py.plotting.cross_plotter import DataSource
 
         _data=self.dict(down_sample=down_sample)
         if 'depth' not in list(_data.keys()):
@@ -1002,8 +1002,8 @@ class Well(object):
         :param verbose:
         :return:
         """
-        from blixt_rp.core.models import Model
-        from blixt_rp.core.models import Layer
+        from blixt_geo_py.core.models import Model
+        from blixt_geo_py.core.models import Layer
         _tolerance = Q_(1., 'm')
         overlaps = wis.check_for_overlapping_intervals(self.name, _tolerance)
         if len(overlaps) > 0:
@@ -1045,7 +1045,7 @@ class Well(object):
         """
         from bokeh.plotting import show, column, row
         from bokeh.io import output_file
-        from blixt_rp.plotting.log_plotter import WellPlotter, LogColumn, add_strat_table
+        from blixt_geo_py.plotting.log_plotter import WellPlotter, add_strat_table
         output_file(output_filename, title=self.name)
         rel_widths = [1.] * len(log_columns)
         if wis is not None:
@@ -1097,7 +1097,7 @@ def add_headers(_header, _well_info, _ignore_keys, _note):
 
 
 def test():
-    las_file = os.path.dirname(__file__).replace('blixt_rp\\core', 'test_data\\Well A.las')
+    las_file = os.path.dirname(__file__).replace('blixt_geo_py\\core', 'test_data\\Well A.las')
     print(las_file)
     w = Well()
     w.read_las(las_file)

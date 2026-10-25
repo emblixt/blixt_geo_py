@@ -2,42 +2,39 @@
 Plots log data from multiple wells, from specific intervals (or whole well) using cut offs or not
 using standard modulus or other parameters used in rock physics (e.g. bulk & shear modulus, poisson ratio, vp/vs ratio
 """
+import logging
+import os.path
+import sys
+import unittest
+from typing import Callable
+
+import numpy as np
+import pint
+from blixt_geo_py.rp.rp_wrapper_new import data_source_moduli
+from bokeh.io import output_file
+from bokeh.models import PanTool, BoxZoomTool, WheelZoomTool, ResetTool, SaveTool, CrosshairTool, HoverTool, TextInput
 from bokeh.models import (Slider, ColorPicker, Range1d, LinearAxis, LogAxis, Span, Legend, ColumnDataSource, Text,
                           CustomJS, CustomJSTransform, LinearColorMapper, CheckboxEditor, Select)
-from bokeh.models import PanTool, BoxZoomTool, WheelZoomTool, ResetTool, SaveTool, CrosshairTool, HoverTool, TextInput
-from bokeh.plotting import figure, show
 from bokeh.plotting import column, row
-from bokeh.io import output_file
+from bokeh.plotting import figure, show
 
-import sys
-import os.path
-import unittest
-import numpy as np
-import matplotlib.pyplot as plt
-import logging
-from typing import Callable
-import pint
-
-from blixt_rp.rp.rp_wrapper_new import data_source_moduli
-
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\plotting', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\plotting', ''))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_utils.utils import print_info, add_one, fix_well_name, cycle_colors, isnan
 from blixt_utils.misc.attribdict import AttribDict
-from blixt_rp.rp_utils.version import info
-from blixt_rp.core.core import Intervals, WorkingIntervalsTable
-from blixt_rp.core.core import Cutoffs, ClassificationTable
-from blixt_rp.plotting.cross_plotter import CrossPlotter
-from blixt_rp import Q_
+from blixt_geo_py.core.core import Intervals
+from blixt_geo_py.core.core import Cutoffs
+from blixt_geo_py.plotting.cross_plotter import CrossPlotter
+from blixt_geo_py import Q_
 
-output_file(os.path.join(project_dir, 'blixt_rp\\results_folder\\plot.html'))
+output_file(os.path.join(project_dir, 'blixt_geo_py\\results_folder\\plot.html'))
 logger = logging.getLogger(__name__)
 
 test_file_dir = str(os.path.dirname(__file__).replace(
-    'blixt_rp\\plotting',
+    'blixt_geo_py\\plotting',
     'test_data'))
 las_fileA = os.path.join(test_file_dir, "Well A.las")
 
@@ -135,7 +132,7 @@ class RockPhysicsPlotter(CrossPlotter):
 
         :return:
         """
-        from blixt_rp.rp.rp_wrapper_new import return_rpt_keywords, rpt_wrapper, rpt_to_moduli, RptVariableTable
+        from blixt_geo_py.rp.rp_wrapper_new import return_rpt_keywords, rpt_wrapper, rpt_to_moduli, RptVariableTable
 
         if (rpt_variable is None) or (rpt_constants is None) or (rpt_function is None) or (rpt_annotations is None):
             return None, None, None, None, None, None, None
@@ -274,10 +271,9 @@ class RockPhysicsPlotter(CrossPlotter):
 
 class TestCases(unittest.TestCase):
     def test_data(self):
-        import blixt_rp.plotting.cross_plotter as xp
-        from blixt_rp.core.well_new import Well, Depth
-        from blixt_rp.core.log_curve_new import LogCurve
-        from blixt_rp.core.core import LogTable, CutoffRule, Interval, StratUnit, Header
+        from blixt_geo_py.core.well_new import Well, Depth
+        from blixt_geo_py.core.log_curve import LogCurve
+        from blixt_geo_py.core.core import CutoffRule, Interval, StratUnit, Header
         # Create new test data "from" two wells:
         n1 = 800
         md1 = Q_(np.linspace(1000., 2000., n1), 'm')
@@ -329,7 +325,7 @@ class TestCases(unittest.TestCase):
         return w1, w2, wis, cutoffs
 
     def test_data_cds(self, unit_test=True):
-        from blixt_rp.core.core import LogTable
+        from blixt_geo_py.core.core import LogTable
         w1, w2, wis, coffs = self.test_data()
 
         lt1 = LogTable(name='standard', log_table={'P velocity': 'vp', 'S velocity': 'vs', 'Density': 'rho',
@@ -365,9 +361,9 @@ class TestCases(unittest.TestCase):
             return xplot, x_menu, y_menu, size_menu, color_menu, apply_mask, reset_mask, ct_guis, wis_guis, style_table
 
     def test_well(self, unit_test=True):
-        from blixt_rp.core.well_new import Well
-        from blixt_rp.core.core import LogTable, CutoffRule, Cutoffs
-        from blixt_rp.rp.rp_wrapper_new import data_source_moduli
+        from blixt_geo_py.core.well_new import Well
+        from blixt_geo_py.core.core import LogTable, CutoffRule, Cutoffs
+        from blixt_geo_py.rp.rp_wrapper_new import data_source_moduli
 
         w = Well()
         w.read_las(las_fileA, True)
@@ -413,9 +409,9 @@ class TestCases(unittest.TestCase):
 
 
     def test_well_with_rpt(self, unit_test=True):
-        from blixt_rp.core.well_new import Well
-        from blixt_rp.core.core import LogTable, CutoffRule, Cutoffs
-        from blixt_rp.rp.rp_wrapper_new import (data_source_moduli, rpt_wrapper, rpt_to_moduli,
+        from blixt_geo_py.core.well_new import Well
+        from blixt_geo_py.core.core import LogTable, CutoffRule, Cutoffs
+        from blixt_geo_py.rp.rp_wrapper_new import (data_source_moduli, rpt_wrapper, rpt_to_moduli,
                                                 rpt_phi_sw, return_rpt_keywords, RptVariableTable)
 
         w = Well()

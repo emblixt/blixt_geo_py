@@ -6,9 +6,9 @@ Created on Fri Jan 10 08:45:27 2020
 """
 __all__ = ('get_version')
 
-import re
-import os
 import getpass
+import os
+import re
 import socket
 from datetime import datetime
 

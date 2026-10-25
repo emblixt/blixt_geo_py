@@ -1,6 +1,7 @@
 import unittest
-from blixt_rp.core.well import Project
-import blixt_rp.rp_utils.calc_stats as uc
+
+import blixt_geo_py.rp_utils.calc_stats as uc
+from blixt_geo_py.core.well import Project
 
 def_lb_name = 'Logs'  # default Block name
 def_msk_name = 'Mask'  # default mask name

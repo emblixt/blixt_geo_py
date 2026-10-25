@@ -1,45 +1,41 @@
-import unittest
-
-import matplotlib as mpl
-
-import bokeh.plotting
-import numpy as np
-from bokeh.models.tools import PointDrawTool
-from pandas import DataFrame, cut
 import logging
-import sys, os
+import os
+import sys
+import unittest
 from copy import deepcopy
 
-from typing import Literal
-# from IPython.core.magics.code import extract_code_ranges
-from bokeh.plotting import figure, show
+import bokeh.plotting
+import matplotlib as mpl
+import numpy as np
+from bokeh.io import output_file
+from bokeh.layouts import gridplot
 from bokeh.layouts import row, column, Spacer
-from bokeh.models import (Slider, ColorPicker, Range1d, LinearAxis, LogAxis,  Span, Legend, ColumnDataSource, Text,
-                          CustomJS, CustomJSTransform, LinearColorMapper, CDSView, BooleanFilter)
-from bokeh.models import PanTool,WheelZoomTool, ResetTool, SaveTool, CrosshairTool, HoverTool, ColorBar, LogColorMapper
+from bokeh.models import BoxSelectTool, GridBox, GridPlot, Row, Column
 from bokeh.models import (DataTable, NumberEditor, SelectEditor, StringEditor, StringFormatter,
                           IntEditor, TableColumn, CheckboxEditor, Rect, HTMLTemplateFormatter, Tool)
-from bokeh.layouts import gridplot
-from bokeh.transform import transform
-
-from bokeh.models import BoxSelectTool, GridBox, GridPlot, Row, Column
+from bokeh.models import PanTool, WheelZoomTool, ResetTool, SaveTool, CrosshairTool, HoverTool, ColorBar, LogColorMapper
+from bokeh.models import (Slider, ColorPicker, Range1d, LinearAxis, LogAxis, Span, Legend, ColumnDataSource, Text,
+                          CustomJS, CustomJSTransform, LinearColorMapper, CDSView, BooleanFilter)
 from bokeh.models.layouts import LayoutDOM
+from bokeh.models.tools import PointDrawTool
+# from IPython.core.magics.code import extract_code_ranges
+from bokeh.plotting import figure, show
+from bokeh.transform import transform
+from pandas import DataFrame, cut
 
-from bokeh.io import output_file
-
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\plotting', ''))
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\plotting', ''))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 
 # from blixt_utils.misc.templates import necessary_keys
-from blixt_rp.core.core import Template, LogTable
-from blixt_rp import Q_
+from blixt_geo_py.core.core import Template
+from blixt_geo_py import Q_
 
 logger = logging.getLogger(__name__)
 
 test_file_dir = str(os.path.dirname(__file__).replace(
-    'blixt_rp\\plotting',
+    'blixt_geo_py\\plotting',
     'test_data'))
 
 output_file(os.path.join(test_file_dir, 'plot.html'))
@@ -68,7 +64,7 @@ class LogPlotter:
     Class for plotting multiple well logs, from one well, in different "columns", all with a common y-axis (time
     or depth)
     """
-    from blixt_rp.core.core import Cutoffs, Intervals
+    from blixt_geo_py.core.core import Cutoffs
 
     def __init__(self,
                  width: int = 300,
@@ -85,7 +81,6 @@ class LogPlotter:
             list of LogColumn objects
         :param tools:
         """
-        from blixt_rp.core.core import ClassificationTable
 
         if columns is None:
             columns = []
@@ -169,7 +164,7 @@ class LogPlotter:
         return units
 
     def add_settings(self, grid: gridplot, width=None):
-        from blixt_rp.core.core import TemplatesTable
+        from blixt_geo_py.core.core import TemplatesTable
 
         code = """
             const data = source.data;
@@ -249,7 +244,7 @@ class LogPlotter:
         :return:
         """
         from bokeh.models import Button, Div
-        from blixt_rp.core.core import ClassificationTable
+        from blixt_geo_py.core.core import ClassificationTable
 
         # Save a copy of the original common_cds which we can use to restore the data after applying cutoffs
         self.original_cds = ColumnDataSource(dict(deepcopy(common_cds.data)))
@@ -391,7 +386,7 @@ class LogColumn:
     """
     A class that can contain multiple well logs (lines) in the same "column"
     """
-    from blixt_rp.core.seismic import SeismicTraces
+    from blixt_geo_py.core.seismic import SeismicTraces
 
     def __init__(self,
                  name: str,
@@ -608,8 +603,8 @@ class WellPlotter(LogPlotter):
     """
     Class for plotting well logs from one well
     """
-    from blixt_rp.core.well_new import Well
-    from blixt_rp.core.core import Cutoffs, Intervals
+    from blixt_geo_py.core.well_new import Well
+    from blixt_geo_py.core.core import Cutoffs
 
     def __init__(self,
                  well: Well,
@@ -833,7 +828,7 @@ def add_seismic_traces(_p: bokeh.plotting.figure,
     :param _column:
     :return:
     """
-    from blixt_rp.core.seismic import seismic_color_map
+    from blixt_geo_py.core.seismic import seismic_color_map
     trace_cds = None
     _seismic_color_map = None
     if _column.seismic_traces is not None:
@@ -1130,7 +1125,7 @@ def select_line(grid: gridplot, line_name: str) -> bokeh.models.Line | None:
 
 def test_data():
     # Builds some line objects using a common CDS
-    from blixt_rp.plotting import cross_plotter
+    from blixt_geo_py.plotting import cross_plotter
     test = cross_plotter.TestCases()
     ds1, ds2, wis, cutoffs = test.test_data()
     cds = ds1.cds
@@ -1140,9 +1135,9 @@ def test_data():
     return cds, line1, line2, line3, wis, cutoffs
 
 def test_well_data():
-    from blixt_rp.core.well_new import Well
-    from blixt_rp.core.core import LogTable, CutoffRule, Cutoffs
-    project_table = os.path.join(test_file_dir.replace('test_data', 'excels'), 'project_table_new.xlsx')
+    from blixt_geo_py.core.well_new import Well
+    from blixt_geo_py.core.core import LogTable, CutoffRule, Cutoffs
+    project_table = os.path.join(test_file_dir.replace('test_data', 'excels'), 'project_table.xlsx')
     las_file3 = os.path.join(test_file_dir, "Well F.las")
     log_table = LogTable({
         'P velocity': ['Vp_dry', 'Vp_Sg08'],

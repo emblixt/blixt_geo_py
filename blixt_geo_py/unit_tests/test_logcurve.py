@@ -1,19 +1,18 @@
-import unittest
 import os
-import numpy as np
-import matplotlib.pyplot as plt
-import time
-
-import pint.errors
+import unittest
 from math import isclose
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pint.errors
+
+from blixt_geo_py.core.core import Template, CutoffRule, Cutoffs, LogTable
+from blixt_geo_py.core.log_curve import (LogCurve, Depth, is_equivalent, read_las,
+                                         read_general_ascii, _to_twt, _to_depth)
 from .. import ureg, Q_
 
-from blixt_rp.core.log_curve_new import (LogCurve, Depth, is_equivalent, read_las,
-                                         read_general_ascii, _to_twt, _to_depth)
-from blixt_rp.core.core import Template, CutoffRule, Cutoffs, LogTable, Header
-
 test_file_dir = str(os.path.dirname(__file__).replace(
-    'blixt_rp\\unit_tests',
+    'blixt_geo_py\\unit_tests',
     'test_data'))
 
 project_table = os.path.join(test_file_dir.replace('test_data', 'excels'), 'project_table.xlsx')
@@ -309,7 +308,7 @@ class LogCurveTestCase(unittest.TestCase):
         # self.assertTrue(np.sum(lc1.calc_mask(cutoffs7, verbose=True).values) < 1)
 
     def test_read(self):
-        # # las_file = 'C:\\Users\\marte\\PycharmProjects\\blixt_rp\\test_data\\Well E_CPI.las'
+        # # las_file = 'C:\\Users\\marte\\PycharmProjects\\blixt_geo_py\\test_data\\Well E_CPI.las'
         # log_curves, well_info = read_las(las_file1)
         # print(len(log_curves))
         # lc = log_curves['grd']
@@ -484,7 +483,7 @@ class LogCurveTestCase(unittest.TestCase):
         self.assertIsInstance(res, list)
 
     def test_depth(self):
-        from blixt_rp.core.log_curve_new import Depth
+        from blixt_geo_py.core.log_curve import Depth
         coords_list = [10.0, (2., 3.), np.linspace(5., 10., 3), 1.,
                        10.0, (2., 3.), np.linspace(5., 10., 3), 1.,
                        10.0, (2., 3.), np.linspace(5., 10., 3), 1.]

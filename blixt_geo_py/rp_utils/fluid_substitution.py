@@ -15,39 +15,34 @@ Outline:
            So we need a new 'Well' (or DataSource) to store the substituted results.
 """
 import logging
+import os
+import sys
+import unittest
 from copy import deepcopy
-from datetime import datetime
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-import unittest
-import os, sys
-import logging
-from typing import Literal, List, Any, Dict
-from pathlib import Path
-import matplotlib.pyplot as plt
-
+import pint
 from bokeh.io import output_file
 from bokeh.models import ColumnDataSource
-import pint
 from urllib3.fields import format_header_param
 
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\rp_utils', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\rp_utils', ''))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-import blixt_rp.rp.rp_core as rp
-from blixt_rp import Q_
-from blixt_rp.core.project_new import Project
-from blixt_rp.core.well_new import Well
+from blixt_geo_py import Q_
+from blixt_geo_py.core.project_new import Project
+from blixt_geo_py.core.well_new import Well
 from blixt_utils.misc.attribdict import AttribDict
-from blixt_rp.rp_utils.version import info
 from blixt_utils.utils import isnan, print_info
-from blixt_rp.core.core import Intervals, LogTable, Cutoffs, CutoffRule
-from blixt_rp.rp.rp_core import gassmann_vel
-from blixt_rp.core.fluids_new import FluidMix
-from blixt_rp.core.minerals_new import MineralMix
-from blixt_rp.core.fluids_and_minerals import load_substitution_cases
+from blixt_geo_py.core.core import Intervals, LogTable, Cutoffs, CutoffRule
+from blixt_geo_py.rp.rp_core import gassmann_vel
+from blixt_geo_py.core.fluids_new import FluidMix
+from blixt_geo_py.core.minerals_new import MineralMix
+from blixt_geo_py.core.fluids_and_minerals import load_substitution_cases
 
 logger = logging.getLogger(__name__)
 
@@ -373,8 +368,8 @@ class TestCases(unittest.TestCase):
         # Create a project
         wp = Project(
             name='FluidSub',
-            project_table=os.path.join(project_dir, 'blixt_rp\\excels\\project_table_new.xlsx'),
-            working_dir=os.path.join(project_dir, 'blixt_rp')
+            project_table=os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx'),
+            working_dir=os.path.join(project_dir, 'blixt_geo_py')
         )
         pvt_table = dict(
             pressure = Q_([10., 15., 20., 25., 30., 35., 40., 45., 50.], 'MPa'),
@@ -417,7 +412,7 @@ class TestCases(unittest.TestCase):
             cutoffs,
             wis,
             pvt_table=pvt_table,
-            save_result_folder=os.path.join(project_dir, 'blixt_rp\\results_folder'),
+            save_result_folder=os.path.join(project_dir, 'blixt_geo_py\\results_folder'),
             result_file_postfix='XXX',
             verbose=True)
 
@@ -428,7 +423,7 @@ class TestCases(unittest.TestCase):
                 print(' {} | {}: {}'.format(_wn, _log_type, ', '.join([_l.name for _l in _w.get_logs_of_type(_log_type)])))
 
         for _w in wells.values():
-            _file = os.path.join(project_dir, 'blixt_rp\\results_folder\\fs_plot_{}.html'.format(_w.name))
+            _file = os.path.join(project_dir, 'blixt_geo_py\\results_folder\\fs_plot_{}.html'.format(_w.name))
             _w.plot([
                 ['vp_dry', 'vp_dry_fs_MyTag', 'vp_dry_fs_Cond'],
                 ['vs_dry', 'vs_dry_fs_MyTag', 'vs_dry_fs_Cond'],

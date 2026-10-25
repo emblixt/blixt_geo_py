@@ -1,13 +1,14 @@
+import logging
 import os
+
+import blixt_utils.io.io as uio
 import matplotlib.pyplot as plt
 import numpy as np
-import logging
-
-import blixt_rp.rp_utils.definitions as ud
-import blixt_utils.io.io as uio
-from blixt_utils.plotting import crossplot as xp
 from blixt_utils.misc.templates import get_from_template
+from blixt_utils.plotting import crossplot as xp
 from blixt_utils.utils import print_info
+
+import blixt_geo_py.rp_utils.definitions as ud
 
 logger = logging.getLogger(__name__)
 
@@ -313,7 +314,7 @@ class SetUpCalculation:
 
 class CalculateStats:
     def __init__(self, calc_setup):
-        from blixt_rp.rp_utils.calc_stats import collect_data_for_this_interval, save_rokdoc_output
+        from blixt_geo_py.rp_utils.calc_stats import collect_data_for_this_interval, save_rokdoc_output
         """
         :param calc_setup:
             SetUpCalculation
@@ -384,7 +385,7 @@ class CalculateStats:
 
 
 def test_calc_stat():
-    from blixt_rp.core.well import Project
+    from blixt_geo_py.core.well import Project
 
     wp = Project(
         name='MyProject',

@@ -1,4 +1,4 @@
-# Simple class for holding parameters in blixt_rp
+# Simple class for holding parameters in blixt_geo_py
 
 # from dataclasses import dataclass
 import numpy as np
@@ -7,7 +7,7 @@ import numpy as np
 # @dataclass
 class Param(object):
     """
-    Data class to hold the different parameters used in blixt_rp
+    Data class to hold the different parameters used in blixt_geo_py
     """
     def __init__(self,
                  value,

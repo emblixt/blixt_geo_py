@@ -1,17 +1,18 @@
+import logging
+from copy import deepcopy
+
+import bruges.rockphysics.anisotropy as bra
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.lines import Line2D
-from matplotlib.font_manager import FontProperties
-from copy import deepcopy
-import bruges.rockphysics.anisotropy as bra
-import logging
-
-from blixt_utils.plotting import crossplot as xp
-import blixt_rp.rp.rp_core as rp
-import blixt_rp.core.well as cw
 from blixt_utils.misc.convert_data import convert as cnvrt
+from blixt_utils.plotting import crossplot as xp
 from blixt_utils.utils import log_table_in_smallcaps as small_log_table
 from blixt_utils.utils import print_info
+from matplotlib.font_manager import FontProperties
+from matplotlib.lines import Line2D
+
+import blixt_geo_py.core.well as cw
+import blixt_geo_py.rp.rp_core as rp
 
 logger = logging.getLogger(__name__)
 opt1 = {'bbox': {'facecolor': '0.9', 'alpha': 0.5, 'edgecolor': 'none'}}
@@ -586,9 +587,9 @@ def return_rpt_keywords(prev_rpt_kwargs=None, modify_keys=None, verbose=False):
 
 
 def test():
-    from blixt_rp.core.well import Project
+    from blixt_geo_py.core.well import Project
     import blixt_utils.io.io as uio
-    from blixt_rp.core.minerals import MineralMix
+    from blixt_geo_py.core.minerals import MineralMix
     wi_name = 'SAND E'
 
     plot_type = 'AI-VpVs'
@@ -597,7 +598,7 @@ def test():
     fig, ax = plt.subplots()
 
     # Only Well_F should be active in well
-    wp = Project(project_table=__file__.replace('blixt_rp\\plotting\\plot_rp.py', 'excels\\project_table.xlsx'))
+    wp = Project(project_table=__file__.replace('blixt_geo_py\\plotting\\plot_rp.py', 'excels\\project_table.xlsx'))
     log_table = {'P velocity': 'vp_dry', 'S velocity': 'vs_dry', 'Density': 'rho_dry', 'Porosity': 'phie',
                     'Volume': 'vcl'}
     wis = uio.project_working_intervals(wp.project_table)

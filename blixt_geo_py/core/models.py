@@ -1,34 +1,35 @@
-import matplotlib.pyplot as plt
-import matplotlib.lines as m_lines
-import numpy as np
-import sys
-import os
 import logging
+import os
+import sys
 import types
 from copy import deepcopy
+from typing import Callable, List
+
+import matplotlib.lines as m_lines
+import matplotlib.pyplot as plt
+import numpy as np
 import pint
 from Tools.scripts.objgraph import printundef
 from bokeh.models import ColumnDataSource
 from scipy.stats import theilslopes
-from typing import Callable, List
 
-from .log_curve_new import LogCurve, Depth
-from ..plotting.log_plotter import add_color_amp
 from .core import LithoFluid, LithoFluidsTable, LithoFluids
+from .log_curve import LogCurve, Depth
+from ..plotting.log_plotter import add_color_amp
 
 # sys.path.append('C:\\Users\\eribli\\PycharmProjects\\blixt_utils')
 # Instead of sys.path.append load all PyCharm projects in PyCharm, and they gets added to the sys.path automatically
 
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\core', ''))
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_utils.plotting.helpers import axis_plot, wiggle_plot, wavelet_plot
 from blixt_utils.plotting.crossplot import cnames
-import blixt_rp.rp.rp_core as rp
+import blixt_geo_py.rp.rp_core as rp
 import blixt_utils.misc.wavelets as bumw
 from blixt_utils.utils import print_info
-from blixt_rp import Q_
+from blixt_geo_py import Q_
 
 logger = logging.getLogger(__name__)
 
@@ -566,7 +567,7 @@ class Layer:
             if a function, it needs to be parametrized by an integer i
             Say we use the constantcement function to calculate vp where the porosity is assumed to change:
               def vp(i):
-                  from blixt_rp.rp.rp_core import constantcement, v_p
+                  from blixt_geo_py.rp.rp_core import constantcement, v_p
                   phi = 0.1 + i * 0.03
                   k_eff, mu_eff = constantcement(37, 45, phi)
                   return v_p(k_eff, mu_eff, 2.6)
@@ -1697,8 +1698,6 @@ class LaminarModel:
     NOTE! Only works in depth domain ('Z')
     """
 
-    from blixt_rp.plotting.cross_plotter import DataSource
-
     def __init__(self,
                  model: Model | None = None,
                  litho_fluids: LithoFluids | None = None,
@@ -1793,8 +1792,8 @@ class LaminarModel:
         from bokeh.models import GlyphRenderer
         from bokeh.models.glyphs import Image, ImageRGBA, ImageURL
 
-        from blixt_rp.plotting.log_plotter import LogPlotter, LogColumn, Line, select_column, select_line
-        from blixt_rp.core.core import Template
+        from blixt_geo_py.plotting.log_plotter import LogPlotter, LogColumn, Line
+        from blixt_geo_py.core.core import Template
         # Create the litho fluids table
         self.initiate_lf_table()
         cds_lf = self.lf_table.cds
@@ -1933,8 +1932,8 @@ class LaminarModel:
         from bokeh.models import Span, Slider, Select, Div, NumericInput
         from bokeh.plotting import row
 
-        from blixt_rp.plotting.log_plotter import LogPlotter, LogColumn, Line, select_column, select_line
-        from blixt_rp.core.core import Template
+        from blixt_geo_py.plotting.log_plotter import LogPlotter, LogColumn, Line, select_column
+        from blixt_geo_py.core.core import Template
 
         # Create the litho fluids table
         self.initiate_lf_table()
@@ -2292,8 +2291,8 @@ class WedgeModel(LaminarModel):
         from bokeh.models import Select, HoverTool, Range1d, CrosshairTool, Span
         from bokeh.layouts import gridplot
 
-        from blixt_rp.core.seismic import picks_from_seismic_cds
-        from blixt_rp.plotting.log_plotter import default_tools
+        from blixt_geo_py.core.seismic import picks_from_seismic_cds
+        from blixt_geo_py.plotting.log_plotter import default_tools
 
         global max_amp
         global min_amp
@@ -2720,7 +2719,7 @@ def build_saturation_wedge(depth_to_wedge, thickness, to_hc_saturation, n_traces
         See rp_core.rpt_parameters() for more info
 
     """
-    from blixt_rp.rp.rp_core import gassmann_vel
+    from blixt_geo_py.rp.rp_core import gassmann_vel
     if 1 >= to_hc_saturation > 0:
         pass
     else:
@@ -2959,7 +2958,7 @@ def check_domain(_input):
     return domain
 
 def calc_synth_cds(_vp, _vs, _rho, _twt, _dt, _angles, avo_or_eei, freq):
-    from blixt_rp.plotting.plot_logs_new import get_wiggles_in_depth
+    from blixt_geo_py.plotting.plot_logs_new import get_wiggles_in_depth
     if avo_or_eei == 'avo':
         _avo_angles = _angles
         _chi_angles = None
@@ -2974,7 +2973,7 @@ def calc_synth_cds(_vp, _vs, _rho, _twt, _dt, _angles, avo_or_eei, freq):
 
 
 def create_traces(_synth_cds, _depth, _title, angles, avo_or_eei):
-    from blixt_rp.core.seismic import SeismicTraces
+    from blixt_geo_py.core.seismic import SeismicTraces
     return SeismicTraces(
         x=angles, y=_depth, traces=None, cds=_synth_cds, trace_type=avo_or_eei, title=_title)
 
@@ -3209,7 +3208,7 @@ def update_1d_model_function(
     from bokeh.models import GlyphRenderer
     from bokeh.models.glyphs import Image, ImageRGBA, ImageURL
 
-    from blixt_rp.plotting.log_plotter import LogPlotter, LogColumn, Line, select_column, select_line
+    from blixt_geo_py.plotting.log_plotter import select_column
 
     # Update the elastic properties based on the new model
     _elastics_dict = model_table.realize(resolution)
@@ -3290,7 +3289,7 @@ def update_2d_model_function(
     from bokeh.models import GlyphRenderer
     from bokeh.models.glyphs import Image, ImageRGBA, ImageURL
 
-    from blixt_rp.plotting.log_plotter import LogPlotter, LogColumn, Line, select_column, select_line
+    from blixt_geo_py.plotting.log_plotter import select_column
 
     # Update the elastic properties based on the new model
     _elastics_dict = model_table.realize(resolution, trace_nr)

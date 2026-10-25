@@ -1,12 +1,13 @@
-import unittest
-import matplotlib.pyplot as plt
 import os
+import unittest
 
 import blixt_utils.io.io as uio
-from blixt_rp import plotting as ppl
+import matplotlib.pyplot as plt
 from blixt_utils.plotting.helpers import header_plot, axis_plot
-from blixt_rp.core.well import Project
-from blixt_rp.core.well import Well
+
+from blixt_geo_py import plotting as ppl
+from blixt_geo_py.core.well import Project
+from blixt_geo_py.core.well import Well
 
 
 class PlotTestCase(unittest.TestCase):
@@ -76,8 +77,8 @@ class PlotTestCase(unittest.TestCase):
         templates = uio.project_templates(PlotTestCase.wp.project_table)
         ppl.plot_logs(w, invert_well_table(PlotTestCase.well_table, 'WELL_D', rename=False),
                       PlotTestCase.wis, "SAND E", templates, buffer=50. )
-                      #savefig='C:/users/mblixt/PycharmProjects/blixt_rp/results_folder/test.png')
-                      #savefig='C:/Users/marten/PycharmProjects/blixt_rp/results_folder/test.png')
+                      #savefig='C:/users/mblixt/PycharmProjects/blixt_geo_py/results_folder/test.png')
+                      #savefig='C:/Users/marten/PycharmProjects/blixt_geo_py/results_folder/test.png')
         with self.subTest():
             self.assertTrue(True)
 

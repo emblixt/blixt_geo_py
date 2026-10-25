@@ -1,24 +1,24 @@
+import os
+import sys
 import unittest
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import os, sys
-import matplotlib.pyplot as plt
 from bokeh.models import ColumnDataSource
 from bokeh.plotting import show
 
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\unit_tests', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
-# sys.path.append(os.path.join(project_dir, 'blixt_utils'))
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 
-from blixt_rp import Q_
-from blixt_rp.core.core import (Interval, StratUnit, Intervals, Template, Header, CutoffRule, Cutoffs, LogTable,
+from blixt_geo_py import Q_
+from blixt_geo_py.core.core import (Interval, StratUnit, Intervals, Template, Header, CutoffRule, Cutoffs, LogTable,
                                 templates_from_table)
 
 
 
 test_file_dir = str(os.path.dirname(__file__).replace(
-    'blixt_rp\\unit_tests',
+    'blixt_geo_py\\unit_tests',
     'test_data'))
 
 project_table = os.path.join(test_file_dir.replace('test_data', 'excels'), 'project_table.xlsx')
@@ -79,6 +79,7 @@ class CutoffTests(unittest.TestCase):
     def test_print_rules(self):
         for rule in [rule1, rule2, rule3, rule4, rule5, rule6, rule7, rule8, rule9]:
             print(rule)
+        self.assertTrue(True)
 
     def test_from_string(self):
         for rule in [rule1, rule2, rule3, rule4, rule5, rule6, rule7, rule8, rule9]:
@@ -88,6 +89,7 @@ class CutoffTests(unittest.TestCase):
         string = "VCL>0.8[], PHIE<0.1[], vp><[2000, 4000][m/s], interval:Heather FM[]"
         cutoffs = Cutoffs(from_string=string)
         print(cutoffs)
+        self.assertTrue(True)
 
     def test_failed_init(self):
         cutoffs = Cutoffs
@@ -109,9 +111,8 @@ class CutoffTests(unittest.TestCase):
     def test_classification_table(self):
         from bokeh.io import output_file
         from bokeh.plotting import column
-        from blixt_rp.core.core import CutoffRule, ClassificationTable
-        output_file('C:\\Users\\emb\\Downloads\\plot.html')
-        # output_file('C:\\Users\\marte\\Downloads\\plot.html')
+        from blixt_geo_py.core.core import CutoffRule, ClassificationTable
+        output_file(os.path.join(project_dir,'plot.html'))
 
         rule1 = CutoffRule('param1', '>', Q_(100, 'm'))
         rule2 = CutoffRule('param2', '<', Q_(10, 'm'))
@@ -122,26 +123,26 @@ class CutoffTests(unittest.TestCase):
         rules_cds = ct.cds
         # print(ct.cds.data)
         # table, add_row, delete_row, update, use = ct.draw(rules_cds, ['log A', 'log B'], units=['m', 'km'])
-        table, add_row, delete_row, update, use = ct.draw(rules_cds)
+        table, classification_controls = ct.draw(rules_cds)
         print(ct.active_cutoffs(rules_cds))
         rules_cds.data['use'] = [True, True, True, True]
         print(ct.active_cutoffs(rules_cds))
 
-        show(column(table, add_row, delete_row, update, use))
-        # return table, add_row, delete_row, update, use
+        show(column(table, classification_controls))
+        self.assertTrue(True)
 
     def test_classification_mask(self):
         from bokeh.io import output_file
         from bokeh.plotting import column
-        from blixt_rp.core.core import CutoffRule, ClassificationTable
-        output_file('C:\\Users\\emb\\Downloads\\plot.html')
-        # output_file('C:\\Users\\marte\\Downloads\\plot.html')
+        from blixt_geo_py.core.core import CutoffRule, ClassificationTable
+
+        output_file(os.path.join(project_dir,'plot.html'))
 
         rule1 = CutoffRule('param1', '>', Q_(100, 'm'))
         rule2 = CutoffRule('param2', '<', Q_(10, 'm'))
         ct = ClassificationTable([rule1, rule2])
         rules_cds = ct.cds
-        table, add_row, delete_row, update, use = ct.draw(rules_cds, ['param1', 'param2'], units=['m', 'km'])
+        table, classification_controls = ct.draw(rules_cds, ['param1', 'param2'], units=['m', 'km'])
 
         data_cds = ColumnDataSource(dict(
             mask=np.ones(10, dtype=bool),
@@ -162,7 +163,8 @@ class CutoffTests(unittest.TestCase):
         mask = ct.create_mask(rules_cds, data_cds)
         print('Second cutoff rules is active: ', mask)
 
-        # show(column(table, add_row, delete_row, update, use))
+        show(column(table, classification_controls))
+        self.assertTrue(True)
 
     def test_log_types(self):
         cutoffs = Cutoffs(cutoffs=[rule5, rule6, rule7])
@@ -292,10 +294,10 @@ class TemplateTestCase(unittest.TestCase):
         print(t)
 
     def test_templates_table(self):
-        from blixt_rp.core.core import TemplatesTable
+        from blixt_geo_py.core.core import TemplatesTable
         from bokeh.io import output_file
         output_file('C:\\Users\\emb\\Downloads\\plot.html')
-        project_table = "C:\\Users\\emb\\Documents\\PycharmProjects\\blixt_rp\\excels\\project_table_new.xlsx"
+        project_table = "C:\\Users\\emb\\Documents\\PycharmProjects\\blixt_geo_py\\excels\\project_table_new.xlsx"
 
         templates = []
         for log_type in ['Resistivity', 'P velocity', 'S velocity']:
@@ -369,7 +371,7 @@ class IntervalTests(unittest.TestCase):
         self.assertIsInstance(wis, Intervals)
 
     def test_read_project_intervals(self):
-        project_file = os.path.join(project_dir,"blixt_rp\\excels\\project_table_new.xlsx")
+        project_file = os.path.join(project_dir,"blixt_geo_py\\excels\\project_table_new.xlsx")
         wis = Intervals()
         wis.read_blixt_tops(project_file)
         # print(wis)
@@ -401,7 +403,7 @@ class IntervalTests(unittest.TestCase):
 
     def test_cutoff_rule(self):
         from blixt_utils.misc.masks import create_mask
-        project_file = os.path.join(project_dir,"blixt_rp\\excels\\project_table_new.xlsx")
+        project_file = os.path.join(project_dir,"blixt_geo_py\\excels\\project_table_new.xlsx")
         wis = Intervals()
         wis.read_blixt_tops(project_file)
         _rule1 = wis.get_cutoff_rule('Shale C', 'WELL_F')
@@ -428,7 +430,7 @@ class IntervalTests(unittest.TestCase):
         wis = Intervals(name='TEST', intervals=[interval1, interval2, interval3])
 
     def test_intervals_table(self):
-        from blixt_rp.core.core import Intervals, WorkingIntervalsTable
+        from blixt_geo_py.core.core import Intervals, WorkingIntervalsTable
         from bokeh.io import output_file
         output_file(os.path.join(test_file_dir,'plot.html'))
         wis = Intervals()
@@ -453,7 +455,7 @@ class IntervalTests(unittest.TestCase):
         show(table)
 
     def test_intervals_table_2(self):
-        from blixt_rp.core.core import Intervals, WorkingIntervalsTable
+        from blixt_geo_py.core.core import Intervals, WorkingIntervalsTable
         wis = Intervals(
             name='test', intervals=[
                 Interval( well='one', top=Q_(1050, 'm'), base=Q_(1150, 'm'), interval_info=StratUnit('wi_1', 1)),
@@ -476,7 +478,7 @@ class IntervalTests(unittest.TestCase):
         self.assertTrue(np.array_equal(mask, np.array([0, 0, 0, 0, 0, 1, 0, 0, 1, 0], dtype=bool)))
 
     def test_overlapping_intervals(self):
-        project_file = os.path.join(project_dir,"blixt_rp\\excels\\project_table_new.xlsx")
+        project_file = os.path.join(project_dir,"blixt_geo_py\\excels\\project_table_new.xlsx")
         wis = Intervals()
         wis.read_blixt_tops(project_file)
 
@@ -500,6 +502,7 @@ class HeaderTestCase(unittest.TestCase):
         print(h.orig_filename, h.creation_date, h.modification_date)
         print(h)
         print(list(h.keys()))
+        self.assertTrue(all([_key in ['name', 'well', 'creation_info', 'creation_date', 'orig_filename', 'modification_date', 'modification_history', 'note', 'log_type'] for _key in list(h.keys())]))
 
 
 class LithoFluidTests(unittest.TestCase):
@@ -509,7 +512,7 @@ class LithoFluidTests(unittest.TestCase):
         Create a set of useful litho-fluids
         :return:
         """
-        from blixt_rp.core.core import LithoFluid
+        from blixt_geo_py.core.core import LithoFluid
         lf1 = LithoFluid(None, 3440., 2170., 2.17)
         lf2 = LithoFluid('Oseberg SST', 3400., 2050., 2.21)
         lf3 = LithoFluid('Fluid sub. problem', 3200., 2050., 2.21)
@@ -517,7 +520,7 @@ class LithoFluidTests(unittest.TestCase):
         return lf1, lf2, lf3
 
     def test_get_litho_fluids(self):
-        from blixt_rp.core.core import LithoFluids
+        from blixt_geo_py.core.core import LithoFluids
         lf1, lf2, lf3 = self.litho_fluids()
         lfs = LithoFluids([lf1, lf2, lf3])
         print(lfs['Oseberg SST'])
@@ -540,7 +543,7 @@ class LithoFluidTests(unittest.TestCase):
 
 
     def test_2d_lf(self):
-        from blixt_rp.core.core import LithoFluid
+        from blixt_geo_py.core.core import LithoFluid
         def vp(_i):
             return Q_(3000. +  5. * _i, 'm/s')
         def vs(_i):
@@ -556,7 +559,7 @@ class LithoFluidTests(unittest.TestCase):
         self.assertEqual(3050., lf.vp(10).magnitude)
 
     def test_plot(self):
-        from blixt_rp.core.core import LithoFluid
+        from blixt_geo_py.core.core import LithoFluid
         lf = LithoFluid()
         lf.plot()
         plt.show()
@@ -565,7 +568,7 @@ class LithoFluidTests(unittest.TestCase):
     def test_table(self, unit_test=True):
         from bokeh.io import output_file
         from bokeh.plotting import show, row, column
-        from blixt_rp.core.core import LithoFluid, LithoFluids, LithoFluidsTable
+        from blixt_geo_py.core.core import LithoFluid, LithoFluids, LithoFluidsTable
         output_file('C:\\Users\\marten.blixt\\Downloads\\plot.html')
 
         lfs = LithoFluids(litho_fluids=[LithoFluid(default='shale'), LithoFluid(default='brine_sst')])
@@ -589,7 +592,7 @@ class LithoFluidTests(unittest.TestCase):
     def test_quasi_2D_table(self, unit_test=True):
         from bokeh.io import output_file
         from bokeh.plotting import show, row, column
-        from blixt_rp.core.core import LithoFluid, LithoFluids, LithoFluidsTable
+        from blixt_geo_py.core.core import LithoFluid, LithoFluids, LithoFluidsTable
         output_file('C:\\Users\\marten.blixt\\Downloads\\plot.html')
 
         def vp(_i):

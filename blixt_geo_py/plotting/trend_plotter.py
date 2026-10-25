@@ -2,32 +2,30 @@
 Plots a single parameter (e.g. Vp) from multiple wells, from specific intervals (or whole well) using cut offs or not
 and calculates the trend vs.TVD for that parameter
 """
+import logging
+import os.path
+import sys
+import unittest
+
+import numpy as np
+from bokeh.models import PanTool, BoxZoomTool, WheelZoomTool, ResetTool, SaveTool, CrosshairTool, HoverTool, TextInput
 from bokeh.models import (Slider, ColorPicker, Range1d, LinearAxis, LogAxis, Span, Legend, ColumnDataSource, Text,
                           CustomJS, CustomJSTransform, LinearColorMapper, CheckboxEditor, Select)
-from bokeh.models import PanTool, BoxZoomTool, WheelZoomTool, ResetTool, SaveTool, CrosshairTool, HoverTool, TextInput
-from bokeh.plotting import figure, show
 from bokeh.plotting import column, row
-
-import sys
-import os.path
-import unittest
-import numpy as np
-import matplotlib.pyplot as plt
-import logging
+from bokeh.plotting import figure, show
 from scripts.regsetup import description
 from win32com.client.gencache import versionRedirectMap
 
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\plotting', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\plotting', ''))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_utils.utils import print_info, add_one, fix_well_name, cycle_colors, isnan
 from blixt_utils.misc.attribdict import AttribDict
-from blixt_rp.rp_utils.version import info
-from blixt_rp.core.core import Intervals, WorkingIntervalsTable
-from blixt_rp.core.core import Cutoffs, ClassificationTable
-from blixt_rp.plotting.cross_plotter import CrossPlotter
+from blixt_geo_py.core.core import Intervals
+from blixt_geo_py.core.core import Cutoffs
+from blixt_geo_py.plotting.cross_plotter import CrossPlotter
 
 logger = logging.getLogger(__name__)
 
@@ -226,7 +224,7 @@ class TrendPlotter(CrossPlotter):
 class TestCases(unittest.TestCase):
 
     def test_data_cds(self):
-        import blixt_rp.plotting.cross_plotter as xp
+        import blixt_geo_py.plotting.cross_plotter as xp
         test = xp.TestCases()
 
         ds1, ds2, wis, coffs = test.test_data()
@@ -244,7 +242,7 @@ class TestCases(unittest.TestCase):
 
     def test_calc_trend(self):
         import matplotlib.pyplot as plt
-        import blixt_rp.plotting.cross_plotter as xp
+        import blixt_geo_py.plotting.cross_plotter as xp
         test = xp.TestCases()
 
         ds1, ds2, wis, coffs = test.test_data()

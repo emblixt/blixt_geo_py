@@ -14,34 +14,32 @@ Module for handling rockphysics fluid and mineral models
 @author: mblixt
 """
 import logging
-from copy import deepcopy
-from datetime import datetime
-import numpy as np
-from scipy.interpolate import interp1d
-import pandas as pd
+import os
+import sys
 import unittest
-import os, sys
-from typing import Literal, List, Any, Dict
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Literal, List, Any
 
+import numpy as np
+import pandas as pd
+import pint
 from bokeh.io import output_file
 from bokeh.models import ColumnDataSource
 from bokeh.plotting import column, row
-import pint
+from scipy.interpolate import interp1d
 
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\core', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
+# To test blixt_geo_py and blixt_utils libraries directly, without installation:
+project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
+sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-from blixt_rp import Q_
-import blixt_rp.rp.rp_core as rp
-from blixt_rp.core.well_new import Well
+from blixt_geo_py import Q_
+import blixt_geo_py.rp.rp_core as rp
+from blixt_geo_py.core.well_new import Well
 from blixt_utils.misc.attribdict import AttribDict
-from blixt_rp.rp_utils.version import info
 from blixt_utils.utils import isnan, print_info
-from blixt_rp.core.core import Interval, Intervals, Cutoffs
+from blixt_geo_py.core.core import Cutoffs
 
 logger = logging.getLogger(__name__)
 
@@ -762,19 +760,19 @@ class TestCases(unittest.TestCase):
         print(fs)
 
     def test_load_fluid_spec(self):
-        project_table = os.path.join(project_dir, 'blixt_rp\\excels\\project_table_new.xlsx')
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx')
         for _key, _value in list(load_fluid_specs(project_table).items()):
             for _fluid in ['brine', 'oil', 'gas']:
                 info_txt = _value.calc_elastics(_fluid, Q_(3000., 'm'))
                 print(info_txt, _key, _fluid , _value)
 
     def test_load_mineral_spec(self):
-        project_table = os.path.join(project_dir, 'blixt_rp\\excels\\project_table_new.xlsx')
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx')
         for _key, _value in list(load_mineral_specs(project_table).items()):
             print(_key, _value)
 
     def test_read_sheet_table(self):
-        project_table = os.path.join(project_dir, 'blixt_rp\\excels\\project_table_new.xlsx')
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx')
         mix = read_sheet_table(project_table, 'Fluid mixtures',
                                {'Use', 'Substitution order',
                                 'Well name', 'Interval name',
@@ -785,7 +783,7 @@ class TestCases(unittest.TestCase):
 
 
     def test_component_from_row(self):
-        project_table = os.path.join(project_dir, 'blixt_rp\\excels\\project_table_new.xlsx')
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx')
 
         # First test the case with fluids
         fluids = load_fluid_specs(project_table)
@@ -815,7 +813,7 @@ class TestCases(unittest.TestCase):
             print('Minerals:\n', '\n'.join([str(_i) for _i in _minerals]))
 
     def test_validate_component_set(self):
-        project_table = os.path.join(project_dir, 'blixt_rp\\excels\\project_table_new.xlsx')
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx')
         fluids = load_fluid_specs(project_table)
         mix = read_sheet_table(project_table, 'Fluid mixtures',
                                {'Use', 'Substitution order',
@@ -844,7 +842,7 @@ class TestCases(unittest.TestCase):
 
 
     def test_load_substitution_cases(self):
-        project_table = os.path.join(project_dir, 'blixt_rp\\excels\\project_table_new.xlsx')
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx')
         # First the fluids
         cases = load_substitution_cases(project_table, from_fluid_mixture=True)
         for c in cases:
@@ -860,7 +858,7 @@ class TestCases(unittest.TestCase):
             print('  Final:  ', [(x.mother_name, x.type, x.volume.mode, x.volume.value) for x in c.final])
 
     def test_resolve_volume_fraction(self):
-        project_table = os.path.join(project_dir, 'blixt_rp\\excels\\project_table_new.xlsx')
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx')
         n = 10
 
         # First for fluids
@@ -883,7 +881,7 @@ class TestCases(unittest.TestCase):
             print('  Final: ', _out)
 
     def test_calc_elastics_for_substitution_cases(self):
-        project_table = os.path.join(project_dir, 'blixt_rp\\excels\\project_table_new.xlsx')
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx')
         n = 10
         logs = {
             'vp': np.linspace(2900., 3100, n),
