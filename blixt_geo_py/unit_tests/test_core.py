@@ -229,6 +229,8 @@ class LogTableTests(unittest.TestCase):
         lt2 = LogTable( log_table_multi)
         # lt1['Should fail'] = [1,2,3]
         lt2['Should fail'] = 'Vp'
+        # This shouldn't be allowed, but we're not catching this now
+        print(lt2)
 
     # def test_un_translate(self):
     #     lt1 = LogTable(log_table)
@@ -290,14 +292,13 @@ class TemplateTestCase(unittest.TestCase):
 
     def test_from_project_table_error(self):
         t = Template()
-        t.get_from_project(project_table, 'XXX')
-        print(t)
+        # t.get_from_project(project_table, 'XXX')
+        self.assertRaises(KeyError, t.get_from_project, project_file=project_table, log_type='XXX')
 
     def test_templates_table(self):
         from blixt_geo_py.core.core import TemplatesTable
         from bokeh.io import output_file
-        output_file('C:\\Users\\emb\\Downloads\\plot.html')
-        project_table = "C:\\Users\\emb\\Documents\\PycharmProjects\\blixt_geo_py\\excels\\project_table_new.xlsx"
+        output_file(os.path.join(test_file_dir,'plot.html'))
 
         templates = []
         for log_type in ['Resistivity', 'P velocity', 'S velocity']:
@@ -342,7 +343,7 @@ class IntervalTests(unittest.TestCase):
         self.assertIsInstance(wis, Intervals)
 
     def test_read(self):
-        f = "C:\\Users\\emb\\OneDrive - Petrolia NOCO AS\\Technical work\\Sodir_well_tops_BarentsSea.xlsx"
+        f = "C:\\Users\\marten.blixt\\OneDrive - Petrolia NOCO AS\\Technical work\\Sodir_well_tops_BarentsSea.xlsx"
         wis = Intervals(name='Working intervals')
         wis.read_sodir_tops(f)
 
@@ -371,7 +372,7 @@ class IntervalTests(unittest.TestCase):
         self.assertIsInstance(wis, Intervals)
 
     def test_read_project_intervals(self):
-        project_file = os.path.join(project_dir,"blixt_geo_py\\excels\\project_table_new.xlsx")
+        project_file = os.path.join(project_dir,"blixt_geo_py\\excels\\project_table.xlsx")
         wis = Intervals()
         wis.read_blixt_tops(project_file)
         # print(wis)
@@ -400,10 +401,9 @@ class IntervalTests(unittest.TestCase):
         print([_int.name for _int in wis.get_well_intervals('Well A', sorted_by_top=True)])
 
 
-
     def test_cutoff_rule(self):
-        from blixt_utils.misc.masks import create_mask
-        project_file = os.path.join(project_dir,"blixt_geo_py\\excels\\project_table_new.xlsx")
+        from blixt_geo_py.misc.masks import create_mask
+        project_file = os.path.join(project_dir,"blixt_geo_py\\excels\\project_table.xlsx")
         wis = Intervals()
         wis.read_blixt_tops(project_file)
         _rule1 = wis.get_cutoff_rule('Shale C', 'WELL_F')
@@ -413,7 +413,6 @@ class IntervalTests(unittest.TestCase):
         for _rule in [_rule1, _rule2]:
             mask = create_mask(md, _rule.operator, _rule.limit)
             print(md[mask])
-
 
 
     def test_append(self):
@@ -426,8 +425,6 @@ class IntervalTests(unittest.TestCase):
         print(wis)
         self.assertIsInstance(wis, Intervals)
 
-    def test_plot(self):
-        wis = Intervals(name='TEST', intervals=[interval1, interval2, interval3])
 
     def test_intervals_table(self):
         from blixt_geo_py.core.core import Intervals, WorkingIntervalsTable
@@ -478,7 +475,7 @@ class IntervalTests(unittest.TestCase):
         self.assertTrue(np.array_equal(mask, np.array([0, 0, 0, 0, 0, 1, 0, 0, 1, 0], dtype=bool)))
 
     def test_overlapping_intervals(self):
-        project_file = os.path.join(project_dir,"blixt_geo_py\\excels\\project_table_new.xlsx")
+        project_file = os.path.join(project_dir,"blixt_geo_py\\excels\\project_table.xlsx")
         wis = Intervals()
         wis.read_blixt_tops(project_file)
 

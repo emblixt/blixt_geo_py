@@ -26,8 +26,8 @@ sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 
 import blixt_geo_py.rp.rp_core as rp
 from blixt_geo_py import Q_
-from blixt_utils.utils import log_table_in_smallcaps as small_log_table
-from blixt_utils.utils import print_info
+from blixt_geo_py.utils.utils import log_table_in_smallcaps as small_log_table
+from blixt_geo_py.utils.utils import print_info
 from blixt_geo_py.plotting.cross_plotter import DataSource
 from blixt_geo_py.core.core import LogTable
 

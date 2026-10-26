@@ -32,7 +32,7 @@ from blixt_geo_py.core.log_curve import LogCurve, _to_depth, replace_data
 from blixt_geo_py.plotting.log_plotter import (LogPlotter, LogColumn, Line, WellPlotter,  add_strat_table, add_color_amp,
                                            select_column)
 import blixt_utils.misc.wavelets as bumw
-from blixt_utils.utils import nan_corrcoef, print_info
+from blixt_geo_py.utils.utils import nan_corrcoef, print_info
 from blixt_geo_py.core.seismic import SeismicTraces, interpolate_along_offset
 from blixt_geo_py.core.models import Model, LaminarModel, global_base_case_name, calc_synth_cds, create_traces
 
@@ -1290,7 +1290,7 @@ def plot_trends(x_name: str, wells: list, log_table: LogTable, wis:Intervals, wi
     """
     from blixt_utils.misc.curve_fitting import (residuals, linear_function, depth_trend, exp_function,
                                                 calculate_depth_trend)
-    from blixt_utils.utils import mask_string
+    from blixt_geo_py.utils.utils import mask_string
     from blixt_utils.plotting import crossplot as xp
 
     if skip is None:

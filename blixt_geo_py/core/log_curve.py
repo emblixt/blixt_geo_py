@@ -32,7 +32,7 @@ from blixt_utils.misc.curve_fitting import residuals, linear_function, calculate
 from blixt_utils.misc.convert_data import convert
 from blixt_utils.misc import masks as msks
 from blixt_utils.misc import templates as tmplts
-import blixt_geo_py.rp_utils.definitions as rud
+import blixt_geo_py.utils.definitions as rud
 from blixt_utils.io.io import read_general_ascii_GENERAL as read_file
 
 
@@ -225,7 +225,7 @@ class LogCurve(object):
             Header object or dict
         """
         from blixt_geo_py.core.core import Template, Header
-        from blixt_utils.utils import print_info
+        from blixt_geo_py.utils.utils import print_info
         if len(log_data) != len(depth):
             raise IOError('Length of log_data ({}) must equal length of depth ({})'.format(
                 len(log_data), len(depth)))
@@ -380,7 +380,7 @@ class LogCurve(object):
     @depth_units.setter
     def depth_units(self, to_units):
         """ Converts the depth units to 'to_units'"""
-        from blixt_utils.utils import print_info
+        from blixt_geo_py.utils.utils import print_info
         try:
             cnv_txt = 'Convert depth from {} to {}'.format(
                 str(self.depth.units), to_units
@@ -407,7 +407,7 @@ class LogCurve(object):
         """
         Converts the log data units to 'to_units', and changes the unit in the style too
         """
-        from blixt_utils.utils import print_info
+        from blixt_geo_py.utils.utils import print_info
         try:
             cnv_txt = 'Convert from {} to {}'.format(
                 str(self.data.units), to_units
@@ -523,7 +523,7 @@ class LogCurve(object):
         return copied_log_curve
 
     def velocity_from_sonic(self, name: str | None = None):
-        from blixt_utils.utils import print_info
+        from blixt_geo_py.utils.utils import print_info
         if self.log_type not in ['Sonic', 'Shear sonic']:
             warn_txt = 'Log type must be "Sonic" or "Shear sonic" to calculate velocity'
             print_info(warn_txt, 'warning', logger)
@@ -709,7 +709,7 @@ class LogCurve(object):
         Returns a Two-way time (TWT) LogCurve based on a One-way time (OWT) LogCurve
         :return:
         """
-        from blixt_utils.utils import print_info
+        from blixt_geo_py.utils.utils import print_info
         if self.log_type != 'One-way time':
             warn_text = 'Two-way time can only be calculated from a One-way time log curve, not log_type {}'.format(
                 self.log_type)
@@ -838,7 +838,7 @@ class LogCurve(object):
         :return:
             Smoothened LogCurve object when overwrite is False, else
         """
-        from blixt_utils.utils import print_info
+        from blixt_geo_py.utils.utils import print_info
         if not self.is_evenly_spaced:
             warn_txt = 'Only evenly spaced data can be smoothened'
             print_info(warn_txt, 'warning', logger)
@@ -996,8 +996,8 @@ class LogCurve(object):
         :return:
             LogCurve object
         """
-        from blixt_utils.utils import mask_string
-        from blixt_utils.utils import print_info
+        from blixt_geo_py.utils.utils import mask_string
+        from blixt_geo_py.utils.utils import print_info
 
         green_flag = True
         final_mask = None
@@ -1419,8 +1419,8 @@ def read_las(file_name: str, verbose: bool = False, encoding: str = 'UTF8',
         second dict contains the standard info about the well and curves extracted from the las file
     """
     import pandas as pd
-    from blixt_utils.utils import fix_well_name
-    from blixt_utils.utils import print_info
+    from blixt_geo_py.utils.utils import fix_well_name
+    from blixt_geo_py.utils.utils import print_info
     from blixt_utils.io.io import well_reader
     from blixt_geo_py.core.core import Template, templates_from_table
 
@@ -1563,7 +1563,7 @@ def read_general_ascii(file_name: str,
     :return:
     """
 
-    from blixt_utils.utils import print_info
+    from blixt_geo_py.utils.utils import print_info
     output = {}
     data, units = read_file(file_name,
                             separator,
@@ -1647,7 +1647,7 @@ def translate_units_for_pint(unit):
     :return:
         str
     """
-    from blixt_utils.utils import print_info
+    from blixt_geo_py.utils.utils import print_info
     print_info('This function will be deprecated', 'warning', logger)
     if '^3' in unit:
         pass
@@ -1729,7 +1729,7 @@ def handle_coords_old(coords, coord_units: str, coord_type: str, verbose=False):
     :return:
 
     """
-    from blixt_utils.utils import print_info
+    from blixt_geo_py.utils.utils import print_info
     coord_type = coord_type.lower()
     if coord_type not in ['md', 'tvd', 'twt', 'owt']:
         raise IOError('Dimension type must be either md, tvd, twt or owt. Not {}'.format(coord_type))
@@ -1898,7 +1898,7 @@ def is_equivalent(first: pint.Unit, second: pint.Unit, verbose: bool = False) ->
     """
     # verbose = True
     if verbose:
-        from blixt_utils.utils import print_info
+        from blixt_geo_py.utils.utils import print_info
         print_info('Testing if the units {} and {} are equivalent'.format(first, second), 'info', logger)
     try:
         factor = ureg.convert(1, first, second)

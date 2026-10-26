@@ -28,7 +28,7 @@ from blixt_utils.plotting.helpers import axis_plot, wiggle_plot, wavelet_plot
 from blixt_utils.plotting.crossplot import cnames
 import blixt_geo_py.rp.rp_core as rp
 import blixt_utils.misc.wavelets as bumw
-from blixt_utils.utils import print_info
+from blixt_geo_py.utils.utils import print_info
 from blixt_geo_py import Q_
 
 logger = logging.getLogger(__name__)
@@ -307,7 +307,7 @@ def plot_wiggles(model, sample_rate, wavelet, angle=0., eei=False, ax=None, colo
     # TODO
     # We can make the 'distance between min & max' more robust, so that it works more correctly for "non-symmetric"
     # wedge models
-    from blixt_utils.utils import find_value
+    from blixt_geo_py.utils.utils import find_value
 
     if avo_plot_position is None:
         avo_plot_position = [0.68, 0.02, 0.3, 0.3]

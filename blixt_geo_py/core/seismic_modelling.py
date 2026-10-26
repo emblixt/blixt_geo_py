@@ -5,7 +5,7 @@ import numpy
 import numpy as np
 import pint
 from blixt_utils.plotting.helpers import axis_plot, axis_log_plot, annotate_plot, header_plot, wiggle_plot
-from blixt_utils.utils import log_table_in_smallcaps as small_log_table
+from blixt_geo_py.utils.utils import log_table_in_smallcaps as small_log_table
 from bruges.filters import ricker
 from matplotlib.font_manager import FontProperties
 

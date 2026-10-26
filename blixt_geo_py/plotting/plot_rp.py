@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from blixt_utils.misc.convert_data import convert as cnvrt
 from blixt_utils.plotting import crossplot as xp
-from blixt_utils.utils import log_table_in_smallcaps as small_log_table
-from blixt_utils.utils import print_info
+from blixt_geo_py.utils.utils import log_table_in_smallcaps as small_log_table
+from blixt_geo_py.utils.utils import print_info
 from matplotlib.font_manager import FontProperties
 from matplotlib.lines import Line2D
 
@@ -45,7 +45,7 @@ def plot_rp(wells, log_table, wis, wi_name, cutoffs=None, templates=None, legend
         working intervals, as defined in the "Working intervals" sheet of the project table, and
         loaded through:
         wp = Project()
-        wis = rp_utils.io.project_working_intervals(wp.project_table)
+        wis = utils.io.project_working_intervals(wp.project_table)
     :param wi_name:
         str
         name of working interval to plot
@@ -56,7 +56,7 @@ def plot_rp(wells, log_table, wis, wi_name, cutoffs=None, templates=None, legend
             {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}
     :param templates:
         dict
-        templates dictionary as returned from rp_utils.io.project_templates()
+        templates dictionary as returned from utils.io.project_templates()
     :param legend_items:
         list
         list of Line2D objects that are used in the legends.

@@ -14,7 +14,7 @@ from datetime import datetime
 
 
 def version():
-    VERSIONFILE = os.path.dirname(__file__).replace('rp_utils', '_version.py')
+    VERSIONFILE = os.path.dirname(__file__).replace('utils', '_version.py')
     with open(VERSIONFILE, "r") as f:
         verstrline = f.read().strip()
         pattern = re.compile(r"__version__ = ['\"](.*)['\"]")

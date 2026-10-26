@@ -26,8 +26,8 @@ from .. import Q_
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
 sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 
-from blixt_geo_py.rp_utils.version import info
-from blixt_geo_py.rp_utils.utils import fix_well_name, isnan, print_info
+from blixt_geo_py.utils.version import info
+from blixt_geo_py.utils.utils import fix_well_name, isnan, print_info
 from blixt_geo_py.misc.attribdict import AttribDict
 
 logger = logging.getLogger(__name__)
@@ -222,7 +222,7 @@ class CutoffRule:
     """
     Class for rules for cutoffs
     NOTE, a parameter (param) is masked OUT if its value is NOT within the given rules and limits
-    This behaviour is guaranteed through the function create_mask in blixt_utils.misc.masks.py
+    This behaviour is guaranteed through the function create_mask in blixt_geo_py.misc.masks.py
     EG:
     > t = np.arange(10)
     > mask = create_mask(t,'>=',8)
@@ -1935,7 +1935,7 @@ class LithoFluid:
 
         """
         import matplotlib.pyplot as plt
-        import blixt_geo_py.rp_utils.avo_monte_carlo as havo
+        import blixt_geo_py.utils.avo_monte_carlo as havo
         # from blixt_utils.plotting import helpers as uhelp
         # from blixt_utils.plotting import crossplot as xp
         if label is None:

@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from blixt_utils.misc.templates import get_from_template
 from blixt_utils.plotting import crossplot as xp
-from blixt_utils.utils import print_info
+from blixt_geo_py.utils.utils import print_info
 
-import blixt_geo_py.rp_utils.definitions as ud
+import blixt_geo_py.utils.definitions as ud
 
 logger = logging.getLogger(__name__)
 
@@ -216,7 +216,7 @@ class SetUpCalculation:
 
         :param templates:
             dict
-            templates dictionary as returned from rp_utils.io.project_templates()
+            templates dictionary as returned from utils.io.project_templates()
         :param rokdoc_output:
             str
             full path name of file of which should contain the averages (RokDoc format)
@@ -314,7 +314,7 @@ class SetUpCalculation:
 
 class CalculateStats:
     def __init__(self, calc_setup):
-        from blixt_geo_py.rp_utils.calc_stats import collect_data_for_this_interval, save_rokdoc_output
+        from blixt_geo_py.utils.calc_stats import collect_data_for_this_interval, save_rokdoc_output
         """
         :param calc_setup:
             SetUpCalculation

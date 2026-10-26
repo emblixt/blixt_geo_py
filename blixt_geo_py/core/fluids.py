@@ -36,8 +36,8 @@ from blixt_geo_py import Q_
 import blixt_geo_py.rp.rp_core as rp
 from blixt_geo_py.core.well_new import Well
 from blixt_utils.misc.attribdict import AttribDict
-from blixt_geo_py.rp_utils.version import info
-from blixt_utils.utils import isnan, print_info
+from blixt_geo_py.utils.version import info
+from blixt_geo_py.utils.utils import isnan, print_info
 from blixt_geo_py.core.core import Interval, Intervals
 
 
@@ -1216,7 +1216,7 @@ class FluidMix(object):
 
 class TestCases(unittest.TestCase):
     def test_read_fluid_mixes(self):
-        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx')
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx')
         intervals = Intervals(name='MyIntervals')
         intervals.read_blixt_tops(project_table)
         # my_fluid_mixes = read_fluidmixes_from_excel(project_table, intervals)
@@ -1249,7 +1249,7 @@ class TestCases(unittest.TestCase):
     def test_calc_elastics(self):
         from blixt_geo_py.core.project_new import Project
 
-        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx')
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx')
         wp = Project(name='MyProject', project_table=project_table)
         wp.load_all_wells()
         wells = {_w.name.lower(): _w for _w in wp.wells}
@@ -1312,7 +1312,7 @@ class TestCases(unittest.TestCase):
         file_dir = str(os.path.dirname(__file__).replace(
             'blixt_geo_py\\core',
             ''))
-        project_table = os.path.join(file_dir, 'excels\\project_table_new.xlsx')
+        project_table = os.path.join(file_dir, 'excels\\project_table.xlsx')
 
         las_file =  os.path.join(file_dir, 'test_data/Well A.las')
         _output_file = os.path.join(file_dir, 'results_folder/plot.html')

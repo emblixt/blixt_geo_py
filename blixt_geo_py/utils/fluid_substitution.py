@@ -37,7 +37,7 @@ from blixt_geo_py import Q_
 from blixt_geo_py.core.project_new import Project
 from blixt_geo_py.core.well_new import Well
 from blixt_utils.misc.attribdict import AttribDict
-from blixt_utils.utils import isnan, print_info
+from blixt_geo_py.utils.utils import isnan, print_info
 from blixt_geo_py.core.core import Intervals, LogTable, Cutoffs, CutoffRule
 from blixt_geo_py.rp.rp_core import gassmann_vel
 from blixt_geo_py.core.fluids_new import FluidMix
@@ -368,7 +368,7 @@ class TestCases(unittest.TestCase):
         # Create a project
         wp = Project(
             name='FluidSub',
-            project_table=os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx'),
+            project_table=os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx'),
             working_dir=os.path.join(project_dir, 'blixt_geo_py')
         )
         pvt_table = dict(

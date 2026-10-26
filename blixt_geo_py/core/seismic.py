@@ -34,7 +34,7 @@ from blixt_utils.plotting.helpers import wiggle_plot
 import blixt_utils.plotting.crossplot as xp
 from blixt_geo_py.core.core import Template, LogTable
 from blixt_geo_py.core.log_curve import read_las
-from blixt_utils.utils import print_info
+from blixt_geo_py.utils.utils import print_info
 
 # global variables
 # output_file('C:\\Users\marte\Documents\plot.html')
@@ -1230,7 +1230,7 @@ def avo_qc(
         line_direction: str = 'inline', # or 'xline'
         verbose: bool = False
 ):
-    from blixt_utils.utils import print_info
+    from blixt_geo_py.utils.utils import print_info
 
     inlines = [str(_x) for _x in voi.inlines]
     inline0 = int(inlines[int(len(inlines)/2)])

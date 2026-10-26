@@ -10,12 +10,12 @@ import pandas as pd
 import seaborn as sns
 from blixt_utils.plotting import crossplot as xp
 from blixt_utils.plotting import helpers as uhelp
-from blixt_utils.utils import log_table_in_smallcaps as small_log_table
-from blixt_utils.utils import nan_corrcoef, print_info
+from blixt_geo_py.utils.utils import log_table_in_smallcaps as small_log_table
+from blixt_geo_py.utils.utils import nan_corrcoef, print_info
 from matplotlib.font_manager import FontProperties
 from matplotlib.lines import Line2D
 
-import blixt_geo_py.rp_utils.definitions as ud
+import blixt_geo_py.utils.definitions as ud
 
 logger = logging.getLogger(__name__)
 def_msk_name = 'Mask'  # default mask name
@@ -83,7 +83,7 @@ def calc_stats2_tops(
             {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}
     :param templates:
         dict
-        templates dictionary as returned from rp_utils.io.project_templates()
+        templates dictionary as returned from utils.io.project_templates()
     :param rokdoc_output:
         str
         full path name of file of which should contain the averages (RokDoc format)
@@ -196,7 +196,7 @@ def calc_stats2(
         working intervals, as defined in the "Working intervals" sheet of the project table, and
         loaded through:
         wp = Project()
-        wis = rp_utils.io.project_working_intervals(wp.project_table)
+        wis = utils.io.project_working_intervals(wp.project_table)
 
     :param wi_names:
         str or list
@@ -212,7 +212,7 @@ def calc_stats2(
             {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}
     :param templates:
         dict
-        templates dictionary as returned from rp_utils.io.project_templates()
+        templates dictionary as returned from utils.io.project_templates()
     :param rokdoc_output:
         str
         full path name of file of which should contain the averages (RokDoc format)
@@ -363,10 +363,10 @@ def calc_stats3(
         working intervals, as defined in the "Working intervals" sheet of the project table, and
         loaded through:
         wp = Project()
-        wis = rp_utils.io.project_working_intervals(wp.project_table)
+        wis = utils.io.project_working_intervals(wp.project_table)
     :param templates:
         dict
-        templates dictionary as returned from rp_utils.io.project_templates()
+        templates dictionary as returned from utils.io.project_templates()
     :param rokdoc_output:
         str
         full path name of excel file which should contain the averages (RokDoc format)

@@ -14,13 +14,12 @@ import bruges.rockphysics.rockphysicsmodels as brr
 import matplotlib.pyplot as plt
 import numpy as np
 
-import blixt_geo_py.rp_utils.definitions as ud
+import blixt_geo_py.utils.definitions as ud
 from blixt_geo_py.core.param import Param
 
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\rp', ''))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
-from blixt_utils.utils import log_table_in_smallcaps as small_log_table
-from blixt_utils.utils import print_info
+from blixt_geo_py.utils.utils import print_info
 
 from blixt_geo_py import Q_
 
@@ -1340,7 +1339,7 @@ def run_fluid_sub(wells, log_table, mineral_mix, fluid_mix, cutoffs, working_int
     :param working_intervals:
         dict
         E.G.
-        import rp_utils.io as uio
+        import utils.io as uio
         working_intervals = uio.project_working_intervals(wp.project_table)
     :param tag:
         str
@@ -1348,7 +1347,7 @@ def run_fluid_sub(wells, log_table, mineral_mix, fluid_mix, cutoffs, working_int
     :param templates:
         dict
         templates that can contain well information such as kelly bushing and sea water depth
-        templates = rp_utils.io.project_tempplates(wp.project_table)
+        templates = utils.io.project_tempplates(wp.project_table)
     :param block_name:
         str
         Name of the log block which should contain the logs to fluid substitute
@@ -1357,7 +1356,7 @@ def run_fluid_sub(wells, log_table, mineral_mix, fluid_mix, cutoffs, working_int
         if set to True, the keys in the cutoffs dictionary refer to log types, and not log names
     :return:
     """
-    log_table = small_log_table(log_table)
+    # log_table = small_log_table(log_table)
     if block_name is None:
         block_name = ud.def_lb_name
     if tag is None:

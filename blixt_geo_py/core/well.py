@@ -39,8 +39,8 @@ sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_geo_py.core.core import Cutoffs, LithoFluid, LithoFluids
 from blixt_geo_py.core.log_curve import LogCurve, Depth
-from blixt_utils.utils import print_info
-import blixt_utils.misc.masks as msks
+from blixt_geo_py.utils.utils import print_info
+import blixt_geo_py.misc.masks as msks
 from blixt_geo_py import ureg, Q_
 
 # global variables
@@ -498,7 +498,7 @@ class Well(object):
                 self.add_log(_val, if_log_exists=if_log_exists)
 
     def write_las(self, file_name, overwrite=False):
-        # from blixt_utils.utils import print_info
+        # from blixt_geo_py.utils.utils import print_info
         from datetime import datetime
         if os.path.isfile(file_name) and (not overwrite):
             warn_txt = 'File {} already exist. Write cancelled'.format(file_name)
@@ -750,7 +750,7 @@ class Well(object):
         return Q_(4.0, 'degC')
 
     # def get_tvd_log(self) -> LogCurve | None:
-    #     from blixt_utils.utils import print_info
+    #     from blixt_geo_py.utils.utils import print_info
     #     tvd_logs = self.get_logs_of_type('TVD')
     #     if len(tvd_logs) == 0:
     #         warn_txt = 'No True Vertical Depth log in {}, using MD'.format(self.name)

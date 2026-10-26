@@ -1,6 +1,6 @@
 import unittest
 
-import blixt_geo_py.rp_utils.calc_stats as uc
+import blixt_geo_py.utils.calc_stats as uc
 from blixt_geo_py.core.well import Project
 
 def_lb_name = 'Logs'  # default Block name

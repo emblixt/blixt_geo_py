@@ -39,8 +39,8 @@ sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_geo_py import Q_
 from blixt_utils.misc.attribdict import AttribDict
-from blixt_geo_py.rp_utils.version import info
-from blixt_utils.utils import isnan, print_info
+from blixt_geo_py.utils.version import info
+from blixt_geo_py.utils.utils import isnan, print_info
 from blixt_geo_py.core.core import Cutoffs, LogTable, Intervals
 
 logger = logging.getLogger(__name__)
@@ -647,7 +647,7 @@ class MineralMix(object):
 class TestCases(unittest.TestCase):
     def test_data(self):
         from blixt_geo_py.core.project_new import Project
-        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx')
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx')
         project = Project(name='MyProject', project_table=project_table)
         project.load_all_wells()
         wis = project.load_all_wis()
@@ -661,7 +661,7 @@ class TestCases(unittest.TestCase):
         print(m.vp())
 
     def test_read_mineral_mixes(self):
-        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx')
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx')
         my_mineral_mix = MineralMix()
         my_mineral_mix.read_excel(project_table)
         print(my_mineral_mix)

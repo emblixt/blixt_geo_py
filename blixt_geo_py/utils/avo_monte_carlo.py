@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats
 from blixt_utils.plotting import crossplot as myxp
-from blixt_utils.utils import find_value
+from blixt_geo_py.utils.utils import find_value
 from matplotlib.font_manager import FontProperties
 from matplotlib.lines import Line2D
 
@@ -59,7 +59,7 @@ def main(sums, intfs, fbase=None, templates=None, suffix=None,
         if None, no plots are saved
     :param templates:
         dict
-        templates dictionary as returned from rp_utils.io.project_templates()
+        templates dictionary as returned from utils.io.project_templates()
     :param suffix:
         str
         Suffix added to output plots (png) to ease separating output from eachother

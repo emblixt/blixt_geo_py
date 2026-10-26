@@ -40,7 +40,7 @@ def create_mask(data, operator, limits):
     """
     # TODO Force data and limits to be pint Quantities
     from blixt_geo_py.core.log_curve import Depth
-    from blixt_geo_py.rp_utils.utils import print_info
+    from blixt_geo_py.utils.utils import print_info
     if not isinstance(limits, pint.Quantity) and isinstance(data, pint.Quantity):
         print_info('Preferably, both data and limits should be given as pint.Quantity', 'warning', logger)
     if  not (isinstance(data, np.ndarray) or isinstance(data, pint.Quantity) or isinstance(data, Depth)):

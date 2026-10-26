@@ -640,7 +640,7 @@ class WellPlotter(LogPlotter):
             [1., 2., 1.
         :return:
         """
-        from blixt_utils.utils import print_info
+        from blixt_geo_py.utils.utils import print_info
 
         # This is necessary if we want to be able to use cutoffs to mask out data
         self.data_source = well.data_source()
@@ -785,7 +785,7 @@ def add_lines(_p: bokeh.plotting.figure,
     :param _column:
     :return:
     """
-    from blixt_utils.utils import print_info
+    from blixt_geo_py.utils.utils import print_info
     extra_axes = []
     for j, _line in enumerate(_column.lines):
         _legend_label = _line.line_args['legend_label']

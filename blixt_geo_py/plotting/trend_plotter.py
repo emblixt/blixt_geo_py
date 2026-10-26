@@ -21,7 +21,7 @@ project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\
 sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-from blixt_utils.utils import print_info, add_one, fix_well_name, cycle_colors, isnan
+from blixt_geo_py.utils.utils import print_info, add_one, fix_well_name, cycle_colors, isnan
 from blixt_utils.misc.attribdict import AttribDict
 from blixt_geo_py.core.core import Intervals
 from blixt_geo_py.core.core import Cutoffs

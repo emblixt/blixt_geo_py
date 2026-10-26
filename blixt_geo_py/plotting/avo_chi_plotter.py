@@ -22,7 +22,7 @@ project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\
 sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-import blixt_geo_py.rp_utils.avo_monte_carlo as havo
+import blixt_geo_py.utils.avo_monte_carlo as havo
 from blixt_geo_py.core.core import LithoFluid, LithoFluids
 import blixt_geo_py.rp.rp_core as rp
 

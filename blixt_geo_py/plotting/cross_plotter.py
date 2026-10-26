@@ -27,7 +27,7 @@ sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_geo_py.core.core import Intervals, WorkingIntervalsTable
 from blixt_geo_py.core.core import Cutoffs, ClassificationTable, LogTable
-from blixt_utils.utils import print_info
+from blixt_geo_py.utils.utils import print_info
 
 logger = logging.getLogger(__name__)
 
@@ -1099,7 +1099,7 @@ class CrossPlotter:
 
     def draw(self, cds: ColumnDataSource, set_all_intervals_active: bool = False, verbose: bool = False):
         from bokeh.models import CDSView, BooleanFilter, Button, Div
-        import blixt_utils.misc.masks as masks
+        import blixt_geo_py.misc.masks as masks
         from blixt_geo_py import Q_
 
         self.xplot = self.fig()
@@ -1388,7 +1388,7 @@ class TestCases(unittest.TestCase):
         from blixt_geo_py.core.project_new import Project
         from blixt_geo_py.core.core import LogTable, Intervals
 
-        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table_new.xlsx')
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx')
 
         project = Project(
             name='testing',

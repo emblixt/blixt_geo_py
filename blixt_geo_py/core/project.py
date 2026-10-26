@@ -22,11 +22,11 @@ from blixt_geo_py.core.core import LogTable
 
 from blixt_utils.misc.attribdict import AttribDict
 from blixt_utils.misc.templates import log_header_to_template as l2tmpl
-from blixt_utils.utils import log_table_in_smallcaps as small_log_table
+from blixt_geo_py.utils.utils import log_table_in_smallcaps as small_log_table
 import blixt_utils.io.io as uio
-from blixt_utils.utils import arrange_logging, print_info
+from blixt_geo_py.utils.utils import arrange_logging, print_info
 from blixt_utils.misc.convert_data import convert as cnvrt
-from blixt_utils.utils import isnan
+from blixt_geo_py.utils.utils import isnan
 
 logger = logging.getLogger(__name__)
 
