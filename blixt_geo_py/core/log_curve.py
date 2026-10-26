@@ -917,8 +917,6 @@ class LogCurve(object):
         :param suffix:
         :return:
         """
-        # TODO By using the magnitudes we avoided a problem with user defined units (e.g. API), but
-        # we need to add a test that the units are same for the max_clip and the data
         if window_len is None:
             window_len = Q_(2., 'm')
         if not isinstance(window_len, pint.Quantity):

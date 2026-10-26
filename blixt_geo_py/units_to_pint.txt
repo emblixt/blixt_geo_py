@@ -1,8 +1,8 @@
 ## Additions
-API = 1 * dimensionless = api
+API = 1 = api
 us = 1e-6 * second
 ohmm = [resistivity] = ohm * meter = Ωm
-fract = 1 * dimensionless
+fract = 1
 ## unitless = 1 * dimensionless
 micro- = 1e-6 = µ-
 ## fraction =  [] = frac

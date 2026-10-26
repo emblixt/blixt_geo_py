@@ -552,7 +552,7 @@ class LogCurveTestCase(unittest.TestCase):
         # lc = log_curves['grd']
         # print(lc.units, np.nanmin(lc.data), np.nanmax(lc.data))
         # print('Simple multiplication: ', np.nanmin(lc.data * 10.))
-        # # print('Simple subtraction: ', np.nanmin(lc.data * 1.1 - lc.data * 0.9))  # this fails
+        # # print('Simple subtraction: ', np.nanmin(lc.data * 1.1 - lc.data * 0.9))
         t1 = Q_(np.random.normal(size=10), 'API')
         t2 = Q_(np.random.normal(size=10), 'API')
         print(t1 - t2)
