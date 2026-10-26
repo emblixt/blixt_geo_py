@@ -1,10 +1,10 @@
 import logging
 import os
 
-import blixt_utils.io.io as uio
+import blixt_geo_py.misc.io as uio
 import matplotlib.pyplot as plt
 import numpy as np
-from blixt_utils.misc.templates import get_from_template
+from blixt_geo_py.misc.templates import get_from_template
 from blixt_utils.plotting import crossplot as xp
 from blixt_geo_py.utils.utils import print_info
 

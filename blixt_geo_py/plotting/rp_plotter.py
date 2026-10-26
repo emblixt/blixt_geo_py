@@ -24,7 +24,6 @@ sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_geo_py.utils.utils import print_info, add_one, fix_well_name, cycle_colors, isnan
-from blixt_utils.misc.attribdict import AttribDict
 from blixt_geo_py.core.core import Intervals
 from blixt_geo_py.core.core import Cutoffs
 from blixt_geo_py.plotting.cross_plotter import CrossPlotter
@@ -271,7 +270,7 @@ class RockPhysicsPlotter(CrossPlotter):
 
 class TestCases(unittest.TestCase):
     def test_data(self):
-        from blixt_geo_py.core.well_new import Well, Depth
+        from blixt_geo_py.core.well import Well, Depth
         from blixt_geo_py.core.log_curve import LogCurve
         from blixt_geo_py.core.core import CutoffRule, Interval, StratUnit, Header
         # Create new test data "from" two wells:
@@ -361,7 +360,7 @@ class TestCases(unittest.TestCase):
             return xplot, x_menu, y_menu, size_menu, color_menu, apply_mask, reset_mask, ct_guis, wis_guis, style_table
 
     def test_well(self, unit_test=True):
-        from blixt_geo_py.core.well_new import Well
+        from blixt_geo_py.core.well import Well
         from blixt_geo_py.core.core import LogTable, CutoffRule, Cutoffs
         from blixt_geo_py.rp.rp_wrapper_new import data_source_moduli
 
@@ -409,7 +408,7 @@ class TestCases(unittest.TestCase):
 
 
     def test_well_with_rpt(self, unit_test=True):
-        from blixt_geo_py.core.well_new import Well
+        from blixt_geo_py.core.well import Well
         from blixt_geo_py.core.core import LogTable, CutoffRule, Cutoffs
         from blixt_geo_py.rp.rp_wrapper_new import (data_source_moduli, rpt_wrapper, rpt_to_moduli,
                                                 rpt_phi_sw, return_rpt_keywords, RptVariableTable)

@@ -21,8 +21,6 @@ project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\
 sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-from blixt_geo_py.utils.utils import print_info, add_one, fix_well_name, cycle_colors, isnan
-from blixt_utils.misc.attribdict import AttribDict
 from blixt_geo_py.core.core import Intervals
 from blixt_geo_py.core.core import Cutoffs
 from blixt_geo_py.plotting.cross_plotter import CrossPlotter
@@ -103,7 +101,7 @@ class TrendPlotter(CrossPlotter):
         :param verbose:
         :return:
         """
-        from blixt_utils.misc.curve_fitting import (residuals, linear_function, depth_trend, exp_function,
+        from blixt_geo_py.misc.curve_fitting import (linear_function,
                                                     calculate_depth_trend)
         target_function = linear_function
 
@@ -196,7 +194,7 @@ class TrendPlotter(CrossPlotter):
         calc_trend.on_click(calc_trend_func)
 
         def calc_save_func():
-            from blixt_utils.io.io import write_regression
+            from blixt_geo_py.misc.io import write_regression
             for y_param in y_menu.options:
                 if y_param in ['md', 'tvd', 'twt']:  # don't calculate trends for these
                     continue

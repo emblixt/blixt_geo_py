@@ -3,7 +3,7 @@ import unittest
 import matplotlib.pyplot as plt
 import numpy as np
 from blixt_geo_py.core.log_curve import LogCurve
-from blixt_utils.misc.attribdict import AttribDict
+from blixt_geo_py.misc.attribdict import AttribDict
 
 import blixt_geo_py.core.well as cw
 from blixt_geo_py import rp as rp, rp as moduli

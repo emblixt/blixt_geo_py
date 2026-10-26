@@ -13,7 +13,7 @@ import logging
 import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 import numpy as np
-from blixt_utils.misc.templates import handle_template
+from blixt_geo_py.misc.templates import handle_template
 from matplotlib.font_manager import FontProperties
 
 import blixt_geo_py.rp.rp_core as rp

@@ -862,7 +862,7 @@ class Well(object):
         :param verbose:
         :return:
         """
-        from blixt_utils.misc.curve_fitting import calculate_one_block
+        from blixt_geo_py.misc.curve_fitting import calculate_one_block
 
         # Check that the log table contains the necessary log types
         # And that the necessary logs are in the well

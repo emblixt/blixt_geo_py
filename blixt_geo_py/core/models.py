@@ -27,7 +27,7 @@ sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 from blixt_utils.plotting.helpers import axis_plot, wiggle_plot, wavelet_plot
 from blixt_utils.plotting.crossplot import cnames
 import blixt_geo_py.rp.rp_core as rp
-import blixt_utils.misc.wavelets as bumw
+import blixt_geo_py.misc.wavelets as bumw
 from blixt_geo_py.utils.utils import print_info
 from blixt_geo_py import Q_
 
@@ -265,7 +265,7 @@ def plot_wiggles(model, sample_rate, wavelet, angle=0., eei=False, ax=None, colo
                 'wavelet': contains the wavelet amplitude
                 'time': contains the time data [s]
                 'header': a dictionary with info about the wavelet
-            see blixt_utils.io.io.read_petrel_wavelet() for example
+            see blixt_geo_py.misc.io.read_petrel_wavelet() for example
         angle:
             incident angle theta in degrees
         eei:

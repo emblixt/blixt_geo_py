@@ -4,7 +4,7 @@ from copy import deepcopy
 import bruges.rockphysics.anisotropy as bra
 import matplotlib.pyplot as plt
 import numpy as np
-from blixt_utils.misc.convert_data import convert as cnvrt
+from blixt_geo_py.misc.convert_data import convert as cnvrt
 from blixt_utils.plotting import crossplot as xp
 from blixt_geo_py.utils.utils import log_table_in_smallcaps as small_log_table
 from blixt_geo_py.utils.utils import print_info
@@ -588,7 +588,7 @@ def return_rpt_keywords(prev_rpt_kwargs=None, modify_keys=None, verbose=False):
 
 def test():
     from blixt_geo_py.core.well import Project
-    import blixt_utils.io.io as uio
+    import blixt_geo_py.misc.io as uio
     from blixt_geo_py.core.minerals import MineralMix
     wi_name = 'SAND E'
 

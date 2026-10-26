@@ -1,7 +1,7 @@
 import os
 import unittest
 
-import blixt_utils.io.io as uio
+import blixt_geo_py.misc.io as uio
 import matplotlib.pyplot as plt
 from blixt_utils.plotting.helpers import header_plot, axis_plot
 
@@ -72,7 +72,7 @@ class PlotTestCase(unittest.TestCase):
 
 
     def test_plot_logs(self):
-        from blixt_utils.io.io import invert_well_table
+        from blixt_geo_py.misc.io import invert_well_table
         w = PlotTestCase.w
         templates = uio.project_templates(PlotTestCase.wp.project_table)
         ppl.plot_logs(w, invert_well_table(PlotTestCase.well_table, 'WELL_D', rename=False),

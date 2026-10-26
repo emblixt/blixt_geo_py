@@ -25,13 +25,13 @@ project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\
 sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-import blixt_geo_py.core.well_new as cw
+import blixt_geo_py.core.well as cw
 import blixt_geo_py.rp.rp_core as rp
 from blixt_geo_py.core.core import Intervals, LogTable, Template, Cutoffs, LithoFluids
 from blixt_geo_py.core.log_curve import LogCurve, _to_depth, replace_data
 from blixt_geo_py.plotting.log_plotter import (LogPlotter, LogColumn, Line, WellPlotter,  add_strat_table, add_color_amp,
                                            select_column)
-import blixt_utils.misc.wavelets as bumw
+import blixt_geo_py.misc.wavelets as bumw
 from blixt_geo_py.utils.utils import nan_corrcoef, print_info
 from blixt_geo_py.core.seismic import SeismicTraces, interpolate_along_offset
 from blixt_geo_py.core.models import Model, LaminarModel, global_base_case_name, calc_synth_cds, create_traces
@@ -1257,7 +1257,7 @@ def plot_trends(x_name: str, wells: list, log_table: LogTable, wis:Intervals, wi
     :param x_name:
         name of the log which represents the independent variable (typically TVD_ML (below mudline) for depth trends)
     :param wells:
-        list of well_new objects
+        list of well objects
     :param log_table:
         Logtable object with the logs we will trend analyze
     :param wis:
@@ -1288,7 +1288,7 @@ def plot_trends(x_name: str, wells: list, log_table: LogTable, wis:Intervals, wi
 
     :return:
     """
-    from blixt_utils.misc.curve_fitting import (residuals, linear_function, depth_trend, exp_function,
+    from blixt_geo_py.misc.curve_fitting import (linear_function,
                                                 calculate_depth_trend)
     from blixt_geo_py.utils.utils import mask_string
     from blixt_utils.plotting import crossplot as xp
@@ -1516,7 +1516,7 @@ def get_wiggles_in_depth(
             'wavelet': contains the wavelet amplitude
             'time': contains the time data [s]
             'header': a dictionary with info about the wavelet
-        see blixt_utils.io.io.read_petrel_wavelet() for example
+        see blixt_geo_py.misc.io.read_petrel_wavelet() for example
     :return:
        (M, N) size np.ndarray.
        M seismic traces, each of length N

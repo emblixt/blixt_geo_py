@@ -9,7 +9,7 @@ Outline:
         OR, at least use them as inspiration
 
     2. One 'naiv' method that is interactive and uses bokeh as front-end
-           Use test_fluidsub() in fluids_new as inspiration
+           Use test_fluidsub() in fluids as inspiration
            There is one problem with using the CrossPlotter for visualizing the results, as the parameters both
            before and after fluid substitution need to have the same name for them to be plotted simultaneously.
            So we need a new 'Well' (or DataSource) to store the substituted results.
@@ -21,12 +21,6 @@ import unittest
 from copy import deepcopy
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
-import pint
-from bokeh.io import output_file
-from bokeh.models import ColumnDataSource
-from urllib3.fields import format_header_param
 
 # To test blixt_geo_py and blixt_utils libraries directly, without installation:
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\rp_utils', ''))
@@ -34,14 +28,11 @@ sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_geo_py import Q_
-from blixt_geo_py.core.project_new import Project
-from blixt_geo_py.core.well_new import Well
-from blixt_utils.misc.attribdict import AttribDict
+from blixt_geo_py.core.project import Project
+from blixt_geo_py.core.well import Well
 from blixt_geo_py.utils.utils import isnan, print_info
 from blixt_geo_py.core.core import Intervals, LogTable, Cutoffs, CutoffRule
 from blixt_geo_py.rp.rp_core import gassmann_vel
-from blixt_geo_py.core.fluids_new import FluidMix
-from blixt_geo_py.core.minerals_new import MineralMix
 from blixt_geo_py.core.fluids_and_minerals import load_substitution_cases
 
 logger = logging.getLogger(__name__)

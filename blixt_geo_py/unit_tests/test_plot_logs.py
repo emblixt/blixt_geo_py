@@ -22,8 +22,8 @@ sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 # from AkerBP_PL932.PL923_AVO import cutoffs
 from blixt_geo_py.core.log_curve import read_las, read_general_ascii
 from blixt_geo_py.core.core import Template, LogTable, Intervals, Cutoffs, CutoffRule
-from blixt_geo_py.core.well_new import Well
-from blixt_geo_py.core.project_new import Project
+from blixt_geo_py.core.well import Well
+from blixt_geo_py.core.project import Project
 import blixt_geo_py.plotting.plot_logs_new as bupp
 from blixt_geo_py.plotting.log_plotter import LogColumn, Line, add_lines, add_strat_table, LogPlotter
 from blixt_geo_py.core.seismic import SeismicTraces, interpolate_along_offset
@@ -34,7 +34,7 @@ test_file_dir = str(os.path.dirname(__file__).replace(
 output_file(os.path.join(test_file_dir, 'plot.html'))
 
 project_table = os.path.join(test_file_dir.replace('test_data', 'excels'), 'project_table.xlsx')
-project_table2 = "C:\\Users\\emb\\OneDrive - Petrolia NOCO AS\\Technical work\\PL1221\\PL1221 project_new.xlsx"
+project_table2 = "C:\\Users\\emb\\OneDrive - Petrolia NOCO AS\\Technical work\\PL1221\\PL1221 project.xlsx"
 
 las_file1 = os.path.join(test_file_dir, "L-30.las")
 las_file2 = "T:\\ROKDOC\\PL936\\To Partners from Ikon\\To Partners\\las files\\6406_11_1s.las"

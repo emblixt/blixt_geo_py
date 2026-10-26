@@ -28,7 +28,7 @@ project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 
-# from blixt_utils.misc.templates import necessary_keys
+# from blixt_geo_py.misc.templates import necessary_keys
 from blixt_geo_py.core.core import Template
 from blixt_geo_py import Q_
 
@@ -603,7 +603,7 @@ class WellPlotter(LogPlotter):
     """
     Class for plotting well logs from one well
     """
-    from blixt_geo_py.core.well_new import Well
+    from blixt_geo_py.core.well import Well
     from blixt_geo_py.core.core import Cutoffs
 
     def __init__(self,
@@ -1135,7 +1135,7 @@ def test_data():
     return cds, line1, line2, line3, wis, cutoffs
 
 def test_well_data():
-    from blixt_geo_py.core.well_new import Well
+    from blixt_geo_py.core.well import Well
     from blixt_geo_py.core.core import LogTable, CutoffRule, Cutoffs
     project_table = os.path.join(test_file_dir.replace('test_data', 'excels'), 'project_table.xlsx')
     las_file3 = os.path.join(test_file_dir, "Well F.las")

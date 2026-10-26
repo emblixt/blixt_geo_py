@@ -1,6 +1,6 @@
 import unittest
 
-from blixt_geo_py.core.project_new import Project
+from blixt_geo_py.core.project import Project
 
 
 class ProjectTestCase(unittest.TestCase):

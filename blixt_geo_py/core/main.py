@@ -65,12 +65,12 @@ elif test == 'test_laminar_q2d_model':
     )
 
 elif test == 'mineral_table':
-    test = minerals_new.TestCases()
+    test = minerals.TestCases()
     table, add_row, delete_row, update = test.test_mineral_table(unit_test=False)
     curdoc().add_root(column(table, row(add_row, delete_row, update)))
 
 elif test == 'fluid_table':
-    test = fluids_new.TestCases()
+    test = fluids.TestCases()
     table, add_row, delete_row, update = test.test_fluid_table(unit_test=False)
     curdoc().add_root(column(table, row(add_row, delete_row, update)))
 

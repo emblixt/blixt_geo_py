@@ -19,7 +19,7 @@ from blixt_geo_py.core.models import (Model, Layer, ModelTable, LaminarModel, We
                                   plot_wiggles, build_layered_model, laminar_model_analysis,
                                   build_saturation_wedge, detect_change_in_cases, build_wedge)
 from blixt_geo_py.core.core import LithoFluid
-import blixt_utils.misc.wavelets as bumw
+import blixt_geo_py.misc.wavelets as bumw
 from blixt_geo_py import Q_
 
 # l1 = {'vp': 3000, 'vs': 1820, 'rho': 2.6}

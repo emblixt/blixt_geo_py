@@ -36,8 +36,7 @@ sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_geo_py import Q_
 import blixt_geo_py.rp.rp_core as rp
-from blixt_geo_py.core.well_new import Well
-from blixt_utils.misc.attribdict import AttribDict
+from blixt_geo_py.core.well import Well
 from blixt_geo_py.utils.utils import isnan, print_info
 from blixt_geo_py.core.core import Cutoffs
 

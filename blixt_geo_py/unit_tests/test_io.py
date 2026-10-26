@@ -7,11 +7,11 @@ project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\
 sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-import blixt_utils.io.io as uio
-from blixt_utils.misc.attribdict import AttribDict
-from blixt_geo_py.core.well_new import Well
-from blixt_geo_py.core.project_new import Project
-from blixt_utils.io.io import well_reader
+import blixt_geo_py.misc.io as uio
+from blixt_geo_py.misc.attribdict import AttribDict
+from blixt_geo_py.core.well import Well
+from blixt_geo_py.core.project import Project
+from blixt_geo_py.misc.io import well_reader
 
 
 import numpy as np

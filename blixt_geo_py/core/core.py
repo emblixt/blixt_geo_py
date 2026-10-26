@@ -2156,7 +2156,7 @@ class LithoFluids:
         :param avg_type:
         :return:
         """
-        # from blixt_utils.io.io import read_sums_and_averages
+        # from blixt_geo_py.misc.io import read_sums_and_averages
         postfix = ''
         if avg_type is None:
             avg_type = 'mean'

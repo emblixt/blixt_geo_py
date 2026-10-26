@@ -649,7 +649,7 @@ class TestCases(unittest.TestCase):
             print(rho[_i])
 
     def test_data_source_moduli(self):
-        from blixt_geo_py.core.well_new import Well
+        from blixt_geo_py.core.well import Well
         from blixt_geo_py.core.core import LogTable
         from numpy import nanmin, nanmax
         w = Well()

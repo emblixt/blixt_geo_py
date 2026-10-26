@@ -4,11 +4,11 @@ show how the rock properties changes across this depth and how that can affect t
 """
 import os
 
-import blixt_utils.misc.wavelets as bumw
+import blixt_geo_py.misc.wavelets as bumw
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from blixt_utils.misc.templates import default_templates
+from blixt_geo_py.misc.templates import default_templates
 from blixt_utils.plotting.helpers import axis_plot, annotate_plot, header_plot, wiggle_plot, set_up_column_plot
 
 import blixt_geo_py.plotting.plot_logs as rpp
@@ -76,7 +76,7 @@ def calc_ai_around_top(
             'wavelet': contains the wavelet amplitude
             'time': contains the time data [s]
             'header': a dictionary with info about the wavelet
-        see blixt_utils.io.io.read_petrel_wavelet() for example
+        see blixt_geo_py.misc.io.read_petrel_wavelet() for example
     """
     global h_above, h_below, results, soft_below
 

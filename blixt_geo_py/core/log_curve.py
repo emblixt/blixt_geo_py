@@ -27,13 +27,11 @@ sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_geo_py.core.core import Template, Cutoffs, LogTable
-from blixt_utils.signal_analysis.signal_analysis import smooth as _smooth
-from blixt_utils.misc.curve_fitting import residuals, linear_function, calculate_depth_trend, calculate_blocking
-from blixt_utils.misc.convert_data import convert
-from blixt_utils.misc import masks as msks
-from blixt_utils.misc import templates as tmplts
+from blixt_geo_py.misc.signal_analysis import smooth as _smooth
+from blixt_geo_py.misc.curve_fitting import linear_function, calculate_depth_trend, calculate_blocking
+from blixt_geo_py.misc import masks as msks
 import blixt_geo_py.utils.definitions as rud
-from blixt_utils.io.io import read_general_ascii_GENERAL as read_file
+from blixt_geo_py.misc.io import read_general_ascii_GENERAL as read_file
 
 
 from .. import ureg, Q_
@@ -1421,7 +1419,7 @@ def read_las(file_name: str, verbose: bool = False, encoding: str = 'UTF8',
     import pandas as pd
     from blixt_geo_py.utils.utils import fix_well_name
     from blixt_geo_py.utils.utils import print_info
-    from blixt_utils.io.io import well_reader
+    from blixt_geo_py.misc.io import well_reader
     from blixt_geo_py.core.core import Template, templates_from_table
 
     with open(file_name, "r", encoding=encoding) as f:

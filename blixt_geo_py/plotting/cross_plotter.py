@@ -1374,7 +1374,7 @@ class TestCases(unittest.TestCase):
         xp.show_plot(d, os.path.join(project_dir, 'blixt_geo_py\\results_folder\\plot.html'))
 
     def test_from_las(self):
-        from blixt_geo_py.core.well_new import Well
+        from blixt_geo_py.core.well import Well
         las_fileA = os.path.join(project_dir, "blixt_geo_py\\test_data\\Well A.las")
         w = Well()
         w.read_las(las_fileA, True)
@@ -1385,7 +1385,7 @@ class TestCases(unittest.TestCase):
         xp.show_plot(cds, os.path.join(project_dir, 'blixt_geo_py\\results_folder\\plot.html'))
 
     def test_from_well(self):
-        from blixt_geo_py.core.project_new import Project
+        from blixt_geo_py.core.project import Project
         from blixt_geo_py.core.core import LogTable, Intervals
 
         project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx')
@@ -1445,7 +1445,7 @@ class TestCases(unittest.TestCase):
 
 
     def test_moduli(self):
-        from blixt_geo_py.core.well_new import Well
+        from blixt_geo_py.core.well import Well
         from blixt_geo_py.core.core import LogTable
         from blixt_geo_py.rp.rp_wrapper_new import data_source_moduli
         las_fileA = os.path.join(project_dir, "blixt_geo_py\\test_data\\Well A.las")

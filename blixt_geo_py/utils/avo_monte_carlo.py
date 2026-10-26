@@ -9,7 +9,7 @@ half space model with top "Layer 1" and base "Layer 2"
 """
 import os
 
-import blixt_utils.misc.wavelets as bumw
+import blixt_geo_py.misc.wavelets as bumw
 import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 import numpy as np
@@ -165,7 +165,7 @@ def execute_monte_carlo(sums_avg: dict, target_name: str, bg_name: str, n_iter: 
         dict
         dictionary of sums and averages information containing the statistics from different intervals (formations, ...)
         collected over one or more wells.
-        See read_sums_and_averages in blixt_utils.io.io
+        See read_sums_and_averages in blixt_geo_py.misc.io
     :param target_name:
         str
         Name that identifies which member of the sums_avg dictionary we should use as target interval
@@ -184,7 +184,7 @@ def execute_monte_carlo(sums_avg: dict, target_name: str, bg_name: str, n_iter: 
             'wavelet': contains the wavelet amplitude
             'time': contains the time data [s]
             'header': a dictionary with info about the wavelet
-        see blixt_utils.io.io.read_petrel_wavelet() for example
+        see blixt_geo_py.misc.io.read_petrel_wavelet() for example
         IGNORED when model_type is 'half_space'
     :param extract_at:
         float
@@ -346,7 +346,7 @@ def layered_model(target_thickness, target,  background,
                 'wavelet': contains the wavelet amplitude
                 'time': contains the time data [s]
                 'header': a dictionary with info about the wavelet
-            see blixt_utils.io.io.read_petrel_wavelet() for example
+            see blixt_geo_py.misc.io.read_petrel_wavelet() for example
     :param depth_to_target:
         float
         TWT value in seconds to top of target

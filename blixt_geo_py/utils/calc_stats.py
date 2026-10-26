@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import datetime
 
-import blixt_utils.io.io as uio
+import blixt_geo_py.misc.io as uio
 import bruges.rockphysics.anisotropy as bra
 import matplotlib.pyplot as plt
 import numpy as np

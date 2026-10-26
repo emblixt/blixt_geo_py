@@ -28,8 +28,8 @@ project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\
 sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-import blixt_utils.misc.curve_fitting as mycf
-import blixt_utils.io.io as uio
+import blixt_geo_py.misc.curve_fitting as mycf
+import blixt_geo_py.misc.io as uio
 from blixt_utils.plotting.helpers import wiggle_plot
 import blixt_utils.plotting.crossplot as xp
 from blixt_geo_py.core.core import Template, LogTable

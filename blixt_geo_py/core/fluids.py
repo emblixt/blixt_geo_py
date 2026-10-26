@@ -34,8 +34,8 @@ sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_geo_py import Q_
 import blixt_geo_py.rp.rp_core as rp
-from blixt_geo_py.core.well_new import Well
-from blixt_utils.misc.attribdict import AttribDict
+from blixt_geo_py.core.well import Well
+from blixt_geo_py.misc.attribdict import AttribDict
 from blixt_geo_py.utils.version import info
 from blixt_geo_py.utils.utils import isnan, print_info
 from blixt_geo_py.core.core import Interval, Intervals
@@ -1247,7 +1247,7 @@ class TestCases(unittest.TestCase):
         #     print(info_txt)
 
     def test_calc_elastics(self):
-        from blixt_geo_py.core.project_new import Project
+        from blixt_geo_py.core.project import Project
 
         project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx')
         wp = Project(name='MyProject', project_table=project_table)
@@ -1305,7 +1305,7 @@ class TestCases(unittest.TestCase):
 
     def test_fluidsub(self):
         from blixt_geo_py.core.core import LogTable, Cutoffs, CutoffRule
-        from blixt_geo_py.core.well_new import Well
+        from blixt_geo_py.core.well import Well
         from blixt_geo_py.core.log_curve import Depth, LogCurve
         from blixt_geo_py.plotting.cross_plotter import CrossPlotter
 

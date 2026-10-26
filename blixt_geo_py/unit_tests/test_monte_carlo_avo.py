@@ -9,7 +9,7 @@ project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 import blixt_geo_py.utils.avo_monte_carlo as havo
-import blixt_utils.misc.wavelets as bumw
+import blixt_geo_py.misc.wavelets as bumw
 
 wavelet = bumw.ricker(0.096, 0.001, 25)
 
