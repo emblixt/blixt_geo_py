@@ -15,41 +15,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import blixt_geo_py.utils.definitions as ud
-from blixt_geo_py.core.param import Param
 
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\rp', ''))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 from blixt_geo_py.utils.utils import print_info
 
-from blixt_geo_py import Q_
+from blixt_geo_py import Q_, ureg
 
 logger = logging.getLogger(__name__)
 
-
-def test_value(val, unit):
-    """
-    Test the input value val if it is a Param instance, and if not, create one with unit unit
-    :param val:
-        Input parameter to be tested
-    :param unit:
-        str
-    :return:
-        Param
-        the input parameter val, or a newly created Param object with unit unit
-    """
-    try:
-        test = val.value
-    except:
-        val = Param(name='DEFAULT', value=val, unit=unit, desc='')
-       # warn_str = 'Input parameter needs to be a Param instance with units. Default unit {} is now used'.format(
-       #     unit
-       #)
-       #print_info(warn_txt, 'warning', logger)
-
-    if (val.unit != unit):
-        raise NotImplementedError('Unit conversion not yet implemented')
-
-    return val
+# Functions decorated with ureg.wraps(output_units, input_units, strict=False) accept either pint Quantities,
+# which are converted to the given input units, or plain numbers, which are assumed to already be in those units.
+# The returned values are pint Quantities in the given output units.
 
 
 def step(x_1, x_2, along_wiggle=False):
@@ -356,45 +333,40 @@ def mu_dry(vs, rho):
     return mu_from_v(vs, rho)
 
 
+@ureg.wraps('m/s', ('m/s', None), strict=False)
 def han_castagna(vp, method=None):
     """
     Calculates Vs based on the Han (1986) and Castagna et al (1993) regressions.
 
     :param vp:
-        Param
+        pint.Quantity or float
         P velocity [m/s]
     :param method
         str
         'Han' or 'Castagna' or 'mudrock'
         default is 'Han'
     :return:
-        Param
-        Estimated shear velocity
+        pint.Quantity
+        Estimated shear velocity [m/s]
     """
-    vp = test_value(vp, 'm/s')
-
     if method == 'Castagna':
-        vs = 0.8042*vp.value - 855.9
+        vs = 0.8042*vp - 855.9
     elif method == 'mudrock':
-        vs = 0.8621*vp.value - 1172.4
+        vs = 0.8621*vp - 1172.4
     else:
-        vs = 0.7936*vp.value - 786.8
+        vs = 0.7936*vp - 786.8
 
-    return Param(
-        name='v_s',
-        value=vs,
-        unit='m/s',
-        desc='Shear velocity'
-    )
+    return vs
 
 
+@ureg.wraps('m/s', ('m/s', None, None, None), strict=False)
 def greenberg_castagna(vp, f, mono_mins, gc_coeffs=None):
     """
     Estimates Vs in a L-component multimineral brine saturated rock based on p. 246 in Rock physics handbook (Mavko et al. 1999)
     which is based on Greenberg & Castagna (1992).
 
     :param vp:
-        Param
+        pint.Quantity or float
         P velocity [m/s]
         float, or ndarray of floats
     :param f:
@@ -408,7 +380,8 @@ def greenberg_castagna(vp, f, mono_mins, gc_coeffs=None):
         Length of mono_mins and f must be the same
 
     :return:
-        vs
+        pint.Quantity
+        Estimated shear velocity [m/s]
     """
     if gc_coeffs is None:
         gc_coeffs = {
@@ -422,60 +395,50 @@ def greenberg_castagna(vp, f, mono_mins, gc_coeffs=None):
     for key in list(gc_coeffs.keys()):
         gc_coeffs[key.lower()] = gc_coeffs.pop(key)
 
-    vp = test_value(vp, 'm/s')
-
     def calc_vs(_vp, _coeffs):
         # convert to km/s
         _vp = _vp/1000.
         return _coeffs[0]*_vp**2 + _coeffs[1]*_vp + _coeffs[2]
 
-    m = [calc_vs(vp.value, gc_coeffs[this_mono.lower()]) for this_mono in mono_mins]
+    m = [calc_vs(vp, gc_coeffs[this_mono.lower()]) for this_mono in mono_mins]
 
-    return Param(
-        name='v_s',
-        value=vrh_bounds(f, m)[2]*1000.,
-        unit='m/s',
-        desc='Vs estimated from Greenberg Castagna')
+    return vrh_bounds(f, m)[2]*1000.
 
 
+@ureg.wraps(('GPa', 'g/cm**3'), ('API', '', '', 'MPa', 'degC'), strict=False)
 def k_and_rho_o(oil_gravity, gas_gravity, g_o_ratio, p, t):
     """
     Calculates the bulk modulus and density of oil using Batzle & Wang 1992.
 
     :param oil_gravity:
-        Param
+        pint.Quantity or float
         API gravity, measures how heavy or light a petroleum liquid is compared to water:
         API > 10, it is lighter and floats on water;
         API < 10, it is heavier and sinks.
     :param gas_gravity:
-        Param
+        pint.Quantity or float
         Gas gravity is the molar mass of the gas divided by the molar mass of air
         It ranges from 0.55 for dry sweet gas to approximately 1.5 for wet, sour gas.
         Default value is 0.65
     :param g_o_ratio:
-        Param
+        pint.Quantity or float
         The gas/oil ratio (GOR) is the ratio of the volume of gas that comes out of solution,
         to the volume of oil at standard conditions.
     :param p:
-        Param
+        pint.Quantity or float
         Hydrostatic pore pressure [MPa]
     :param t:
-        Param
+        pint.Quantity or float
         Temperature [deg C]
     :return:
-     Oil bulk modulus [GPa], Oil density [g/cm3]
+        pint.Quantity, pint.Quantity
+        Oil bulk modulus [GPa], Oil density [g/cm3]
     """
-    oil_gravity = test_value(oil_gravity, 'API')
-    gas_gravity = test_value(gas_gravity, '')
-    g_o_ratio = test_value(g_o_ratio, '')
-    p = test_value(p, 'MPa')
-    t = test_value(t, 'C')
-
-    ov = oil_gravity.value
-    gv = gas_gravity.value
-    gorv = g_o_ratio.value
-    pv = p.value
-    tv = t.value
+    ov = oil_gravity
+    gv = gas_gravity
+    gorv = g_o_ratio
+    pv = p
+    tv = t
 
     rho0 = 141.5/(ov + 131.5)
 
@@ -492,41 +455,32 @@ def k_and_rho_o(oil_gravity, gas_gravity, g_o_ratio, p, t):
     vp_o = vp_o/1000
     k_o = vp_o*vp_o*rho_o
 
-    return Param(name='k_o',
-                 value=k_o,
-                 unit='GPa',
-                 desc='Oil bulk modulus'), \
-           Param(name='rho_o',
-                 value=rho_o,
-                 unit='g/cm3',
-                 desc='Oil density')
+    return k_o, rho_o
 
 
+@ureg.wraps(('GPa', 'g/cm**3'), ('', 'MPa', 'degC'), strict=False)
 def k_and_rho_g(gas_gravity, p, t):
     """
     Calculates the bulk modulus and density of gas using Batzle & Wang 1992.
 
     :param gas_gravity:
-        Param
+        pint.Quantity or float
         Gas gravity is the molar mass of the gas divided by the molar mass of air
         It ranges from 0.55 for dry sweet gas to approximately 1.5 for wet, sour gas.
         Default value is 0.65
     :param p:
-        Param
+        pint.Quantity or float
         Hydrostatic pore pressure [MPa]
     :param t:
-        Param
+        pint.Quantity or float
         Temperature [deg C]
     :return:
-     Gas bulk modulus [GPa], Gas density [g/cm3]
+        pint.Quantity, pint.Quantity
+        Gas bulk modulus [GPa], Gas density [g/cm3]
     """
-    gas_gravity = test_value(gas_gravity, '')
-    p = test_value(p, 'MPa')
-    t = test_value(t, 'C')
-
-    gv = gas_gravity.value
-    pv = p.value
-    tv = t.value
+    gv = gas_gravity
+    pv = p
+    tv = t
 
     r0 = 8.31441  # Ideal gas constant
 
@@ -542,104 +496,75 @@ def k_and_rho_g(gas_gravity, p, t):
     f = E*1.2*(-(0.45+8.*(0.56-1./Tr)**2)*Pr**0.2/Tr)+(0.03+0.00527*(3.5-Tr)**3)
     k_g = pv*gamma/(1-Pr/Z*f)/1000.
 
-    return Param(name='k_g',
-                value=k_g,
-                unit='GPa',
-                desc='Gas bulk modulus'), \
-          Param(name='rho_g',
-                value=rho_g,
-                unit='g/cm3',
-                desc='Gas density')
+    return k_g, rho_g
 
 
+@ureg.wraps('g/cm**3', ('MPa', 'degC'), strict=False)
 def rho_w(p, t):
     """
     Calculates the density of water as a function of pressure and temperature according to eq. 27a in Batzle & Wang 1992.
 
     :param p:
-        Param
+        pint.Quantity or float
         pressure in MPa
     :param t:
-        Param
+        pint.Quantity or float
         temperature in deg C
     :return:
-        Param
+        pint.Quantity
         Density in g/cm3
     """
-
-    p = test_value(p, 'MPa')
-    t = test_value(t, 'C')
-
-    tv = t.value
-    pv = p.value
+    tv = t
+    pv = p
 
     _rho_w = 1. + 10**(-6) * (-80.*tv - 3.3*tv**2 + 0.00175*tv**3 + 489.*pv - 2.*tv*pv + 0.016*pv*tv**2 - (1.3*10**(-5))*pv*tv**3 -
                               0.333*pv**2 - 0.002*tv*pv**2)
-    return Param(
-        name='rho_w',
-        value=_rho_w,
-        unit='g/cm3',
-        desc='Water density'
-    )
+    return _rho_w
 
 
+@ureg.wraps('g/cm**3', ('ppm', 'MPa', 'degC'), strict=False)
 def rho_b(s, p, t):
     """
     Calculates the density of brine as a function of salinity, pressure and temperature according to eq. 27b
     in Batzle & Wang 1992.
 
     :param s:
-        Param
+        pint.Quantity or float
         Salinity in ppm
     :param p:
-        Param
+        pint.Quantity or float
         pressure in MPa
     :param t:
-        Param
+        pint.Quantity or float
         temperature in deg C
     :return:
-        Param
+        pint.Quantity
         Density in g/cm3
     """
+    sv = s/1E6
+    tv = t
+    pv = p
 
-    s = test_value(s, 'ppm')
-    p = test_value(p, 'MPa')
-    t = test_value(t, 'C')
-
-    if (p.unit != 'MPa') or (t.unit != 'C') or (s.unit != 'ppm'):
-        raise NotImplementedError('Unit conversion not yet implemented')
-
-    sv = s.value/1E6
-    tv = t.value
-    pv = p.value
-
-    _rho_b = rho_w(p, t).value + sv * ( 0.668+0.44*sv + 1E-6*(300.*pv - 2400.*pv*sv + tv*(
+    _rho_b = rho_w(p, t).magnitude + sv * ( 0.668+0.44*sv + 1E-6*(300.*pv - 2400.*pv*sv + tv*(
             80. + 3.*tv - 3300.*sv - 13.*pv + 47.*pv*sv)) )
 
-    return Param(
-        name='rho_b',
-        value=_rho_b,
-        unit='g/cm3',
-        desc='Brine density'
-    )
+    return _rho_b
 
 
+@ureg.wraps('m/s', ('MPa', 'degC'), strict=False)
 def v_p_w(p, t):
     """
     Calculates the velocity in water as a function of pressure and temperature according to eq. 28 in Batzle & Wang 1992
     :param p:
-        Param
+        pint.Quantity or float
         pressure in MPa
     :param t:
-        Param
+        pint.Quantity or float
         temperature in deg C
     :return:
-        Param
+        pint.Quantity
         Velocity in m/s
     """
-
-    p = test_value(p, 'MPa')
-    t = test_value(t, 'C')
 
     # Matrix for water properties calculation according to Table 1 in Batzle & Wang 1992
     mwp = [
@@ -650,71 +575,55 @@ def v_p_w(p, t):
         [-2.197e-7, 7.987e-10, 5.230e-11, -4.614e-13]
     ]
 
-    pv = p.value
-    tv = t.value
+    pv = p
+    tv = t
 
     _vp_w = sum(
         [mwp[i][j] * tv**i * pv**j for i in range(5) for j in range(4)]
     )
 
-    return Param(
-        name='v_p_w',
-        value=_vp_w,
-        unit='m/s',
-        desc='Sound velocity in water'
-    )
+    return _vp_w
 
 
+@ureg.wraps('m/s', ('ppm', 'MPa', 'degC', None), strict=False)
 def v_p_b(s, p, t, giib=None):
     """
     Calculates the velocity in brine as a function of salinity, pressure and temperature according to eq. 29 & 31 in
     Batzle & Wang 1992.
 
     :param s:
-        Param
+        pint.Quantity or float
         Salinity in ppm
     :param p:
-        Param
+        pint.Quantity or float
         pressure in MPa
     :param t:
-        Param
+        pint.Quantity or float
         temperature in deg C
     :param giib:
         float
         Gas index in brine
     :return:
-        Param
+        pint.Quantity
         Velocity in m/s
     """
     if giib is None: giib = 0.
 
-    s = test_value(s, 'ppm')
-    p = test_value(p, 'MPa')
-    t = test_value(t, 'C')
-
-    if (p.unit != 'MPa') or (t.unit != 'C') or (s.unit != 'ppm'):
-        raise NotImplementedError('Unit conversion not yet implemented')
-
-    sv = s.value/1E6
-    tv = t.value
-    pv = p.value
+    sv = s/1E6
+    tv = t
+    pv = p
 
     # Gas water ratio
     gwrmax = 10.**(np.log10(0.712 * pv * (abs(tv - 76.71))**1.5 + 3676. * pv**0.64) - 4 -
                    7.786 * sv * (tv+17.78)**(-0.306))
     gwr = gwrmax * giib
 
-    vpb0 = v_p_w(p, t).value + sv*(1170. - 9.6*tv + 0.055*tv**2 - 8.5e-5*tv**3 + 2.6*pv -
+    vpb0 = v_p_w(p, t).magnitude + sv*(1170. - 9.6*tv + 0.055*tv**2 - 8.5e-5*tv**3 + 2.6*pv -
                                    0.0029*tv*pv-0.0476*pv**2) + sv**1.5*(
             780. - 10.*pv + 0.16*pv**2) - 1820.*sv**2
     _vp_b = vpb0 / (np.sqrt(1. + 0.0494*gwr))
 
-    return Param(
-        name='v_p_b',
-        value=_vp_b,
-        unit='m/s',
-        desc='Sound velocity in brine'
-    )
+    return _vp_b
 
 
 def vrh_bounds(f, m):
@@ -850,6 +759,7 @@ def critpor(k0, g0, phi, phi_c=None):
     return k_dry, g_dry
 
 
+@ureg.wraps(('GPa', 'GPa'), ('GPa', 'GPa', None, None, 'GPa', None), strict=False)
 def hertz_mindlin(k0, mu0, phi_c=None, c_n=None, p_conf=None, smcf=None):
     """
     Hertz-Mindlin model
@@ -858,10 +768,10 @@ def hertz_mindlin(k0, mu0, phi_c=None, c_n=None, p_conf=None, smcf=None):
     Eq. 2.3 and 2.4 in Avseth 2011
 
     :param k0:
-        Param
+        pint.Quantity or float
         Mineral bulk modulus in GPa
     :param mu0:
-        Param
+        pint.Quantity or float
         Mineral shear modulus in GPa
     :param phi_c:
         float
@@ -870,33 +780,21 @@ def hertz_mindlin(k0, mu0, phi_c=None, c_n=None, p_conf=None, smcf=None):
         float
        coordination number (default 8.6), average number of contacts per grain
     :param p_conf:
-        Param
-        Confining pressure, default 10/1E3 GPa
+        pint.Quantity or float
+        Confining pressure in GPa, default 10/1E3 GPa
     :param smcf:
         float
         shear modulus correction factor
         1=dry pack with perfect adhesion
         0=dry frictionless pack
     :returns
+        pint.Quantity, pint.Quantity
         Effective bulk and shear modulus in GPa
     """
     if phi_c is None: phi_c = 0.4
     if c_n is None: c_n = 8.6
     if smcf is None: smcf = 1
-    if p_conf is None:
-        p_conf = Param(
-            name='Pressure',
-            value=10./1e3,
-            unit='GPa',
-            desc='Confining pressure'
-        )
-    k0 = test_value(k0, 'GPa')
-    mu0 = test_value(mu0, 'GPa')
-    p_conf = test_value(p_conf, 'GPa')
-
-    k0 = k0.value
-    mu0 = mu0.value
-    p_conf = p_conf.value
+    if p_conf is None: p_conf = 10./1e3
 
     pr0 = (3*k0-2*mu0)/(6*k0+2*mu0)  # poisson's ratio of mineral mixture
     k_HM = (p_conf * (c_n ** 2 * (1 - phi_c) ** 2 * mu0 ** 2) / (18 * np.pi ** 2 * (1 - pr0) ** 2)) ** (1 / 3)
@@ -929,7 +827,7 @@ def softsand(k0, g0, phi, phi_c=None, c_n=None, p_conf=None, smcf=None):
     if c_n is None: c_n = 8.6
     if p_conf is None: p_conf = 10
     if smcf is None: smcf = 1
-    k_hm, g_hm = hertz_mindlin(k0, g0, phi_c, c_n, p_conf / 1.E3, smcf)
+    k_hm, g_hm = [x.magnitude for x in hertz_mindlin(k0, g0, phi_c, c_n, Q_(p_conf, 'MPa'), smcf)]
     k_eff = -4 / 3 * g_hm + (((phi / phi_c) / (k_hm + 4 / 3 * g_hm)) + ((1 - phi / phi_c) / (k0 + 4 / 3 * g_hm))) ** -1
     tmp = g_hm / 6 * ((9 * k_hm + 8 * g_hm) / (k_hm + 2 * g_hm))
     g_eff = -tmp + ((phi / phi_c) / (g_hm + tmp) + ((1 - phi / phi_c) / (g0 + tmp))) ** -1
@@ -959,7 +857,7 @@ def stiffsand(k0, g0, phi, phi_c=None, c_n=None, p_conf=None, smcf=None):
     if c_n is None: c_n = 8.6
     if p_conf is None: p_conf = 10
     if smcf is None: smcf = 1
-    k_hm, g_hm = hertz_mindlin(k0, g0, phi_c, c_n, p_conf / 1.E3, smcf)
+    k_hm, g_hm = [x.magnitude for x in hertz_mindlin(k0, g0, phi_c, c_n, Q_(p_conf, 'MPa'), smcf)]
     print('K_HM: {}, G_HM: {}'.format(k_hm, g_hm))
     k_eff = -4 / 3 * g0 + (((phi / phi_c) / (k_hm + 4 / 3 * g0)) + ((1 - phi / phi_c) / (k0 + 4 / 3 * g0))) ** -1
     tmp = g0 / 6 * ((9 * k0 + 8 * g0) / (k0 + 2 * g0))
@@ -1092,22 +990,23 @@ def constantcement_hidden(k0, g0, phi, phi_c=None, apc=None, c_n=None, k_c=None,
     return k_eff, g_eff
 
 
+@ureg.wraps('', ('ohmm', 'us/ft', 'ohmm', 'us/ft', None), strict=False)
 def delta_log_r(r, ac, r0=None, ac0=None, neal_morgan=False):
     """
     Calculates the Delta Log R value based on eq. 1 in Passey et al. 1990 "A practical model for organic richness ..."
     Args:
         r:
-            Param
+            pint.Quantity or float
             Deep resistivity [Ohmm]
         ac:
-            Param
+            pint.Quantity or float
             Acoustic sonic [us/ft]
         r0:
-            Param
+            pint.Quantity or float
             Deep resistivity baseline [Ohmm], taken from a non-source, clay-rich, section of the well near the
             area of interest
         ac0:
-            Param
+            pint.Quantity or float
             Acoustic sonic baseline [us/ft], taken from a non-source, clay-rich, section of the well
         neal_morgan:
             bool
@@ -1119,40 +1018,27 @@ def delta_log_r(r, ac, r0=None, ac0=None, neal_morgan=False):
 
     Returns:
         Delta log R [-]:
-            Param
+            pint.Quantity
     """
     if r0 is None:
-        r0 = Param(name='', value=1., unit='Ohmm')
+        r0 = 1.
     if ac0 is None:
-        ac0 = Param(name='', value=100., unit='us/ft')
+        ac0 = 100.
 
-    r = test_value(r, 'Ohmm')
-    ac = test_value(ac, 'us/ft')
-    r0 = test_value(r0, 'Ohmm')
-    ac0 = test_value(ac0, 'us/ft')
     if neal_morgan:
-        return Param(
-            name='DeltaLogR',
-            value=np.log10(r.value / r0.value) + (ac.value - 200.)/200.,
-            unit='-',
-            desc='Delta log R according to Passey et al. 1990, using Neal Morgans modification'
-        )
+        return np.log10(r / r0) + (ac - 200.)/200.
     else:
-        return Param(
-            name='DeltaLogR',
-            value=np.log10(r.value / r0.value) + 0.02 * (ac.value - ac0.value),
-            unit='-',
-            desc='Delta log R according to Passey et al. 1990'
-        )
+        return np.log10(r / r0) + 0.02 * (ac - ac0)
 
 
+@ureg.wraps('percent', ('', None, None, None), strict=False)
 def toc_from_delta_log_r(deltalogr, lom, a=None, b=None):
     """
     Calculates the TOC from Delta Log R and Level of organic metamorphism units (lom)
     based on eq. 2 in Passey et al. 1990 "A practical model for organic richness ..."
     Args:
         deltalogr:
-            Param
+            pint.Quantity or float
             Delta log R [-] value estimated from Sonic and Resitivity logs using the method described in the
             Passey et al. article
         lom:
@@ -1168,20 +1054,15 @@ def toc_from_delta_log_r(deltalogr, lom, a=None, b=None):
 
     Returns:
         toc
-            Total organic content
+            pint.Quantity
+            Total organic content [%]
     """
     if a is None:
         a = 2.297
     if b is None:
         b = 0.1688
 
-    dlr = test_value(deltalogr, '-')
-    return Param(
-        name='TOC',
-        value=dlr.value * 10**(a - b * lom),
-        unit='%',
-        desc='TOC estimated from Delta log R according to Passey et al. 1990'
-    )
+    return deltalogr * 10**(a - b * lom)
 
 
 def gassmann_vel(vp_1, vs_1, rho_1, k_f1, rho_f1, k_f2, rho_f2, k_min, phi):

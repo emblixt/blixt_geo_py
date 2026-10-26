@@ -107,8 +107,8 @@ class FluidSpec:
             _p = self.params['P ref [MPa]'] + self.params['P gradient [MPa/m]'] * burial_depth.to('meter').magnitude
             _t = self.params['T ref [C]'] + self.params['T gradient [deg C/m]'] * burial_depth.to('meter').magnitude
             if fluid_type.lower() == 'brine':
-                _this_density = rp.rho_b(_s, _p,  _t).value
-                v_p_b = rp.v_p_b(_s, _p, _t).value
+                _this_density = rp.rho_b(_s, _p,  _t).magnitude
+                v_p_b = rp.v_p_b(_s, _p, _t).magnitude
                 _this_bulk = v_p_b**2 * _this_density * 1.E-6
                 calc_success = True
             elif fluid_type.lower() == 'oil':
@@ -119,13 +119,13 @@ class FluidSpec:
                     _p,
                     _t
                 )
-                _this_bulk = _this_bulk.value
-                _this_density = _this_density.value
+                _this_bulk = _this_bulk.magnitude
+                _this_density = _this_density.magnitude
                 calc_success = True
             elif fluid_type.lower() == 'gas':
                 _this_bulk, _this_density = rp.k_and_rho_g(self.params['Gas gravity'], _p, _t)
-                _this_bulk = _this_bulk.value
-                _this_density = _this_density.value
+                _this_bulk = _this_bulk.magnitude
+                _this_density = _this_density.magnitude
                 calc_success = True
             else:
                 calc_success = False

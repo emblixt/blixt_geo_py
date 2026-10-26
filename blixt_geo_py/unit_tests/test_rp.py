@@ -191,8 +191,8 @@ class RpTestCase(unittest.TestCase):
         vs = rp.greenberg_castagna(vp, f, mono_mins, gc_coeffs)
 
         with self.subTest():
-            print('Greenberg Castagna Vs estimate: {}'.format(vs.value))
-            self.assertAlmostEqual(vs.value, 1509.58, places=1)
+            print('Greenberg Castagna Vs estimate: {}'.format(vs.magnitude))
+            self.assertAlmostEqual(vs.magnitude, 1509.58, places=1)
 
     def test_hashin_shtrikman(self):
         from bruges.rockphysics.bounds import hashin_shtrikman as bruges_hs

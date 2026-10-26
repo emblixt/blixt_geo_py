@@ -266,10 +266,10 @@ def calc_toc(
                  'ls': templates['TOC']['line style']},
             ]
             # xlims = axis_plot(axes['toc_ax'], depth[mask],
-            #                   [_toc_picked.value[mask], toc_trend.value[mask]],
+            #                   [_toc_picked.magnitude[mask], toc_trend.magnitude[mask]],
             #                   limits, styles, yticks=False, ylim=[md_min, md_max])
-            _x1 = _toc_picked.value; _x1[~mask] = np.nan
-            _x2 = toc_trend.value; _x2[~mask] = np.nan
+            _x1 = _toc_picked.magnitude; _x1[~mask] = np.nan
+            _x2 = toc_trend.magnitude; _x2[~mask] = np.nan
             xlims = axis_plot(axes['toc_ax'], depth,
                           [_x1, _x2],
                           limits, styles, yticks=False, ylim=[md_min, md_max])
@@ -352,51 +352,51 @@ def calc_toc(
         plt.show()
 
     # Replace negative values with 0. TOC should not be negative
-    toc_trend.value[toc_trend.value < 0] = 0.
-    toc_picked.value[toc_picked.value < 0] = 0.
+    toc_trend.magnitude[toc_trend.magnitude < 0] = 0.
+    toc_picked.magnitude[toc_picked.magnitude < 0] = 0.
 
     out_toc_trend = LogCurve(
-        name=toc_trend.name.lower() + '_trend',
-        # data=toc_trend.value,
-        values=toc_trend.value,
+        name='toc_trend',
+        # data=toc_trend.magnitude,
+        values=toc_trend.magnitude,
         header={
-            'unit': toc_trend.unit,
+            'unit': '%',
             'log_type': 'TOC',
             'desc': '{}  DLR calculated using a linear trend as baseline. LOM = {:.1f}'.format(
-                toc_trend.desc, lom)
+                'TOC estimated from Delta log R according to Passey et al. 1990.', lom)
         }
     )
     out_toc_picked = LogCurve(
-        name=toc_picked.name.lower() + '_picked',
-        # data=toc_picked.value,
-        values=toc_picked.value,
+        name='toc_picked',
+        # data=toc_picked.magnitude,
+        values=toc_picked.magnitude,
         header={
-            'unit': toc_picked.unit,
+            'unit': '%',
             'log_type': 'TOC',
             'desc': '{}  DLR calculated using a picked baseline, with r0={:.2f}, ac0={:.2f}. LOM = {:.1f}'.format(
-                toc_picked.desc, r0, ac0, lom)
+                'TOC estimated from Delta log R according to Passey et al. 1990.', r0, ac0, lom)
         }
     )
     out_dlr_trend = LogCurve(
-        name=dlr_trend.name.lower() + '_trend',
-        # data=dlr_trend.value,
-        values=dlr_trend.value,
+        name='deltalogr_trend',
+        # data=dlr_trend.magnitude,
+        values=dlr_trend.magnitude,
         header={
-            'unit': dlr_trend.unit,
+            'unit': '-',
             'log_type': 'Delta log R',
             'desc': '{}  DLR calculated using a linear trend as baseline. LOM = {:.1f}'.format(
-                dlr_trend.desc, lom)
+                'Delta log R according to Passey et al. 1990.', lom)
         }
     )
     out_dlr_picked = LogCurve(
-        name=dlr_picked.name.lower() + '_picked',
-        # data=dlr_picked.value,
-        values=dlr_picked.value,
+        name='deltalogr_picked',
+        # data=dlr_picked.magnitude,
+        values=dlr_picked.magnitude,
         header={
-            'unit': dlr_picked.unit,
+            'unit': '-',
             'log_type': 'Delta log R',
             'desc': '{}  DLR calculated using a picked baseline, with r0={:.2f}, ac0={:.2f}. LOM = {:.1f}'.format(
-                dlr_picked.desc, r0, ac0, lom)
+                'Delta log R according to Passey et al. 1990.', r0, ac0, lom)
         }
     )
     return out_toc_trend, out_toc_picked, out_dlr_trend, out_dlr_picked

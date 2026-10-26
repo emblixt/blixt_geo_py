@@ -6,8 +6,8 @@ fract = 1
 ## unitless = 1 * dimensionless
 micro- = 1e-6 = µ-
 ## fraction =  [] = frac
-percent = 1e-2 fraction = pct
-ppm = 1e-6 fraction
+## percent and ppm are already defined by pint
+@alias percent = pct
 
 @alias fract = Dec
 @alias fract = FRAC

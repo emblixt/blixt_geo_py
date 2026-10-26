@@ -472,30 +472,28 @@ class MotherFluid(object):
         if self.calculation_method == 'Batzle and Wang':
             _this_rho = None
             _this_k = None
-            _s = self.salinity.to('ppm').magnitude
+            _s = self.salinity
             # _p = self.pressure_ref + self.pressure_gradient * burial_depth
             # We ignore the pressure reference now. Will be calculated more exactly in FluidMix
             _p = Q_(0.0, 'MPa') + self.pressure_gradient * burial_depth
-            _p = _p.to('MPa').magnitude
             # _t = self.temp_ref + self.temp_gradient * burial_depth
             _t = Q_(4.0, 'degC') + self.temp_gradient * burial_depth
-            _t = _t.to('degC').magnitude
             if fluid_type.lower() == 'brine':
-                _this_rho = rp.rho_b(_s, _p,  _t).value
-                v_p_b = rp.v_p_b(_s, _p, _t).value
-                _this_k = v_p_b**2 * _this_rho * 1.E-6
+                _this_rho = rp.rho_b(_s, _p,  _t)
+                v_p_b = rp.v_p_b(_s, _p, _t)
+                _this_k = (v_p_b**2 * _this_rho).to('GPa')
                 calc_success = True
             elif fluid_type.lower() == 'oil':
                 _this_k, _this_rho = rp.k_and_rho_o(
-                    self.oil_api.magnitude,
-                    self.gas_gravity.magnitude,
-                    self.gor.magnitude,
+                    self.oil_api,
+                    self.gas_gravity,
+                    self.gor,
                     _p,
                     _t
                 )
                 calc_success = True
             elif fluid_type.lower() == 'gas':
-                _this_k, _this_rho = rp.k_and_rho_g(self.gas_gravity.magnitude, _p, _t)
+                _this_k, _this_rho = rp.k_and_rho_g(self.gas_gravity, _p, _t)
                 calc_success = True
             else:
                 calc_success = False
@@ -503,9 +501,9 @@ class MotherFluid(object):
                            'warning', logger)
             if calc_success:
                 self._bd = burial_depth
-                self._k = Q_(_this_k, 'GPa')
+                self._k = _this_k
                 self._mu = Q_(np.nan, 'GPa')
-                self._rho = Q_(_this_rho, 'GPa')
+                self._rho = _this_rho
 
 class FluidsTable:
     """
