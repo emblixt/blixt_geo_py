@@ -10,7 +10,8 @@ project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 import blixt_geo_py.misc.io as uio
-from blixt_geo_py.core.well import Project
+from blixt_geo_py.core.project import Project
+# TODO: Skip the convert_data import and replace it with the Pint function .to()
 from blixt_geo_py.misc.convert_data import convert as cnvrt
 import blixt_geo_py.rp.rp_core as rp
 
