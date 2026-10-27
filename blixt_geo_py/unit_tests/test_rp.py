@@ -196,14 +196,14 @@ class RpTestCase(unittest.TestCase):
             self.assertAlmostEqual(vs.magnitude, 1509.58, places=1)
 
     def test_hashin_shtrikman(self):
-        from bruges.rockphysics.bounds import hashin_shtrikman as bruges_hs
         from blixt_geo_py.rp.rp_core import hashin_shtrikman as blixt_hs
         f = [0.666, 1.-0.666]
         k = [36.6, 2.56]
         mu = [45., 0.0]
-        print(bruges_hs(f, k, mu, 'bulk'))
-        print(blixt_hs(f, k, mu, 'bulk'))
-        self.assertTrue(True)
+        lower, upper = blixt_hs(f, k, mu, 'bulk')
+        # Reference values from bruges.rockphysics.bounds.hashin_shtrikman (v0.5.4)
+        self.assertAlmostEqual(lower, 6.726511483657541, places=10)
+        self.assertAlmostEqual(upper, 21.744194728589562, places=10)
 
     def test_blocky_fluid_sub(self):
         """

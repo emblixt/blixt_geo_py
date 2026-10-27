@@ -6,7 +6,7 @@ import numpy as np
 import pint
 from blixt_geo_py.plotting.helpers import wiggle_plot
 from blixt_geo_py.utils.utils import log_table_in_smallcaps as small_log_table
-from bruges.filters import ricker
+from blixt_geo_py.core.wavelets_from_bruges import ricker
 from matplotlib.font_manager import FontProperties
 
 import blixt_geo_py.rp.rp_core as rp
@@ -42,7 +42,7 @@ def wedge_modelling(vps: list, vss: list, rhos: list, up_to_thickness: float, in
     :param wavelet:
         numpy.ndarray
         Array representing a wavelet,
-        E.G a bruges.filters wavelet, bruges.filters.ricker()
+        E.G a wavelet from blixt_geo_py.core.wavelets_from_bruges, e.g. ricker()
     :param time_step:
         float
         time step in s

@@ -119,8 +119,8 @@ def sinc(duration, dt, f, t=None, return_t=True, taper='blackman', sym=True):
     .. plot::
 
         import matplotlib.pyplot as plt
-        import bruges
-        w, t = bruges.filters.sinc(0.256, 0.002, 40)
+        import blixt_geo_py.core.wavelets_from_bruges as wfb
+        w, t = wfb.sinc(0.256, 0.002, 40)
         plt.plot(t, w)
 
     Args:
@@ -162,8 +162,8 @@ def cosine(duration, dt, f, t=None, return_t=True, taper='gaussian', sigma=None,
     .. plot::
 
         import matplotlib.pyplot as plt
-        import bruges
-        w, t = bruges.filters.cosine(0.256, 0.002, 40)
+        import blixt_geo_py.core.wavelets_from_bruges as wfb
+        w, t = wfb.cosine(0.256, 0.002, 40)
         plt.plot(t, w)
 
     Args:
@@ -212,8 +212,8 @@ def gabor(duration, dt, f, t=None, return_t=True, sym=True):
     .. plot::
 
         import matplotlib.pyplot as plt
-        import bruges
-        w, t = bruges.filters.gabor(0.256, 0.002, 40)
+        import blixt_geo_py.core.wavelets_from_bruges as wfb
+        w, t = wfb.gabor(0.256, 0.002, 40)
         plt.plot(t, w)
 
     Args:
@@ -250,8 +250,8 @@ def ricker(duration, dt, f, t=None, return_t=True, sym=True):
     .. plot::
 
         import matplotlib.pyplot as plt
-        import bruges
-        w, t = bruges.filters.ricker(0.256, 0.002, 40)
+        import blixt_geo_py.core.wavelets_from_bruges as wfb
+        w, t = wfb.ricker(0.256, 0.002, 40)
         plt.plot(t, w)
 
     Args:
@@ -311,8 +311,8 @@ def klauder(duration, dt, f,
     .. plot::
 
         import matplotlib.pyplot as plt
-        import bruges
-        w, t = bruges.filters.klauder(0.256, 0.002, [12, 48])
+        import blixt_geo_py.core.wavelets_from_bruges as wfb
+        w, t = wfb.klauder(0.256, 0.002, [12, 48])
         plt.plot(t, w)
 
     Args:
@@ -419,8 +419,8 @@ def ormsby(duration, dt, f, t=None, return_t=True, sym=True):
     .. plot::
 
         import matplotlib.pyplot as plt
-        import bruges
-        w, t = bruges.filters.ormsby(0.256, 0.002, [5, 10, 40, 80])
+        import blixt_geo_py.core.wavelets_from_bruges as wfb
+        w, t = wfb.ormsby(0.256, 0.002, [5, 10, 40, 80])
         plt.plot(t, w)
 
     Args:
@@ -498,8 +498,8 @@ def ormsby_fft(duration, dt, f, P=(0, 0), return_t=True, sym=True):
     .. plot::
 
         import matplotlib.pyplot as plt
-        import bruges
-        w, t = bruges.filters.ormsby(0.256, 0.002, [5, 10, 40, 80])
+        import blixt_geo_py.core.wavelets_from_bruges as wfb
+        w, t = wfb.ormsby(0.256, 0.002, [5, 10, 40, 80])
         plt.plot(t, w)
 
     Args:
@@ -560,8 +560,8 @@ def berlage(duration, dt, f, n=2, alpha=180, phi=-np.pi/2, t=None, return_t=True
     .. plot::
 
         import matplotlib.pyplot as plt
-        import bruges
-        w, t = bruges.filters.berlage(0.256, 0.002, 40)
+        import blixt_geo_py.core.wavelets_from_bruges as wfb
+        w, t = wfb.berlage(0.256, 0.002, 40)
         plt.plot(t, w)
 
     Args:
@@ -624,8 +624,8 @@ def generalized(duration, dt, f, u=2, t=None, return_t=True, imag=False, sym=Tru
     .. plot::
 
         import matplotlib.pyplot as plt
-        import bruges
-        w, t = bruges.filters.generalized(0.256, 0.002, 40, u=1.0)
+        import blixt_geo_py.core.wavelets_from_bruges as wfb
+        w, t = wfb.generalized(0.256, 0.002, 40, u=1.0)
         plt.plot(t, w)
 
     Args:

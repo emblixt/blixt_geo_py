@@ -4,7 +4,7 @@ import unittest
 from tkinter import Tk
 from tkinter.filedialog import asksaveasfilename
 
-import bruges.rockphysics.anisotropy as bra
+import blixt_geo_py.rp.anisotropy as bra
 import matplotlib.pyplot as plt
 import numpy as np
 import pint.errors

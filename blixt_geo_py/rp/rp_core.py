@@ -937,10 +937,23 @@ def constantcement(k0, g0, phi, phi_c=None, apc=None, c_n=None, k_c=None, g_c=No
     if scheme is None: scheme = 2
 
     phi_cem = phi_c - apc / 100.
-    raise NotImplementedError('Need to skip using bruges project because it is no longer maintained, copy necessary functionality')
-    # import bruges.rockphysics.rockphysicsmodels as brr
-    # k_eff, mu_eff = brr.constant_cement(k0, g0, phi, phi_cem=phi_cem, phi_c=phi_c, Cn=c_n, Kc=k_c, Gc=g_c, scheme=scheme)
-    # return k_eff, smcf * mu_eff
+    phi = np.asarray(phi, dtype=float)
+
+    # Copied from bruges.rockphysics.rockphysicsmodels.constant_cement (v0.5.4, Apache 2.0)
+    # contact cement model
+    k_hi, g_hi = contactcement(k0, g0, phi, phi_c=phi_c, c_n=c_n, k_c=k_c, g_c=g_c, scheme=scheme)
+    # lower bound Hashin-Shtrikman starting from phi_cem
+    k_cc, g_cc = contactcement(k0, g0, phi_cem, phi_c=phi_c, c_n=c_n, k_c=k_c, g_c=g_c, scheme=scheme)
+    k_lo = -4 / 3 * g_cc + (((phi / phi_cem) / (k_cc + 4 / 3 * g_cc)) + (
+        (1 - phi / phi_cem) / (k0 + 4 / 3 * g_cc))) ** -1
+    tmp = g_cc / 6 * ((9 * k_cc + 8 * g_cc) / (k_cc + 2 * g_cc))
+    g_lo = -tmp + ((phi / phi_cem) / (g_cc + tmp) + (
+        (1 - phi / phi_cem) / (g0 + tmp))) ** -1
+
+    # for porosities > phi_cem use the contact cement model, else the constant cement model
+    k_eff = np.where(phi > phi_cem, k_hi, k_lo)
+    mu_eff = np.where(phi > phi_cem, g_hi, g_lo)
+    return k_eff, smcf * mu_eff
 
 
 def constantcement_hidden(k0, g0, phi, phi_c=None, apc=None, c_n=None, k_c=None, g_c=None, scheme=None):

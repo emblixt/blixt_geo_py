@@ -1,7 +1,7 @@
 import logging
 from copy import deepcopy
 
-import bruges.rockphysics.anisotropy as bra
+import blixt_geo_py.rp.anisotropy as bra
 import matplotlib.pyplot as plt
 import numpy as np
 from blixt_geo_py.misc.convert_data import convert as cnvrt

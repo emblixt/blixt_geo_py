@@ -2,7 +2,6 @@ import os
 import sys
 
 import bokeh.plotting
-import bruges
 import matplotlib as mpl
 import numpy as np
 from bokeh.io import output_file, curdoc

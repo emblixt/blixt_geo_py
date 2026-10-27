@@ -159,7 +159,7 @@ def ricker(duration, time_step, central_frequency):
             dict with info about wavelet
         }
     """
-    from wavelets_from_bruges import ricker as bruges_ricker
+    from blixt_geo_py.core.wavelets_from_bruges import ricker as bruges_ricker
     _wavelet = bruges_ricker(duration, time_step, central_frequency)
     return {
         'wavelet': _wavelet.amplitude,
