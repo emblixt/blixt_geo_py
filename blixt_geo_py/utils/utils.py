@@ -32,6 +32,15 @@ def isnan(val):
         raise NotImplementedError('Cant handle this input properly')
 
 
+def log_table_in_smallcaps(log_table):
+    for key in list(log_table.keys()):
+        if isinstance(log_table[key], list):
+            log_table[key] = [_item.lower() for _item in log_table[key]]
+        else:
+            log_table[key] = log_table[key].lower()
+    return log_table
+
+
 def print_info(
         text: str,
         level: str,
