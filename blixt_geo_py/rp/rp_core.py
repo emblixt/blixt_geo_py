@@ -10,7 +10,6 @@ import sys
 # from dataclasses import dataclass
 from copy import deepcopy
 
-import bruges.rockphysics.rockphysicsmodels as brr
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -23,6 +22,8 @@ from blixt_geo_py.utils.utils import print_info
 from blixt_geo_py import Q_, ureg
 
 logger = logging.getLogger(__name__)
+
+# TODO: Make sure that we are certain about the usage of confining and effective pressure
 
 # Functions decorated with ureg.wraps(output_units, input_units, strict=False) accept either pint Quantities,
 # which are converted to the given input units, or plain numbers, which are assumed to already be in those units.
@@ -936,8 +937,10 @@ def constantcement(k0, g0, phi, phi_c=None, apc=None, c_n=None, k_c=None, g_c=No
     if scheme is None: scheme = 2
 
     phi_cem = phi_c - apc / 100.
-    k_eff, mu_eff = brr.constant_cement(k0, g0, phi, phi_cem=phi_cem, phi_c=phi_c, Cn=c_n, Kc=k_c, Gc=g_c, scheme=scheme)
-    return k_eff, smcf * mu_eff
+    raise NotImplementedError('Need to skip using bruges project because it is no longer maintained, copy necessary functionality')
+    # import bruges.rockphysics.rockphysicsmodels as brr
+    # k_eff, mu_eff = brr.constant_cement(k0, g0, phi, phi_cem=phi_cem, phi_c=phi_c, Cn=c_n, Kc=k_c, Gc=g_c, scheme=scheme)
+    # return k_eff, smcf * mu_eff
 
 
 def constantcement_hidden(k0, g0, phi, phi_c=None, apc=None, c_n=None, k_c=None, g_c=None, scheme=None):

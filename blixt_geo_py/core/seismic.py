@@ -6,7 +6,6 @@ import unittest
 from copy import deepcopy
 from itertools import cycle
 
-import bruges
 import matplotlib as mpl
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
@@ -35,6 +34,7 @@ import blixt_utils.plotting.crossplot as xp
 from blixt_geo_py.core.core import Template, LogTable
 from blixt_geo_py.core.log_curve import read_las
 from blixt_geo_py.utils.utils import print_info
+import blixt_geo_py.core.wavelets_from_bruges as bruges
 
 # global variables
 # output_file('C:\\Users\marte\Documents\plot.html')
@@ -243,7 +243,7 @@ class StochasticSyntheticTraces:
         refl[idx_refl] = 2 * self.rng.random(self.n_reflectors) - 1
 
         # Convolve reflectivity model with a Ricker wavelet '''
-        this_wavelet = bruges.filters.wavelets.ricker(self.w_length, self.dt, self.f0)
+        this_wavelet = bruges.ricker(self.w_length, self.dt, self.f0)
         self.wavelet = this_wavelet.amplitude
         this_trace = np.convolve(refl, self.wavelet, mode='same')
         for i in range(self.traces.shape[0]):

@@ -144,8 +144,6 @@ class WellTestCase(unittest.TestCase):
             for lc in w.logs:
                 print(lc.name, len(lc), lc.is_evenly_spaced, lc.units, lc.depth_units,  lc.base - lc.top)
 
-
-
     def test_create_well_from_las(self):
         from blixt_geo_py.core.well import Well
         from blixt_geo_py.core.core import LogTable
@@ -185,19 +183,19 @@ class WellTestCase(unittest.TestCase):
     def test_add_log(self):
         from blixt_geo_py.core.well import Well
         w = Well()
-        w.read_las(las_file1, True, log_table={'Sonic': 'dt'})
+        w.read_las(las_file1, True, log_table=LogTable({'Sonic': 'dt'}))
         for log in w.logs:
             print(log.name, log.log_type)
         mod_date1 = w.get_log_curve('dt').header.modification_date
-        w.read_las(las_file1, True, log_table={'Sonic': 'dt', 'Caliper': 'cald'}, if_log_exists='overwrite')
+        w.read_las(las_file1, True, log_table=LogTable({'Sonic': 'dt', 'Caliper': 'cald'}), if_log_exists='overwrite')
         for log in w.logs:
             print(log.name, log.log_type)
         mod_date2 = w.get_log_curve('dt').header.modification_date
-        w.read_las(las_file1, True, log_table={'Sonic': 'dt', 'Caliper': 'cald'}, if_log_exists='ignore')
+        w.read_las(las_file1, True, log_table=LogTable({'Sonic': 'dt', 'Caliper': 'cald'}), if_log_exists='ignore')
         for log in w.logs:
             print(log.name, log.log_type)
         mod_date3 = w.get_log_curve('dt').header.modification_date
-        w.read_las(las_file1, True, log_table={'Sonic': 'dt', 'Caliper': 'cald'}, if_log_exists='ask')
+        w.read_las(las_file1, True, log_table=LogTable({'Sonic': 'dt', 'Caliper': 'cald'}), if_log_exists='ask')
         for log in w.logs:
             print(log.name, log.log_type)
         print(mod_date1, mod_date2, mod_date3)
@@ -219,12 +217,6 @@ class WellTestCase(unittest.TestCase):
             print(_key, well1.header[_key])
         #print(lc.style)
         self.assertIsInstance(lc.style, Template)
-
-    def test_old_well_type(self):
-        from blixt_geo_py.core.well import Well as OldWell
-        w0 = OldWell()
-        w0.read_las(las_file2)
-        print(w0.header, w0.block['Logs'].header, w0.block['Logs'].logs)
 
     def test_write_las(self):
         from blixt_geo_py.core.well import Well
