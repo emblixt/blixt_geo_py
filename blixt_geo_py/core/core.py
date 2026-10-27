@@ -524,7 +524,7 @@ class ClassificationTable:
                 if _i == 0:  # First cutoff rule
                     _mask = _this_mask
                 else:  # Append new cutoff rule using AND
-                    _mask = masks._combine_masks([_mask, _this_mask])
+                    _mask = masks.combine_masks([_mask, _this_mask])
 
         return _mask
 
