@@ -17,7 +17,6 @@ import pint
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.sources import ColumnDataSource
 from bokeh.models.widgets.tables import StringEditor
-from dask.array.chunk import nanmin
 
 # To test blixt_geo_py and blixt_utils libraries directly, without installation:
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\rp', ''))

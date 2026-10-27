@@ -5,7 +5,6 @@ import os
 import sys
 
 from bokeh.plotting import column, figure, show, curdoc, row
-from dask.array import delete
 
 # To test blixt_geo_py and blixt_utils libraries directly, without installation:
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
