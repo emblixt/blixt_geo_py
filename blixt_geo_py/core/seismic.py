@@ -29,8 +29,8 @@ sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 import blixt_geo_py.misc.curve_fitting as mycf
 import blixt_geo_py.misc.io as uio
-from blixt_utils.plotting.helpers import wiggle_plot
-import blixt_utils.plotting.crossplot as xp
+from blixt_geo_py.plotting.helpers import wiggle_plot
+import blixt_geo_py.plotting.crossplot as xp
 from blixt_geo_py.core.core import Template, LogTable
 from blixt_geo_py.core.log_curve import read_las
 from blixt_geo_py.utils.utils import print_info

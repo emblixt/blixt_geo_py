@@ -88,4 +88,63 @@ def print_info(
         elif raiser.lower() == 'typeerror':
             raise(TypeError(text))
 
+def get_from_template(template_dict: dict):
+    """
+
+    :param template_dict:
+        A template dictionary for a specific logtype, e.g. default_templates['Resistivity']
+    :return:
+        label, limits, line_style, plot_style
+    """
+    label = ''
+    limits = [None, None]
+    line_style = {'lw': None, 'color': None, 'ls': None}
+    plot_style = {'cmap': None, 'cnt': None, 'bnds': None, 'scale': None}
+
+    if template_dict is None:
+        return label, limits, line_style, plot_style
+
+    key_list = list(template_dict.keys())
+
+    try:
+        if 'full_name' in key_list:
+            label += template_dict['full_name']
+    except TypeError:
+        if 'name' in key_list:
+            label += template_dict['name']
+
+    if 'unit' in key_list:
+        label += ' [{}]'.format(template_dict['unit'])
+    elif 'units' in key_list:
+        label += ' [{}]'.format(template_dict['units'])
+    if 'min' in key_list:
+        try:
+            limits[0] = float(template_dict['min'])
+        except TypeError:
+            limits[0] = None
+    if 'max' in key_list:
+        try:
+            limits[1] = float(template_dict['max'])
+        except TypeError:
+            limits[1] = None
+
+    if 'line width' in key_list:
+        line_style['lw'] = template_dict['line width']
+    if 'line color' in key_list:
+        line_style['color'] = template_dict['line color']
+    if 'line style' in key_list:
+        line_style['ls'] = template_dict['line style']
+
+    if 'colormap' in key_list:
+        plot_style['cmap'] = template_dict['colormap']
+    if 'center' in key_list:
+        plot_style['cnt'] = template_dict['center']
+    if 'bounds' in key_list:
+        plot_style['bnds'] = template_dict['bounds']
+    if 'scale' in key_list:
+        plot_style['scale'] = template_dict['scale']
+
+    return label, limits, line_style, plot_style
+
+
 

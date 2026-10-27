@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from blixt_geo_py.core.log_curve import LogCurve
 from blixt_geo_py.misc.templates import default_templates
-from blixt_utils.plotting.helpers import axis_plot, annotate_plot, header_plot, deltalogr_plot, set_up_column_plot, \
+from blixt_geo_py.plotting.helpers import axis_plot, annotate_plot, header_plot, deltalogr_plot, set_up_column_plot, \
     axis_plot_with_color_gradient
 
 text_style = {'fontsize': 'x-small', 'bbox': {'facecolor': 'w', 'alpha': 0.5}}

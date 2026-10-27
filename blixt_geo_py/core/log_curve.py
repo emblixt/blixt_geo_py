@@ -16,7 +16,6 @@ from math import isclose, ceil
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pint
 import xarray as xr
 from bokeh.models import ColumnDataSource
 from pandas import DataFrame
@@ -992,7 +991,6 @@ class LogCurve(object):
         :return:
             LogCurve object
         """
-        from blixt_geo_py.utils.utils import mask_string
         from blixt_geo_py.utils.utils import print_info
 
         green_flag = True
@@ -1002,7 +1000,6 @@ class LogCurve(object):
         if not isinstance(cutoffs, Cutoffs):
             raise IOError('Cutoffs must be specified as CutOffs() object, not {}'.format(type(cutoffs)))
 
-        # mask_description = mask_string(cutoffs, None)
         mask_description = str(cutoffs)
         if len(cutoffs) == 0:  # no cutoffs, mask is all true
             final_mask = np.array(np.ones(len(self.data)))

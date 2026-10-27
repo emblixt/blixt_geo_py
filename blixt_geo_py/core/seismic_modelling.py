@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy
 import numpy as np
 import pint
-from blixt_utils.plotting.helpers import wiggle_plot
+from blixt_geo_py.plotting.helpers import wiggle_plot
 from blixt_geo_py.utils.utils import log_table_in_smallcaps as small_log_table
 from bruges.filters import ricker
 from matplotlib.font_manager import FontProperties

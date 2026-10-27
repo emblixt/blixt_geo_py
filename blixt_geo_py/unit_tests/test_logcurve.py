@@ -22,6 +22,14 @@ las_file2 = "T:\\ROKDOC\\PL936\\To Partners from Ikon\\To Partners\\las files\\6
 las_file3 = os.path.join(test_file_dir, "Well F.las")
 data_file1 = os.path.join(test_file_dir, "Well A checkshot.txt")
 data_file2 = "S:\\Well\\UTM32_Mid_Norway_All\\Q-6406\\6406_11_1_S\\6406_11_1_S___checkshot.txt"
+las_file4 = "G:\\My Drive\\Work - Current and Recent\\GeoMind\\Clients\\AkerBP\\PL932 Kaldafjell AVO feasibility\\Wells\\34_3_3S_seismic.las"
+
+
+def requires_files(*file_names):
+    """Skip the test if any of the given data files (e.g. on network drives) are missing"""
+    missing = [_f for _f in file_names if not os.path.exists(_f)]
+    return unittest.skipIf(missing, 'Missing test data: {}'.format(', '.join(missing)))
+
 
 n = 1500
 # create a regularly sampled data set
@@ -205,8 +213,6 @@ class LogCurveTestCase(unittest.TestCase):
         print('After down sampling: Top {}, Step {}, Base {}. Length {}'.format(lc_new.top, lc_new.step(), lc_new.base, len(lc_new)))
         print(lc_new.is_evenly_spaced, lc_new.header)
 
-
-
     def test_take_sampling(self):
         lc1 = LogCurve( 'test', data1, Depth(depth1_short))
         lc3 = LogCurve('test', data3, Depth(depth3))
@@ -277,14 +283,14 @@ class LogCurveTestCase(unittest.TestCase):
         # cutoffs7 = {'DataPair1': ['>',  5]}  # all should be excluded
 
         # log tables
-        log_table1 = LogTable('my log table', {'TEST': 'DataPair1'})
+        log_table1 = LogTable({'TEST': 'DataPair1'}, name='my log table')
 
         # cut offs
         cutoffs1 = Cutoffs(cutoffs=[cr1])
         cutoffs2 = Cutoffs(cutoffs=[cr2])
         cutoffs3 = Cutoffs(cutoffs=[cr1, cr2])
-        cutoffs4 = Cutoffs(log_table=log_table1, cutoffs=[cr3])
-        cutoffs5 = Cutoffs(log_table=log_table1, cutoffs=[cr2, cr3])
+        cutoffs4 = Cutoffs(cutoffs=[cr3]).use_log_table(log_table1)
+        cutoffs5 = Cutoffs(cutoffs=[cr2, cr3]).use_log_table(log_table1)
         cutoffs6 = Cutoffs(cutoffs=[cr4])
         cutoffs7 = Cutoffs(cutoffs=[cr5])
 
@@ -307,6 +313,7 @@ class LogCurveTestCase(unittest.TestCase):
         # self.assertTrue(lc1.calc_mask(cutoffs6, verbose=True).values.all())
         # self.assertTrue(np.sum(lc1.calc_mask(cutoffs7, verbose=True).values) < 1)
 
+    @requires_files(las_file2)
     def test_read(self):
         # # las_file = 'C:\\Users\\marte\\PycharmProjects\\blixt_geo_py\\test_data\\Well E_CPI.las'
         # log_curves, well_info = read_las(las_file1)
@@ -337,6 +344,7 @@ class LogCurveTestCase(unittest.TestCase):
         print(lc.well, lc.name, lc.log_type, lc.min, lc.max, lc.units, lc.depth_type, lc.depth.top,
               lc.depth.base, lc.depth_units)
 
+    @requires_files(las_file2)
     def test_read_and_rename(self):
 
         rename_logs = {'phie': ['cpi_phie']}
@@ -362,15 +370,15 @@ class LogCurveTestCase(unittest.TestCase):
         print(lc.well, lc.name, lc.log_type, lc.min, lc.max, lc.units, lc.depth_type, lc.depth.top,
               lc.depth.base, lc.depth_units)
 
+    @requires_files(las_file4)
     def test_read_seismic_from_las(self):
-        las_file = "G:\\My Drive\\Work - Current and Recent\\GeoMind\\Clients\\AkerBP\\PL932 Kaldafjell AVO feasibility\\Wells\\34_3_3S_seismic.las"
         t = Template(**{'name': 'Seismic', 'units': 'dimensionless', 'line_color': 'b'})
         log_table = LogTable({'Seismic':
                                   ['CGG18M01-PSDM-FIN-FULL-T-Denoise2',
                                     'CGG18M01-NVG-PSDM-ANGLE-MID-13-23-TPL932MSMTMADF2denoise2']})
         rename_logs = {'full': ['CGG18M01-PSDM-FIN-FULL-T-Denoise2'],
                        'mid': ['CGG18M01-NVG-PSDM-ANGLE-MID-13-23-TPL932MSMTMADF2denoise2']}
-        log_curves, well_info = read_las(las_file, log_table=log_table, template=t, rename_logs=rename_logs)
+        log_curves, well_info = read_las(las_file4, log_table=log_table, template=t, rename_logs=rename_logs)
         for key, lc in log_curves.items():
             print('-x-')
             print(key, '\n', lc.name, '\n', lc.well, '\n', lc.style, '\n', lc.log_type)
@@ -386,6 +394,7 @@ class LogCurveTestCase(unittest.TestCase):
         t.colormap = 'A GIANT COLOR'
         print(t)
 
+    @requires_files(las_file2)
     def test_a_lot(self):
         # fig, ax = plt.subplots()
         log_curves, well_info = read_las(las_file2, log_table=log_table2)
@@ -417,6 +426,7 @@ class LogCurveTestCase(unittest.TestCase):
         plt.show()
         self.assertTrue(True)
 
+    @requires_files(las_file2)
     def test_fill(self):
         fig, ax = plt.subplots()
         log_curves, well_info = read_las(las_file2, log_table=log_table2)
@@ -452,6 +462,7 @@ class LogCurveTestCase(unittest.TestCase):
         plt.show()
         self.assertTrue(True)
 
+    @requires_files(las_file2)
     def test_calc_trend(self):
         log_curves, well_info = read_las(las_file2, log_table=log_table2)
         lc = log_curves['rdep']
@@ -461,6 +472,7 @@ class LogCurveTestCase(unittest.TestCase):
         # print(res)
         self.assertIsInstance(res, list)
 
+    @requires_files(las_file2)
     def test_blocking(self):
         log_curves, well_info = read_las(las_file2, log_table=log_table2)
         lc = log_curves['rdep']
@@ -473,6 +485,7 @@ class LogCurveTestCase(unittest.TestCase):
         # print(res)
         self.assertIsInstance(res, list)
 
+    @requires_files(las_file2)
     def test_de_trend(self):
         log_curves, well_info = read_las(las_file2, log_table=log_table2)
         lc = log_curves['dt']
@@ -572,6 +585,7 @@ class DomainConversionTest(unittest.TestCase):
         ax.scatter(twt_in, data_twt, marker='x', color='yellow')
         plt.show()
 
+    @requires_files(las_file2, data_file2)
     def test_convert_real_data(self):
         log_curves, well_info = read_las(las_file2, log_table=log_table3)
         data_curves = read_general_ascii(
@@ -593,6 +607,7 @@ class DomainConversionTest(unittest.TestCase):
         print(vp_twt.header)
         vp_twt.plot()
 
+    @requires_files(data_file2)
     def test_twt_from_owt(self):
         data_curves = read_general_ascii(
             data_file2,

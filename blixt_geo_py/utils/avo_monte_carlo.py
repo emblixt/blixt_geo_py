@@ -14,7 +14,7 @@ import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats
-from blixt_utils.plotting import crossplot as myxp
+from blixt_geo_py.plotting import crossplot as myxp
 from blixt_geo_py.utils.utils import find_value
 from matplotlib.font_manager import FontProperties
 from matplotlib.lines import Line2D

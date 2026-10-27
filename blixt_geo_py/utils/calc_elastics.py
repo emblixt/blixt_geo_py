@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from blixt_geo_py.misc.templates import default_templates
-from blixt_utils.plotting.helpers import axis_plot, annotate_plot, header_plot, wiggle_plot, set_up_column_plot
+from blixt_geo_py.plotting.helpers import axis_plot, annotate_plot, header_plot, wiggle_plot, set_up_column_plot
 
 import blixt_geo_py.plotting.plot_logs as rpp
 import blixt_geo_py.rp.rp_core as rp

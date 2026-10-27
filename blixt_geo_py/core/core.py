@@ -29,6 +29,8 @@ sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 from blixt_geo_py.utils.version import info
 from blixt_geo_py.utils.utils import fix_well_name, isnan, print_info
 from blixt_geo_py.misc.attribdict import AttribDict
+from blixt_geo_py.misc.masks import create_mask as _create_mask
+from blixt_geo_py.misc.masks import combine_masks as _combine_masks
 
 logger = logging.getLogger(__name__)
 
@@ -383,7 +385,7 @@ class CutoffRule:
             print_info('The cutoff parameter: {} does not match any of the data keys {}'.format(
                 self.param, ', '.join(list(data.keys()))), 'warning', logger)
             return np.array(np.ones(len(data)), dtype=bool)
-        _mask = create_mask(data[self.param.lower()], self.operator, self.limit)
+        _mask = _create_mask(data[self.param.lower()], self.operator, self.limit)
         if verbose:
             fig, ax = plt.subplots()
             # ax.plot(data[self.param.lower()][_mask])
@@ -522,7 +524,7 @@ class ClassificationTable:
                 if _i == 0:  # First cutoff rule
                     _mask = _this_mask
                 else:  # Append new cutoff rule using AND
-                    _mask = masks.combine_masks([_mask, _this_mask])
+                    _mask = masks._combine_masks([_mask, _this_mask])
 
         return _mask
 
@@ -802,7 +804,7 @@ class Cutoffs:
             self.cutoffs = [CutoffRule(from_string=_x) for _x in input_string.split(',')]
 
     def create_mask(self, data: dict[str, np.ndarray], verbose: bool = False):
-        return(combine_masks([
+        return(_combine_masks([
             _r.create_mask(data, verbose=verbose) for _r in self.cutoffs
         ]))
 
@@ -1936,8 +1938,8 @@ class LithoFluid:
         """
         import matplotlib.pyplot as plt
         import blixt_geo_py.utils.avo_monte_carlo as havo
-        # from blixt_utils.plotting import helpers as uhelp
-        # from blixt_utils.plotting import crossplot as xp
+        # from blixt_geo_py.plotting import helpers as uhelp
+        # from blixt_geo_py.plotting import crossplot as xp
         if label is None:
             label = self.name
         if color is None:

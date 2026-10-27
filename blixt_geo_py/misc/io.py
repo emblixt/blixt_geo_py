@@ -15,8 +15,8 @@ from scipy.interpolate import interp1d
 import segyio
 
 # If wavelet_plot is used, I get an 'ImportError' "cannot import name 'wavelet_plot' from partially initialized
-# module 'blixt_utils.plotting.helpers' (most likely due to a circular import)"
-# from blixt_utils.plotting.helpers import wavelet_plot
+# module 'blixt_geo_py.plotting.helpers' (most likely due to a circular import)"
+# from blixt_geo_py.plotting.helpers import wavelet_plot
 
 logger = logging.getLogger(__name__)
 

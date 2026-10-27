@@ -3,7 +3,6 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/blixt_geo_py.iml" filepath="$PROJECT_DIR$/.idea/blixt_geo_py.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../blixt_rp/.idea/blixt_rp.iml" filepath="$PROJECT_DIR$/../blixt_rp/.idea/blixt_rp.iml" />
       <module fileurl="file://$PROJECT_DIR$/../blixt_utils/.idea/blixt_utils.iml" filepath="$PROJECT_DIR$/../blixt_utils/.idea/blixt_utils.iml" />
     </modules>
   </component>

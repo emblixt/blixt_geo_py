@@ -23,8 +23,8 @@ from ..plotting.log_plotter import add_color_amp
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
 sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
-from blixt_utils.plotting.helpers import axis_plot, wiggle_plot, wavelet_plot
-from blixt_utils.plotting.crossplot import cnames
+from blixt_geo_py.plotting.helpers import axis_plot, wiggle_plot, wavelet_plot
+from blixt_geo_py.plotting.crossplot import cnames
 import blixt_geo_py.rp.rp_core as rp
 import blixt_geo_py.core.wavelets as bumw
 from blixt_geo_py.utils.utils import print_info

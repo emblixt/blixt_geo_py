@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from blixt_utils.plotting import crossplot as xp
-from blixt_utils.plotting import helpers as uhelp
+from blixt_geo_py.plotting import crossplot as xp
+from blixt_geo_py.plotting import helpers as uhelp
 from blixt_geo_py.utils.utils import log_table_in_smallcaps as small_log_table
 from blixt_geo_py.utils.utils import nan_corrcoef, print_info
 from matplotlib.font_manager import FontProperties

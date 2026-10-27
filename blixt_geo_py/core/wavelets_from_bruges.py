@@ -243,7 +243,7 @@ def ricker(duration, dt, f, t=None, return_t=True, sym=True):
     Also known as the mexican hat wavelet, models the function:
 
     .. math::
-        A =  (1 - 2 \pi^2 f^2 t^2) e^{-\pi^2 f^2 t^2}
+        A =  (1 - 2 Pi^2 f^2 t^2) e^{-Pi^2 f^2 t^2}
 
     If you pass a 1D array of frequencies, you get a wavelet bank in return.
 

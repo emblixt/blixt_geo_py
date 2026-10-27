@@ -3,15 +3,7 @@ from scipy.optimize import least_squares
 import matplotlib.pyplot as plt
 from numpy.random import default_rng
 import typing
-import os
-import sys
 import logging
-
-
-# To test blixt_rp and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_rp\\blixt_rp\\core', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_rp'))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_geo_py.misc import masks as msks
 

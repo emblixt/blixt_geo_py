@@ -5,7 +5,7 @@ import bruges.rockphysics.anisotropy as bra
 import matplotlib.pyplot as plt
 import numpy as np
 from blixt_geo_py.misc.convert_data import convert as cnvrt
-from blixt_utils.plotting import crossplot as xp
+from blixt_geo_py.plotting import crossplot as xp
 from blixt_geo_py.utils.utils import log_table_in_smallcaps as small_log_table
 from blixt_geo_py.utils.utils import print_info
 from matplotlib.font_manager import FontProperties
