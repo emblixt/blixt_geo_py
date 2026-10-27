@@ -23,7 +23,7 @@ from bokeh.transform import transform
 from pandas import DataFrame, cut
 
 
-# from blixt_geo_py.misc.templates import necessary_keys
+# from blixt_geo_py.utils.utils import necessary_keys
 from blixt_geo_py.core.core import Template
 from blixt_geo_py import Q_
 

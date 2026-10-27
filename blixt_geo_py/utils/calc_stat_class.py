@@ -4,7 +4,7 @@ import os
 import blixt_geo_py.misc.io as uio
 import matplotlib.pyplot as plt
 import numpy as np
-from blixt_geo_py.misc.templates import get_from_template
+from blixt_geo_py.utils.utils import get_from_template
 from blixt_geo_py.plotting import crossplot as xp
 from blixt_geo_py.utils.utils import print_info
 

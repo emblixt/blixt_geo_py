@@ -8,7 +8,7 @@ import blixt_geo_py.core.wavelets as bumw
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from blixt_geo_py.misc.templates import default_templates
+from blixt_geo_py.utils.utils import default_templates
 from blixt_geo_py.plotting.helpers import axis_plot, annotate_plot, header_plot, wiggle_plot, set_up_column_plot
 
 import blixt_geo_py.plotting.plot_logs as rpp
