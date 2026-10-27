@@ -1,5 +1,3 @@
-import os
-import sys
 
 import bokeh.plotting
 import matplotlib as mpl
@@ -16,10 +14,6 @@ from bokeh.plotting import figure, show
 from openpyxl.styles.builtins import title
 from pandas import DataFrame
 
-# To test blixt_geo_py and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\plotting', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 import blixt_geo_py.utils.avo_monte_carlo as havo
 from blixt_geo_py.core.core import LithoFluid, LithoFluids
@@ -469,10 +463,6 @@ def create_mc_avo_plot(sums_average_file: str | None = None,
     chi_input.on_change('value', chi_callback)
 
     return h, p, p2, interface_table, lf_table, run_button, chi_input, n_iter_input, show_std
-
-
-
-
 
 
 

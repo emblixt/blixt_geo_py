@@ -1,5 +1,4 @@
 import os
-import sys
 import unittest
 
 import matplotlib.pyplot as plt
@@ -12,14 +11,13 @@ from blixt_geo_py.core.seismic import AvoAnalyzer
 
 # Add to path to avoid having to install libraries, useful in development
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 output_file(os.path.join(project_dir, 'blixt_geo_py', 'test_data','plot.html'))
 
 from blixt_geo_py.core.models import (Model, Layer, ModelTable, LaminarModel, WedgeModel, FaultModel,
                                   plot_wiggles, build_layered_model, laminar_model_analysis,
                                   build_saturation_wedge, detect_change_in_cases, build_wedge)
 from blixt_geo_py.core.core import LithoFluid
-import blixt_geo_py.misc.wavelets as bumw
+import blixt_geo_py.core.wavelets as bumw
 from blixt_geo_py import Q_
 
 # l1 = {'vp': 3000, 'vs': 1820, 'rho': 2.6}

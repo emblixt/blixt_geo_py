@@ -2,17 +2,9 @@
 # C:\Users\emb\Documents\PycharmProjects\blixt_geo_py\blixt_geo_py>C:\Users\emb\Documents\PycharmProjects\venv\Scripts\bokeh serve --show unit_tests
 # C:\Users\marten.blixt\PycharmProjects\blixt_geo_py\blixt_geo_py>C:\Users\marten.blixt\PycharmProjects\blixt_geo_py\.p310\Scripts\bokeh serve --show unit_tests
 # T:\Python\EMB\blixt_geo_py\blixt_geo_py> T:\Python\EMB\blixt_geo_py\.p310\Scripts\python.exe -m bokeh serve --show unit_tests
-import os
-import sys
 
 from bokeh.plotting import column, figure, show, curdoc, row
 
-# To test blixt_geo_py and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
-# sys.path.append('C:\\Users\\emb\\Documents\\PycharmProjects\\blixt_geo_py')
-# sys.path.append('C:\\Users\\emb\\Documents\\PycharmProjects\\blixt_utils')
 
 # test = 'core__test_litho_quasi_2D_fluid_table'
 # test = 'core__test_litho_fluid_table_save'

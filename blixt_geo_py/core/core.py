@@ -4,7 +4,6 @@ Collection of objects and methods used throughout blixt_geo_py
 """
 import logging
 import os
-import sys
 from collections.abc import Callable
 from copy import deepcopy
 from datetime import datetime
@@ -22,9 +21,6 @@ from bokeh.plotting import figure, show
 
 from .. import Q_
 
-# To test blixt_geo_py and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 
 from blixt_geo_py.utils.version import info
 from blixt_geo_py.utils.utils import fix_well_name, isnan, print_info
@@ -217,7 +213,6 @@ class LogTable(dict):
                 if self[_key] in logs_to_keep:
                     _dict[_key] = self[_key]
         return LogTable(_dict)
-
 
 
 class CutoffRule:
@@ -1791,7 +1786,6 @@ class LithoFluid:
         rho_std_dev = float(rho_std_dev) if isinstance(rho_std_dev, int) else rho_std_dev
 
 
-
         # Give default units and values (of shale) if not specified
         self.vp = Q_(vp, 'm/s') if isinstance(vp, float) else (Q_(3445, 'm/s') if vp is None else vp if isinstance(vp, Callable) else vp.to('m/s'))
         self.vs = Q_(vs, 'm/s') if isinstance(vs, float) else (Q_(1767, 'm/s') if vs is None else vs if isinstance(vs, Callable) else vs.to('m/s'))
@@ -1880,7 +1874,6 @@ class LithoFluid:
                            'VpRhoCorrCoef': self.vp_rho_cc.magnitude,
                            'VsRhoCorrCoef': self.vs_rho_cc.magnitude}
         return return_dict
-
 
 
     def from_excel(self,

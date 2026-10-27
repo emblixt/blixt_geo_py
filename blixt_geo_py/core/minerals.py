@@ -19,7 +19,6 @@ A mineral is defined by its:
 """
 import logging
 import os
-import sys
 import unittest
 from copy import deepcopy
 from datetime import datetime
@@ -32,10 +31,7 @@ from bokeh.models import ColumnDataSource
 from bokeh.plotting import column, row
 from pandas.core.indexes.base import maybe_extract_name
 
-# To test blixt_geo_py and blixt_utils libraries directly, without installation:
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_geo_py import Q_
 from blixt_geo_py.misc.attribdict import AttribDict

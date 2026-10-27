@@ -16,16 +16,12 @@ Outline:
 """
 import logging
 import os
-import sys
 import unittest
 from copy import deepcopy
 from pathlib import Path
 
 
-# To test blixt_geo_py and blixt_utils libraries directly, without installation:
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\rp_utils', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_geo_py import Q_
 from blixt_geo_py.core.project import Project

@@ -1,6 +1,5 @@
 import logging
 import os
-import sys
 import unittest
 from copy import deepcopy
 
@@ -23,10 +22,6 @@ from bokeh.plotting import figure, show
 from bokeh.transform import transform
 from pandas import DataFrame, cut
 
-# To test blixt_geo_py and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\plotting', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
-sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 
 # from blixt_geo_py.misc.templates import necessary_keys
 from blixt_geo_py.core.core import Template

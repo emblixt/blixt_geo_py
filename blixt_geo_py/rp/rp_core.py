@@ -5,8 +5,6 @@ Created on Tue Oct  1 15:25:40 2019
 @author: mblixt
 """
 import logging
-import os
-import sys
 # from dataclasses import dataclass
 from copy import deepcopy
 
@@ -15,8 +13,6 @@ import numpy as np
 
 import blixt_geo_py.utils.definitions as ud
 
-project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\rp', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 from blixt_geo_py.utils.utils import print_info
 
 from blixt_geo_py import Q_, ureg

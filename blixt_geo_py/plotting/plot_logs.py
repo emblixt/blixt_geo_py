@@ -1,6 +1,5 @@
 import logging
 import os
-import sys
 from copy import deepcopy
 from tkinter import Tk
 from tkinter.filedialog import asksaveasfilename
@@ -20,10 +19,6 @@ from matplotlib.lines import Line2D
 
 from .. import Q_
 
-# To test blixt_geo_py and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\plotting', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 import blixt_geo_py.core.well as cw
 import blixt_geo_py.rp.rp_core as rp
@@ -31,7 +26,7 @@ from blixt_geo_py.core.core import Intervals, LogTable, Template, Cutoffs, Litho
 from blixt_geo_py.core.log_curve import LogCurve, _to_depth, replace_data
 from blixt_geo_py.plotting.log_plotter import (LogPlotter, LogColumn, Line, WellPlotter,  add_strat_table, add_color_amp,
                                            select_column)
-import blixt_geo_py.misc.wavelets as bumw
+import blixt_geo_py.core.wavelets as bumw
 from blixt_geo_py.utils.utils import nan_corrcoef, print_info
 from blixt_geo_py.core.seismic import SeismicTraces, interpolate_along_offset
 from blixt_geo_py.core.models import Model, LaminarModel, global_base_case_name, calc_synth_cds, create_traces
@@ -1105,13 +1100,10 @@ def compare_synth_with_seismic(
         # update_m.js_on_change('value', legend_callback)
 
 
-
-
     return (grid, backus_slider, freq_slider, shift_slider, data_table, color_amp_factor,
             # lf_table, add_row, delete_row, update, save,
             lf_table, lf_controls,
             _model_table, model_controls, case_selector)
-
 
 
 def interactive_edits(well: cw.Well,

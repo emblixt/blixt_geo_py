@@ -1,6 +1,4 @@
 import logging
-import os
-import sys
 import types
 from copy import deepcopy
 from typing import Callable, List
@@ -16,12 +14,6 @@ from .core import LithoFluid, LithoFluidsTable, LithoFluids
 from .log_curve import LogCurve, Depth
 from ..plotting.log_plotter import add_color_amp
 
-# sys.path.append('C:\\Users\\eribli\\PycharmProjects\\blixt_utils')
-# Instead of sys.path.append load all PyCharm projects in PyCharm, and they gets added to the sys.path automatically
-
-# To test blixt_geo_py and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_geo_py.plotting.helpers import axis_plot, wiggle_plot, wavelet_plot
 from blixt_geo_py.plotting.crossplot import cnames

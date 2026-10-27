@@ -1,5 +1,4 @@
 import os
-import sys
 import unittest
 
 import matplotlib.pyplot as plt
@@ -7,7 +6,6 @@ import numpy as np
 
 # Add to path to avoid having to install libraries, useful in development
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 import blixt_geo_py.misc.io as uio
 from blixt_geo_py.core.project import Project

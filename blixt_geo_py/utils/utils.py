@@ -7,6 +7,8 @@ import sys
 
 import numpy as np
 
+from blixt_geo_py.misc import masks as msks
+
 
 def fix_well_name(well_name):
     if well_name is None:
@@ -15,6 +17,13 @@ def fix_well_name(well_name):
         return well_name.replace('/', '_').replace('-', '_').replace(' ', '').upper()
     else:
         return None
+
+
+def nan_corrcoef(x, y):
+    maskx = ~np.ma.masked_invalid(x).mask
+    masky = ~np.ma.masked_invalid(y).mask
+    mask = msks.combine_masks([maskx, masky], verbose=False)
+    return np.corrcoef(x[mask], y[mask])
 
 
 def isnan(val):

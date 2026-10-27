@@ -4,7 +4,6 @@ and calculates the trend vs.TVD for that parameter
 """
 import logging
 import os.path
-import sys
 import unittest
 
 import numpy as np
@@ -15,10 +14,6 @@ from bokeh.plotting import column, row
 from bokeh.plotting import figure, show
 from scripts.regsetup import description
 
-# To test blixt_geo_py and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\plotting', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_geo_py.core.core import Intervals
 from blixt_geo_py.core.core import Cutoffs

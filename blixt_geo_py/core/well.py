@@ -22,7 +22,6 @@ Take inspiration from obspy and converter to create these objects
 
 import logging
 import os
-import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -32,10 +31,6 @@ from matplotlib.font_manager import FontProperties
 from scipy.constants import degree
 from scipy.interpolate import interp1d
 
-# To test blixt_geo_py and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_geo_py.core.core import Cutoffs, LithoFluid, LithoFluids
 from blixt_geo_py.core.log_curve import LogCurve, Depth
@@ -476,7 +471,6 @@ class Well(object):
                     print(ans, float(table['KB'][i]), table['Water depth'][i], table['Note'][i], table['Content'][i], table['Discovery in'][i])
 
 
-
     def read_general_ascii(self,
                            file_name: str,
                            separator: str,
@@ -891,7 +885,6 @@ class Well(object):
                 _log = self.get_log_curve(log_table[nlt])
                 ax[i].scatter(_log.values, _log.depth.values, c='grey', alpha=0.1)
                 ax[i].set_title('{}: {}'.format(nlt, log_table[nlt]))
-
 
 
         for interval in wis.get_well_intervals(self.name):

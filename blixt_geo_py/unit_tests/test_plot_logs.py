@@ -1,5 +1,4 @@
 import os
-import sys
 import unittest
 from tkinter import Tk
 from tkinter.filedialog import asksaveasfilename
@@ -14,10 +13,6 @@ from bokeh.plotting import show, row, column
 
 from .. import Q_
 
-# To test blixt_geo_py and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 # from AkerBP_PL932.PL923_AVO import cutoffs
 from blixt_geo_py.core.log_curve import read_las, read_general_ascii
@@ -488,7 +483,6 @@ class TestPlot(unittest.TestCase):
         bupp.plot_trends('tvd', wp.wells, log_table, wis, wi_name, cutoffs,
                          de_trend_loc=de_trend_loc, de_trend_scale=de_trend_scale,
                          results_folder="C:\\Users\\emb\\Downloads", verbose=True)
-
 
 
 def save_as_las():

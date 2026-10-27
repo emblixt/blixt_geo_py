@@ -15,7 +15,6 @@ Module for handling rockphysics fluid and mineral models
 """
 import logging
 import os
-import sys
 import unittest
 from dataclasses import dataclass
 from pathlib import Path
@@ -29,10 +28,7 @@ from bokeh.models import ColumnDataSource
 from bokeh.plotting import column, row
 from scipy.interpolate import interp1d
 
-# To test blixt_geo_py and blixt_utils libraries directly, without installation:
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_geo_py import Q_
 import blixt_geo_py.rp.rp_core as rp

@@ -8,7 +8,6 @@ Module for handling LogCurve objects
 """
 import logging
 import os.path
-import sys
 from copy import deepcopy
 from datetime import datetime
 # from pint import UnitRegistry
@@ -20,10 +19,6 @@ import xarray as xr
 from bokeh.models import ColumnDataSource
 from pandas import DataFrame
 
-# To test blixt_geo_py and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_geo_py.core.core import Template, Cutoffs, LogTable
 from blixt_geo_py.misc.signal_analysis import smooth as _smooth
@@ -1326,7 +1321,6 @@ class LogCurve(object):
             style=self.style,
             cds=self.cds
         )
-
 
 
 def _interpolate(x: np.ndarray, y: np.ndarray, x_new: np.ndarray, **kwargs):

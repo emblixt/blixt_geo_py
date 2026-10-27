@@ -1,5 +1,4 @@
 import os
-import sys
 import unittest
 
 import numpy as np
@@ -8,10 +7,7 @@ from bokeh.layouts import row, column, Spacer
 from bokeh.models import Button, CustomJS
 from bokeh.plotting import figure, show
 
-# To test blixt_geo_py and blixt_utils libraries directly, without installation:
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 import blixt_geo_py.plotting.avo_chi_plotter as brap
 

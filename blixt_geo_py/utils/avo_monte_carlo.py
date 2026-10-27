@@ -9,7 +9,7 @@ half space model with top "Layer 1" and base "Layer 2"
 """
 import os
 
-import blixt_geo_py.misc.wavelets as bumw
+import blixt_geo_py.core.wavelets as bumw
 import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 import numpy as np

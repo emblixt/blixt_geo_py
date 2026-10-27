@@ -4,7 +4,6 @@ Module for handling a Project, consisting of many wells
 """
 import logging
 import os
-import sys
 from datetime import datetime
 
 import numpy as np
@@ -12,10 +11,6 @@ import pandas as pd
 from matplotlib.font_manager import FontProperties
 from scipy.interpolate import interp1d
 
-# To test blixt_geo_py and blixt_utils libraries directly, without installation:
-project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_geo_py.core.well import Well
 from blixt_geo_py.core.core import LogTable

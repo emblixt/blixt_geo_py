@@ -157,7 +157,7 @@ def calculate_depth_trend(
         [ array([a0, b0, ...]), array([a1, b1, ...]), ...]
         where [a0, b0, ...] are the output from least_squares for the first interval, and so on
     """
-    from blixt_utils.utils import print_info
+    from blixt_geo_py.utils.utils import print_info
     if loss is None:
         loss = 'cauchy'
     if mask is None:
@@ -298,7 +298,7 @@ def calculate_blocking(
         e.g.
         [ {'mean': XXX, 'median': XXX, 'std': XXX}, ... ]
     """
-    from blixt_utils.utils import print_info
+    from blixt_geo_py.utils.utils import print_info
     if mask is None:
         mask = np.array(np.ones(len(y)), dtype=bool)  # All True values -> all data is included
     verbosity_level = 0
@@ -382,7 +382,7 @@ def calculate_one_block(
     :return:
         A dictionary with keys: 'mean', 'median', 'std', ...
     """
-    from blixt_utils.utils import print_info
+    from blixt_geo_py.utils.utils import print_info
     weights = None
     down_weight_mask = None
 

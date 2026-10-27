@@ -4,7 +4,6 @@ using standard modulus or other parameters used in rock physics (e.g. bulk & she
 """
 import logging
 import os.path
-import sys
 import unittest
 from typing import Callable
 
@@ -18,10 +17,7 @@ from bokeh.models import (Slider, ColorPicker, Range1d, LinearAxis, LogAxis, Spa
 from bokeh.plotting import column, row
 from bokeh.plotting import figure, show
 
-# To test blixt_geo_py and blixt_utils libraries directly, without installation:
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\plotting', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_geo_py.utils.utils import print_info, add_one, fix_well_name, cycle_colors, isnan
 from blixt_geo_py.core.core import Intervals

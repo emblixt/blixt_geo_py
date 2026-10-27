@@ -1,7 +1,6 @@
 ﻿import logging
 import os
 import pickle
-import sys
 import unittest
 from copy import deepcopy
 from itertools import cycle
@@ -22,10 +21,7 @@ from bokeh.models.plots import GridPlot
 from bokeh.plotting import show, figure, column, row
 from scipy.optimize import least_squares
 
-# To test blixt_geo_py and blixt_utils libraries directly, without installation:
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 import blixt_geo_py.misc.curve_fitting as mycf
 import blixt_geo_py.misc.io as uio
@@ -2070,7 +2066,6 @@ def get_first_case_names(model):
     return cases
 
 
-
 class TestCases(unittest.TestCase):
 
     def test_data_for_avo_analyzer(self, section_type: str | None = None, synthetic: bool = False):
@@ -2143,7 +2138,6 @@ class TestCases(unittest.TestCase):
             raise IOError('Wrong section type ({}) and synthetic ({}) provided'.format(section_type, synthetic))
 
         return p, seismic_cds, c_amp, refl_points, model
-
 
 
     def test_seismic_data_plot(self):
@@ -2509,7 +2503,6 @@ class TestCases(unittest.TestCase):
         # print(inspect.getmembers(p._property_values['right'][0].color_mapper))
         # print(p._property_values['right'][0].color_mapper.high)
         # p._property_values['right'][0].color_mapper.high = 50000.
-
 
 
         # Add points

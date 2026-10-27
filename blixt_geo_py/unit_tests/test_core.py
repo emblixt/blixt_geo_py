@@ -1,5 +1,4 @@
 import os
-import sys
 import unittest
 
 import matplotlib.pyplot as plt
@@ -9,12 +8,10 @@ from bokeh.models import ColumnDataSource
 from bokeh.plotting import show
 
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 
 from blixt_geo_py import Q_
 from blixt_geo_py.core.core import (Interval, StratUnit, Intervals, Template, Header, CutoffRule, Cutoffs, LogTable,
                                 templates_from_table)
-
 
 
 test_file_dir = str(os.path.dirname(__file__).replace(

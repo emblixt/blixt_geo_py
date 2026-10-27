@@ -4,7 +4,7 @@ show how the rock properties changes across this depth and how that can affect t
 """
 import os
 
-import blixt_geo_py.misc.wavelets as bumw
+import blixt_geo_py.core.wavelets as bumw
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd

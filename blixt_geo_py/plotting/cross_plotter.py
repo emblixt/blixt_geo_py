@@ -6,7 +6,6 @@
 # ---------------------------------------------------------------------------------------------------
 import logging
 import os.path
-import sys
 import unittest
 
 import matplotlib.pyplot as plt
@@ -21,9 +20,7 @@ from bokeh.plotting import figure, show
 # from html5lib.constants import mathmlTextIntegrationPointElements
 from scipy.stats import wilcoxon
 
-# To test blixt_geo_py and blixt_utils libraries directly, without installation:
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\plotting', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
 
 from blixt_geo_py.core.core import Intervals, WorkingIntervalsTable
 from blixt_geo_py.core.core import Cutoffs, ClassificationTable, LogTable

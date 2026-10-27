@@ -8,7 +8,6 @@ New version started at Thu Apr 30 08:30 2026
 """
 import logging
 import os
-import sys
 import unittest
 from typing import Callable
 
@@ -18,10 +17,7 @@ from bokeh.models.callbacks import CustomJS
 from bokeh.models.sources import ColumnDataSource
 from bokeh.models.widgets.tables import StringEditor
 
-# To test blixt_geo_py and blixt_utils libraries directly, without installation:
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\rp', ''))
-sys.path.append(os.path.join(project_dir, 'blixt_utils'))
-sys.path.append(os.path.join(project_dir, 'blixt_geo_py'))
 
 import blixt_geo_py.rp.rp_core as rp
 from blixt_geo_py import Q_
@@ -626,7 +622,6 @@ def data_source_moduli(data_source: DataSource, log_table:LogTable, verbose = Fa
     # Try to modify name of DataSource if it doesn't contain the name of the LogTable used
     if log_table.name not in data_source.name:
         data_source.name = '{} {}'.format(data_source.name, log_table.name)
-
 
 
 class TestCases(unittest.TestCase):
