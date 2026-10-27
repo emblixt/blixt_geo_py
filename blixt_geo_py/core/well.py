@@ -334,7 +334,7 @@ class Well(object):
         else:
             self.logs.append(log_curve)
 
-    def harmonize_logs(self, down_sample: int | None = None, enforce_evenly_spaced: bool = True, step: Q_ = Q_(0.1, 'm')):
+    def harmonize_logs(self, down_sample: int | None = None, enforce_evenly_spaced: bool = True, step: pint.Quantity = Q_(0.1, 'm')):
         """
         Adjusts all logs to have the same length and sample rate
         :param down_sample:
@@ -725,7 +725,7 @@ class Well(object):
             templates=_templates
         )
 
-    def calc_press_ref(self, rho_sea: Q_):
+    def calc_press_ref(self, rho_sea: pint.Quantity):
         """
         Calculates the reference pressure in MPa (pressure at mudline (seafloor)) based on the water depth and
         sea water density.

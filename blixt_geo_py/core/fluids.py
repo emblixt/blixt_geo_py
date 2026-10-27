@@ -468,7 +468,7 @@ class MotherFluid(object):
     def bd(self):
         return self._bd
 
-    def calc_elastics(self, fluid_type: str, burial_depth: Q_):
+    def calc_elastics(self, fluid_type: str, burial_depth: pint.Quantity):
         if self.calculation_method == 'Batzle and Wang':
             _this_rho = None
             _this_k = None
@@ -739,7 +739,7 @@ class Fluid:
         else:
             return '{}_{}_{}'.format(self.substitution_order, self.mother_fluid.name,self.fluid_type)
 
-    def calc_elastics(self, burial_depth: Q_):
+    def calc_elastics(self, burial_depth: pint.Quantity):
         self.mother_fluid.calc_elastics(self.fluid_type, burial_depth)
         self.k = self.mother_fluid.k
         self.mu = self.mother_fluid.mu
@@ -802,7 +802,7 @@ class Fluid_test:
         else:
             return '{}_{}_{}'.format(self.substitution_order, self.well_name,self.interval_name)
 
-    def calc_elastics(self, wells: dict, intervals: Intervals, burial_depth: Q_):
+    def calc_elastics(self, wells: dict, intervals: Intervals, burial_depth: pint.Quantity):
         """
         Calculates the Voigt-Reuss-Hill averages of the constituent mother fluids
         :param wells:

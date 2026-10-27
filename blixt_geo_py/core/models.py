@@ -667,7 +667,7 @@ class Layer:
         else:
              return '1D'
 
-    def realize_layer(self, resolution: Q_, voigt_reuss_hill=False, index=0):
+    def realize_layer(self, resolution: pint.Quantity, voigt_reuss_hill=False, index=0):
         """
         Realize the current layer by returning arrays of the elastic properties with the given resolution
 
@@ -1056,7 +1056,7 @@ class Model:
 
         return total_thickness
 
-    def depth_array(self, resolution: Q_) -> Q_:
+    def depth_array(self, resolution: pint.Quantity) -> pint.Quantity:
         """
         Returns a pint.Quantity array with length similar to the total thickness of the model (sum layer thicknesses)
         with a sampling matching the desired resolution
@@ -1075,7 +1075,7 @@ class Model:
             self.total_thickness().units)
         return depth
 
-    def interface_indexes(self, resolution: Q_, index: int | None = None) -> list:
+    def interface_indexes(self, resolution: pint.Quantity, index: int | None = None) -> list:
         """
         Returns a list of indexes, one for each interface (except top and bottom) for the given resolution
         :param resolution:
@@ -1425,7 +1425,7 @@ class ModelTable:
 
         return table_columns
 
-    def realize(self, resolution: Q_, index: int | None = None) -> dict:
+    def realize(self, resolution: pint.Quantity, index: int | None = None) -> dict:
         """
         "Realizes" the model according to the given resolution.
 
@@ -1504,7 +1504,7 @@ class ModelTable:
 
         return _dict
 
-    # def line_cds(self, resolution: Q_, mod_cds: ColumnDataSource) -> ColumnDataSource:
+    # def line_cds(self, resolution: pint.Quantity, mod_cds: ColumnDataSource) -> ColumnDataSource:
     def line_cds(self, elastics_dict: dict) -> ColumnDataSource:
         """
         Calculates the lines that represent the elastic properties of the model
@@ -2619,9 +2619,9 @@ def build_layered_model(depth_to_target, overburden_thickness, target_thickness,
 
 
 def build_wedge(
-        depth_to_wedge: Q_,
-        from_thickness: Q_,
-        to_thickness: Q_,
+        depth_to_wedge: pint.Quantity,
+        from_thickness: pint.Quantity,
+        to_thickness: pint.Quantity,
         n_traces: int,
         overburden: LithoFluid,
         target: LithoFluid,

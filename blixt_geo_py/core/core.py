@@ -5,10 +5,10 @@ Collection of objects and methods used throughout blixt_geo_py
 import logging
 import os
 import sys
+from collections.abc import Callable
 from copy import deepcopy
 from datetime import datetime
 
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -1743,13 +1743,11 @@ class LithoFluid:
     They are then functions of an integer input "i" that parameterizes the elastic properties in the "lateral"
     direction
     """
-    import matplotlib as mpl
-    from typing import Callable
     def __init__(self,
                  name: str | None = None,
-                 vp: float | pint.Quantity | Callable[[int], Q_] | None = None,
-                 vs: float | pint.Quantity | Callable[[int], Q_] | None = None,
-                 rho: float | pint.Quantity | Callable[[int], Q_] | None = None,
+                 vp: float | pint.Quantity | Callable[[int], pint.Quantity] | None = None,
+                 vs: float | pint.Quantity | Callable[[int], pint.Quantity] | None = None,
+                 rho: float | pint.Quantity | Callable[[int], pint.Quantity] | None = None,
                  vp_std_dev: float | pint.Quantity | None = None,
                  vs_std_dev: float | pint.Quantity | None = None,
                  rho_std_dev: float | pint.Quantity | None = None,
@@ -1777,7 +1775,6 @@ class LithoFluid:
         :param vs_rho_cc:
         :param default:
         """
-        from typing import Callable
 
         self.name = name
         if isinstance(vp, Callable) or isinstance(vs, Callable) or isinstance(rho, Callable):
@@ -1860,7 +1857,6 @@ class LithoFluid:
         Returns a dictionary which is compatible with the RokDoc "sums and average" file format
         :return:
         """
-        from typing import Callable
         if isinstance(self.vp, Callable):
             if index is None:
                 index = 0
@@ -2230,7 +2226,6 @@ class LithoFluidsTable:
 
     @property
     def cds(self) -> ColumnDataSource:
-        from typing import Callable
         _dict = {_x:[] for _x in self.keys}
         for _litho_fluid in self.litho_fluids.litho_fluids:
             for _key in self.keys:
@@ -2315,7 +2310,6 @@ class LithoFluidsTable:
             cds.data = new_data
 
         def update_table_function():
-            from typing import Callable
             # TODO: I suspect this doesn't work correctly when adding a new row when we're having a Quasi 2D litho fluid
             new_data = dict(cds.data)
             _litho_fluids = []

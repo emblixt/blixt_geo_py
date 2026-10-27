@@ -274,9 +274,9 @@ class RptVariableTable:
 
 
 def rpt_wrapper(
-        t: Q_,
+        t: pint.Quantity,
         rpt: Callable,
-        constants: Q_,
+        constants: pint.Quantity,
         rpt_keywords: dict
 ):
     """
@@ -364,7 +364,7 @@ def rpt_to_moduli(v_p: list, v_s: list, rho: list, annotations: list) -> dict:
 
     return _dict
 
-def rpt_phi_sw(phi: Q_, sw: Q_, **kwargs):
+def rpt_phi_sw(phi: pint.Quantity, sw: pint.Quantity, **kwargs):
     """
     Useful rock physics template that can return elastic properties Vp, Vs & Rho for many
     different rock physics functions (constant cement, contact cement, stiff sand, soft sand)

@@ -66,7 +66,7 @@ class FluidSpec:
     shear_gpa: float | None = 0.0
     density_gcc: float | None = None
     params: dict[str, Any] | None = None
-    bd: Q_ | None = None
+    bd: pint.Quantity | None = None
 
     def __str__(self, indent=4):
         """
@@ -80,7 +80,7 @@ class FluidSpec:
             out += '{}{}: {}\n'.format(indent, _key, _value)
         return out
 
-    def calc_elastics(self, fluid_type: str, burial_depth: Q_, pvt_table: dict | None = None) -> str:
+    def calc_elastics(self, fluid_type: str, burial_depth: pint.Quantity, pvt_table: dict | None = None) -> str:
         """
         Calculates the elastic (density and bulk modulus) for different types of fluids
 
