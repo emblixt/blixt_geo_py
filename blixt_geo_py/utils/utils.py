@@ -3,6 +3,7 @@ Collection of functions from blixt_utils/utils.py and moved here
 
 """
 import logging
+import sys
 
 import numpy as np
 
@@ -30,6 +31,32 @@ def isnan(val):
         return np.isnan(val)
     except:
         raise NotImplementedError('Cant handle this input properly')
+
+
+def arrange_logging(log_to_stdout, log_to_this_file, level=logging.INFO):
+    """
+    :param log_to_stdout:
+        bool
+        If True, the logging is output to stdout
+    :param log_to_this_file:
+    :param level:
+    :return:
+    """
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+
+    frmt = '%(asctime)s | %(filename)s - %(funcName)s: %(levelname)s:%(message)s'
+    if log_to_stdout:
+        logging.basicConfig(stream=sys.stdout,
+                            format=frmt,
+                            level=level,
+                            datefmt='%Y-%m-%d %H:%M:%S')
+    else:
+        logfile = log_to_this_file
+        logging.basicConfig(filename=logfile,
+                            format=frmt,
+                            level=level,
+                            datefmt='%Y-%m-%d %H:%M:%S')
 
 
 def log_table_in_smallcaps(log_table):
