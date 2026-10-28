@@ -50,7 +50,7 @@ def plot_quasi_2d(model, ax=None, **kwargs):
     else:
         last_layer_depth = None
         print_info('Domain of model is not set properly ({}). Should "TWT" or "Z"'.format(model.domain),
-                   'error', logger, 'IOError')
+                   'error', logger, raiser='IOError')
 
     if dx is not None:
         x = i_range * dx.to('m').magnitude
@@ -605,7 +605,7 @@ class Layer:
         if self.target and self.name is None:
             print_info('Both name ({}) and case ({}) must be set to have a valid target layer'.format(
                 name, case ),
-                'error', logger, 'IOError')
+                'error', logger, raiser='IOError')
         self.case = case
         self.color = color
 
@@ -2945,7 +2945,7 @@ def check_domain(_input):
         domain = 'TWT'
     else:
         error_txt = 'Input must be given in either Time, Depth or a function'
-        print_info(error_txt, 'error', logger, 'IOError')
+        print_info(error_txt, 'error', logger, raiser='IOError')
 
     return domain
 
@@ -3259,7 +3259,7 @@ def update_1d_model_function(
 
     # Only handle the situation when a new case is added, for now (TODO)
     if len(case_changes['removed']) > 0:
-        print_info('Can not handle the situation when a case is removed', 'error', logger, 'IOError')
+        print_info('Can not handle the situation when a case is removed', 'error', logger, raiser='IOError')
 
     previous_cases = model.case_names
 
@@ -3328,7 +3328,7 @@ def update_2d_model_function(
 
     # Only handle the situation when a new case is added, for now (TODO)
     if len(case_changes['removed']) > 0:
-        print_info('Can not handle the situation when a case is removed', 'error', logger, 'IOError')
+        print_info('Can not handle the situation when a case is removed', 'error', logger, raiser='IOError')
 
     previous_cases = model.case_names
 

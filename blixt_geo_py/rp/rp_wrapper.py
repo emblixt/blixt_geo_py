@@ -139,7 +139,7 @@ class RptVariableTable:
         if rpt_lines_cds is not None and (len(constants) != len(rpt_annotations)):
             print_info('Annotations ({}) must have same length as Constants ({})'.format(
                 len(rpt_annotations) ,len(constants)),
-            'error', logger, 'IOError')
+            'error', logger, raiser='IOError')
 
         rpt_params = list(_rpt_kwargs.keys())
         rpt_def_values = {_y: _x.magnitude if isinstance(_x, Q_) else _x for _y, _x in list(_rpt_kwargs.items())}

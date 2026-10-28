@@ -154,12 +154,12 @@ def run_fluid_substitution(
                 msc = _msc
         if msc is None:
             err_txt = f'There is no mineral case listed in {os.path.basename(project_table)} that matches well {fsc.well} and interval {fsc.interval}'
-            print_info(err_txt, 'error', logger, 'IOError')
+            print_info(err_txt, 'error', logger, raiser='IOError')
 
         # Check if the well exist
         if fsc.well.upper() not in list(wells.keys()):
             err_txt = f'There is no well {fsc.well} among the input wells'
-            print_info(err_txt, 'error', logger, 'IOError')
+            print_info(err_txt, 'error', logger, raiser='IOError')
 
         # Extract current well from the input
         well = wells[fsc.well.upper()]
@@ -264,7 +264,7 @@ def run_fluid_substitution(
         n_2 = len(fsc.initial_bulk_gpa[lithology_mask])
         if n_1 != n_2:
             err_txt = 'Length of the masks does not match: {} vs. {}'.format(n_1, n_2)
-            print_info(err_txt, 'error', logger, 'IOError')
+            print_info(err_txt, 'error', logger, raiser='IOError')
 
         # Now run the fluid substitution
         _vp_2, _vs_2, _rho_2, _k_2 = gassmann_vel(
@@ -292,7 +292,7 @@ def run_fluid_substitution(
             # If the well is new, the new fluid_substituted log should not exist
             if new_well and _name in well.get_log_names:
                 err_txt = 'The log {} already exists in well {}'.format(_name, well.name)
-                print_info(err_txt, 'error', logger, 'IOError')
+                print_info(err_txt, 'error', logger, raiser='IOError')
 
             # Only copy the LogCurve if the new log doesn't exist within the well, else modify the existing substituted log
             if _name not in well.get_log_names:

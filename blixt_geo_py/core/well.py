@@ -361,7 +361,7 @@ class Well(object):
         if not _longest.is_evenly_spaced:
             if not enforce_evenly_spaced:
                 print_info('Can not harmonize logs based on a log which is unevenly spaced: {}'.format(_longest.name),
-                           'error', logger, 'IOError')
+                           'error', logger, raiser='IOError')
             else:
                 _longest.make_evenly_spaced(step)
 
@@ -535,7 +535,7 @@ class Well(object):
             '#----------      ------------         -------------------------------\n'
         )
         if 'well_info' not in list(self.header.keys()):
-            print_info('Well info is lacking in {}'.format(self.name), 'error', logger, 'IOError')
+            print_info('Well info is lacking in {}'.format(self.name), 'error', logger, raiser='IOError')
         for _key in list(self.header['well_info'].keys()):
             out += '{0: <7}.{1: <9}{2: <21}:{3:}\n'.format(
                 _key.upper(),
@@ -1003,7 +1003,7 @@ class Well(object):
             err_txt = 'Model building failed because of overlapping (within {}) intervals: {}'.format(
                 _tolerance, ', '.join(overlaps)
             )
-            print_info(err_txt, 'error', logger, 'IOError')
+            print_info(err_txt, 'error', logger, raiser='IOError')
             return None
 
         # Calculate the litho fluids over these intervals

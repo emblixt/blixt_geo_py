@@ -184,7 +184,7 @@ def plot_chi_rotation(well: cw.Well,
         twt = well.get_logs_of_type('One-way time')[0].get_twt_from_owt()
     else:
         err_txt = 'No TWT data exists in well {}'.format(well.name)
-        print_info(err_txt, 'error', logger, 'IOError')
+        print_info(err_txt, 'error', logger, raiser='IOError')
 
 
     # Create a combined log table
@@ -198,7 +198,7 @@ def plot_chi_rotation(well: cw.Well,
     for _log in log_table.log_names:
         if _log not in well.get_log_names:
             err_txt = 'Log {} does not exist in well {}'.format(_log, well.name)
-            print_info(err_txt, 'error', logger, 'IOError')
+            print_info(err_txt, 'error', logger, raiser='IOError')
 
     if width is None:
         width = 800
@@ -663,13 +663,13 @@ def compare_synth_with_seismic(
         twt = well.get_logs_of_type('One-way time')[0].get_twt_from_owt()
     else:
         err_txt = 'No TWT data exists in well {}'.format(well.name)
-        print_info(err_txt, 'error', logger, 'IOError')
+        print_info(err_txt, 'error', logger, raiser='IOError')
 
     # Check that the required logs exists in the well
     for _log in (ref_log_table.log_names + vp_vs_rho_table.log_names):
         if _log not in well.get_log_names:
             err_txt = 'Log {} does not exist in well {}'.format(_log, well.name)
-            print_info(err_txt, 'error', logger, 'IOError')
+            print_info(err_txt, 'error', logger, raiser='IOError')
 
     # Create controller widgets
     backus_slider = Slider(title='Backus window length [m]', start=0, end=20, step=2, value=0, width=int(width/3.) - 5)
@@ -701,7 +701,7 @@ def compare_synth_with_seismic(
         for _log in gather_names:
             if _log not in well.get_log_names:
                 err_txt = 'Log {} does not exist in well {}'.format(_log, well.name)
-                print_info(err_txt, 'error', logger, 'IOError')
+                print_info(err_txt, 'error', logger, raiser='IOError')
 
         traces = np.zeros((len(gather_angles), len(well.get_log_curve(gather_names[0]))))
         for _i, _gather_name in enumerate(gather_names):
@@ -1524,7 +1524,7 @@ def get_wiggles_in_depth(
         if len(lc) != _length:
             err_txt = 'Each log curve must have same length: {} != {}'.format(
                 _length, len(lc))
-            print_info(err_txt, 'error', logger, 'IOError')
+            print_info(err_txt, 'error', logger, raiser='IOError')
 
     if verbose:
         print('get_wiggles_in_depth: vp: {}-{}'.format(np.nanmin(vp.values), np.nanmax(vp.values)))

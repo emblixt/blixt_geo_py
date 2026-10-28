@@ -146,7 +146,7 @@ class SeismicTraces:
         if trace_type is None:
             trace_type = 'avo'
         if trace_type not in ['avo', 'eei', 'index']:
-            print_info('trace_type is not recognized: {}'.format(trace_type), 'error', logger, 'IOError')
+            print_info('trace_type is not recognized: {}'.format(trace_type), 'error', logger, raiser='IOError')
         self._trace_type = trace_type
 
         self.cds = cds
@@ -1399,7 +1399,7 @@ def avo_qc(
             for _a, _stack in enumerate(names):
                 if _stack != angle_cds.data['name'][_a]:
                     info_txt = 'Mix up of angle stacks. {} != {}'.format(_stack, angle_cds.data['name'][_a])
-                    print_info(info_txt, 'error', logger, 'IOError')
+                    print_info(info_txt, 'error', logger, raiser='IOError')
                 # print(_stack, angle_cds.data['name'][_a], angle_cds.data['use'][_a], angle_cds.data['angles'][_a])
                 if angle_cds.data['use'][_a]:
                     _angles.append(angle_cds.data['angles'][_a])
@@ -1792,7 +1792,7 @@ def _load_angle_stacks(_angle_stacks, _voi, _inline, _xline, _verbose=False):
             _x = zgy['data'].coords['iline'].data
             _suffix = 'Xline: {}'.format(_xline)
         else:
-            print_info("Either 'inline' or 'xline' must be set", 'error', logger, 'IOError')
+            print_info("Either 'inline' or 'xline' must be set", 'error', logger, raiser='IOError')
         # _seismic_cdss[_as.name] = ColumnDataSource(dict(value=[_line.data.T]))
         _seismic_cdss[_as.name] = _line.data
         _y = zgy['data'].coords['samples'].data
@@ -1880,12 +1880,12 @@ def picks_from_seismic_cds(seismic_cds: ColumnDataSource, feature: str, depth_in
 
     if depth_index is None:
         if feature not in ['global_max', 'global_min']:
-            print_info('Depth indexes are needed to extract amplitudes', 'error', logger, 'IOError')
+            print_info('Depth indexes are needed to extract amplitudes', 'error', logger, raiser='IOError')
     else:
         if isinstance(depth_index, int):
             depth_index = [depth_index] * data.shape[1]
         if len(depth_index) != data.shape[1]:
-            print_info('Depth indexes size must match number of traces', 'error', logger, 'IOError')
+            print_info('Depth indexes size must match number of traces', 'error', logger, raiser='IOError')
 
     # Our result should have a 'value' for each seismic trace that seismic_cds contains, so we begin by setting it to
     # zero

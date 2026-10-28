@@ -73,11 +73,10 @@ class TestCase(unittest.TestCase):
         # print(m.base_target_combos)
 
         # Model with layers that have no name but different cases
+        # A target layer (case other than the base case) without a name is invalid
         layer_1 = Layer(case='Base', thickness=Q_(50., 'm'), litho_fluid=l1)
-        layer_2 = Layer(case='Oil', thickness=Q_(50., 'm'), litho_fluid=l1)
-        m = Model(depth_to_top=Q_(2000, 'm'), layers=[layer_1, layer_2])
-        # print(m.layer_names)
-        print(m.base_target_combos)
+        with self.assertRaises(IOError):
+            Layer(case='Oil', thickness=Q_(50., 'm'), litho_fluid=l1)
 
     def test_depth_range(self):
         m = Model(depth_to_top=Q_(2000, 'm'), layers=[layer1, layer2, layer3, layer4, layer5])
