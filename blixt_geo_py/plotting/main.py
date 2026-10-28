@@ -14,8 +14,8 @@ test = 'rp_plotter__test_well_with_rpt'
 
 
 if test == 'log_plotter__test_cutoffs':
-    import log_plotter
-    test = log_plotter.TestCases()
+    from blixt_geo_py.unit_tests import test_log_plotter
+    test = test_log_plotter.TestCases()
     grid, table, table_buttons, apply_mask, reset_mask = test.test_cutoffs(unit_test=False)
     curdoc().add_root(
         row(
@@ -26,8 +26,8 @@ if test == 'log_plotter__test_cutoffs':
         )
     )
 elif test == 'log_plotter__test_well_plotter_with_cutoffs':
-    import log_plotter
-    test = log_plotter.TestCases()
+    from blixt_geo_py.unit_tests import test_log_plotter
+    test = test_log_plotter.TestCases()
     grid, table, table_buttons, apply_mask, reset_mask = (
         test.test_well_plotter_with_cutoffs(unit_test=False))
     curdoc().add_root(
