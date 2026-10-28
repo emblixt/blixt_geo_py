@@ -974,7 +974,7 @@ class Model:
         return _list
 
     @property
-    def base_target_combos(self, verbose=True) -> list:
+    def base_target_combos(self) -> list:
         """
         Finds all the layers with the same name, and different cases, and returns these as a list of lists
         E.G. for case of
@@ -987,6 +987,7 @@ class Model:
         the list "[[1,2]]" is returned
         :return:
         """
+        verbose = True
         _list = []
         for _name in self.layer_names:
             if _name not in [self.layers[_i].name for _i in self.target_layers]:

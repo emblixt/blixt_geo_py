@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from blixt_geo_py.plotting.helpers import header_plot, axis_plot
 
 from blixt_geo_py import plotting as ppl
-from blixt_geo_py.core.well import Project
+from blixt_geo_py.core.project import Project
 from blixt_geo_py.core.well import Well
 
 
