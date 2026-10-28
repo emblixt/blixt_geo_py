@@ -5,7 +5,7 @@ import unittest
 import blixt_geo_py.rp.rp_core as rp
 from blixt_geo_py import Q_
 from blixt_geo_py.core.core import Intervals
-from blixt_geo_py.core.fluids import (Fluid, FluidMix, FluidsTable, def_fluid_vals,
+from blixt_geo_py.core.fluids import (FluidMix, FluidsTable, MotherFluid, def_fluid_vals,
                                       read_all_mother_fluids_from_excel, read_fluidmixes_from_excel,
                                       read_fluidmixes_from_excel_test)
 
@@ -13,14 +13,12 @@ project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\
 
 
 def make_fluids():
+    project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx')
+    intervals = Intervals(name='MyIntervals')
+    intervals.read_blixt_tops(project_table)
 
-    from blixt_geo_py.core.project import Project
-    wp = Project(name='MyProject')
-
-    # myfluids = FluidMix()
-    # myfluids.read_excel(wp.project_table)
-    myfluids = read_fluidmixes_from_excel(wp.project_table)
-    all_mother_fluids = read_all_mother_fluids_from_excel(wp.project_table)
+    myfluids = read_fluidmixes_from_excel(project_table, intervals)
+    all_mother_fluids = read_all_mother_fluids_from_excel(project_table)
     return all_mother_fluids, myfluids
 
 
@@ -76,8 +74,9 @@ class TestCases(unittest.TestCase):
         print(fmix.print_all_fluids(verbose=True))
 
     def test_fluid(self):
-        default = def_fluid_vals
-        f1 = Fluid(**default)
+        # The defaults describe a MotherFluid; 'status' belongs to a Fluid
+        default = {_k: _v for _k, _v in def_fluid_vals.items() if _k != 'status'}
+        f1 = MotherFluid(**default)
         print(f1)
         for ft in ['Brine', 'Oil', 'Gas']:
             f1.calc_elastics(ft, Q_(1000., 'm'))

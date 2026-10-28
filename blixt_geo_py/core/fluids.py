@@ -519,7 +519,8 @@ class FluidsTable:
         """
         self.title = title
         if width is None:
-            width = 70
+            width = 700
+        self.width = width
         if height is None:
                 height = 135
         self.height = height
@@ -532,7 +533,7 @@ class FluidsTable:
         self.default_fluids_only = default_fluids_only
         if default_fluids_only:
             self.fluids = [
-                Fluid(
+                MotherFluid(
                     k=_val['k'],
                     mu=_val['mu'],
                     rho=_val['rho'],
@@ -1003,7 +1004,7 @@ class FluidMix(object):
             return []
         if status is not None and status not in self.statuses():
             print_info('Status: {} not present among statuses ([{}]) in FluidMix: {}'.format(
-                tag, ', '.join(self.statuses()), self.name),
+                status, ', '.join(self.statuses()), self.name),
                        'warning', logger)
             return []
         if tag is not None and tag not in self.tags():
@@ -1013,84 +1014,34 @@ class FluidMix(object):
             return []
 
 
-        # Initiate a list of all fluid names
-        list_of_names = [_f.name for _f in self.fluids]
-
-        # The below method requires that each fluid in the fluid mix has a unique name
-        dupl_names = get_duplicates(list_of_names)
-        if len(dupl_names) > 0:
-            print_info('There are multiple fluids with the same name ([{}])'.format(', '.join(dupl_names)),
-                       'error', logger, 'IOError')
-
-        # Then start removing the ones that doesn't match the requirements
-        # Do this by iterating over a copy of the original list
-        for fluid_name in list(list_of_names):
-            _fluid = [_f for _f in self.fluids if _f.name == fluid_name][0]
+        # Keep the fluids that match all the requirements.
+        # Match on the fluid objects, not their names: a name (subst. order, mother fluid, fluid type and tag)
+        # does not include the well or interval, so the same name can occur in several intervals
+        matching = []
+        for _fluid in self.fluids:
             if subst_order is not None and subst_order.lower() != _fluid.substitution_order.lower():
-                try:
-                    list_of_names.remove(fluid_name)
-                    if verbose:
-                        print('Subst. order: Removing fluid: {}'.format(_fluid.name))
-                except ValueError:
-                    if verbose:
-                        print('get_fluids(): Subst. order: Tried to remove fluid: {}'.format(_fluid.name))
-                    continue
-            if well_name is not None and well_name.lower() != _fluid.interval.well.lower():
-                try:
-                    list_of_names.remove(fluid_name)
-                    if verbose:
-                        print('get_fluids(): Well name: Removing fluid: {}'.format(_fluid.name))
-                except ValueError:
-                    if verbose:
-                        print('get_fluids(): Well name: Tried to remove fluid: {}'.format(_fluid.name))
-                    continue
-            if wi_name is not None and wi_name.lower() != _fluid.interval.name.lower():
-                try:
-                    list_of_names.remove(fluid_name)
-                    if verbose:
-                        print('get_fluids(): Interval name: Removing fluid: {}'.format(_fluid.name))
-                except ValueError:
-                    if verbose:
-                        print('get_fluids(): Interval name: Tried to remove fluid: {}'.format(_fluid.name))
-                    continue
-            if mother_fluid_name is not None and mother_fluid_name.lower() != _fluid.mother_fluid.name.lower():
-                try:
-                    list_of_names.remove(fluid_name)
-                    if verbose:
-                        print('get_fluids(): Mother fluid name: Removing fluid: {}'.format(_fluid.name))
-                except ValueError:
-                    if verbose:
-                        print('get_fluids(): Mother fluid name: Tried to remove fluid: {}'.format(_fluid.name))
-                    continue
-            if fluid_type is not None and fluid_type.lower() != _fluid.fluid_type.lower():
-                try:
-                    list_of_names.remove(fluid_name)
-                    if verbose:
-                        print('get_fluids(): Fluid type: Removing fluid: {}'.format(_fluid.name))
-                except ValueError:
-                    if verbose:
-                        print('get_fluids(): Fluid type: Tried to remove fluid: {}'.format(_fluid.name))
-                    continue
-            if volume_fraction is not None and volume_fraction != _fluid.volume_fraction:
-                try:
-                    list_of_names.remove(fluid_name)
-                    if verbose:
-                        print('get_fluids(): Volume fraction: Removing fluid: {}'.format(_fluid.name))
-                except ValueError:
-                    if verbose:
-                        print('get_fluids(): Volume fraction: Tried to remove fluid: {}'.format(_fluid.name))
-                    continue
-            if tag is not None and tag != _fluid.tag:
-                try:
-                    list_of_names.remove(fluid_name)
-                    if verbose:
-                        print('get_fluids(): Tag: Removing fluid: {}'.format(_fluid.name))
-                except ValueError:
-                    if verbose:
-                        print('get_fluids(): Tag: Tried to remove fluid: {}'.format(_fluid.name))
-                    continue
+                reason = 'Subst. order'
+            elif well_name is not None and well_name.lower() != _fluid.interval.well.lower():
+                reason = 'Well name'
+            elif wi_name is not None and wi_name.lower() != _fluid.interval.name.lower():
+                reason = 'Interval name'
+            elif mother_fluid_name is not None and mother_fluid_name.lower() != _fluid.mother_fluid.name.lower():
+                reason = 'Mother fluid name'
+            elif fluid_type is not None and fluid_type.lower() != _fluid.fluid_type.lower():
+                reason = 'Fluid type'
+            elif volume_fraction is not None and volume_fraction != _fluid.volume_fraction:
+                reason = 'Volume fraction'
+            elif status is not None and status != _fluid.status:
+                reason = 'Status'
+            elif tag is not None and tag != _fluid.tag:
+                reason = 'Tag'
+            else:
+                matching.append(_fluid)
+                continue
+            if verbose:
+                print('get_fluids(): {}: Removing fluid: {}'.format(reason, _fluid.name))
 
-        return [_f for _f in self.fluids if _f.name in list_of_names]
+        return matching
 
     def print_all_fluids(self, verbose=False):
         out = ''
@@ -1160,17 +1111,20 @@ class FluidMix(object):
                     wi_md_i = np.nanargmin((md.data - _wi.mid)**2)
                     wi_bd = bd.data[wi_md_i]
 
-                    # 4th level: Loop over all the different fluid types we have at this level
+                    # 4th level: Loop over all the different fluid types and tags we have at this level.
+                    # Fluids with different tags are alternative scenarios for the same interval
                     # TODO This can perhaps fail if the fluid type is set to None or ''? TEST
-                    for _i, _fluid_type in enumerate(list(self.fluid_types())):
+                    for _i, (_fluid_type, _tag) in enumerate(
+                            [(_ft, _t) for _ft in self.fluid_types() for _t in self.tags()]):
                         info_txt = ''
-                        _fluids = self.get_fluids(subst_order=key, well_name=w, wi_name=wi, fluid_type=_fluid_type, verbose=False)
+                        _fluids = self.get_fluids(subst_order=key, well_name=w, wi_name=wi, fluid_type=_fluid_type,
+                                                  tag=_tag, verbose=False)
                         if len(_fluids) == 0:
                             continue
                         if len(_fluids) > 1:
                             err_txt = 'There should only be one fluid for the given subst. order' + \
-                            ' ({}), well ({}), interval ({}) and fluid type ({})'.format(
-                                key, w, wi, _fluid_type
+                            ' ({}), well ({}), interval ({}), fluid type ({}) and tag ({})'.format(
+                                key, w, wi, _fluid_type, _tag
                             )
                             print_info(err_txt, 'error', logger, raiser='IOError')
 
