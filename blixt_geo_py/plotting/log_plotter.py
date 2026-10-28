@@ -25,6 +25,7 @@ from pandas import DataFrame, cut
 
 # from blixt_geo_py.utils.utils import necessary_keys
 from blixt_geo_py.core.core import Template
+from blixt_geo_py.core.seismic import SeismicTraces, test_data_length
 from blixt_geo_py import Q_
 
 logger = logging.getLogger(__name__)
@@ -381,8 +382,6 @@ class LogColumn:
     """
     A class that can contain multiple well logs (lines) in the same "column"
     """
-    from blixt_geo_py.core.seismic import SeismicTraces
-
     def __init__(self,
                  name: str,
                  rel_width: float = 1.,
@@ -1270,7 +1269,9 @@ class TestCases(unittest.TestCase):
         show(row(grid, settings))
 
     def test_two_column_plot_with_seismic(self):
-        _, line1, line2, line3, seismic1 = test_data()
+        _, line1, line2, line3, _, _ = test_data()
+        # Synthetic AVO traces spanning the same md range as the test lines
+        seismic1 = SeismicTraces(y=np.linspace(1000., 2000., test_data_length))
         lp = LogPlotter(width=800, height=1000)
         c2 = LogColumn('c2', lines=[line1, line2])
         c1 = LogColumn('c1', seismic_traces=seismic1, rel_width=2)
