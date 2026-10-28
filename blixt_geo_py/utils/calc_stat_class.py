@@ -287,7 +287,7 @@ class SetUpCalculation:
         if templates is None:
             templates = {}
             for k, well in enumerate(wells):
-                templates[uio.fix_well_name(well.well)] = {'color': xp.cnames[k], 'symbol': xp.msymbols[k]}
+                templates[uio.fix_well_name(well.well)] = {'color': xp.cnames[k % len(xp.cnames)], 'symbol': xp.msymbols[k % len(xp.msymbols)]}
 
         if working_dir is not None:
             if not os.path.isdir(working_dir):

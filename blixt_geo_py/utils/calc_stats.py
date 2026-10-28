@@ -787,7 +787,7 @@ def plot_logs_vs_depth_tops(logs, wells, interval, ncols, well_names, results_pe
             axs[i].plot(
                 results_per_well[this_well_name][key],
                 depth_from_top[this_well_name],
-                c=xp.cnames[k])
+                c=xp.cnames[k % len(xp.cnames)])
 
         axs[i].set_xlabel(key)
         axs[i].set_ylim(axs[i].get_ylim()[1], axs[i].get_ylim()[0])
@@ -816,7 +816,7 @@ def plot_logs_vs_depth(logs, wells, wi_name, ncols, well_names, results_per_well
                 axs[i].plot(
                     results_per_well[this_well_name][key],
                     depth_from_top[this_well_name],
-                    c=xp.cnames[k])
+                    c=xp.cnames[k % len(xp.cnames)])
             except ValueError:
                 warn_txt = 'Log {}, is lacking in working interval {} in well {}'.format(
                     key, wi_name, this_well_name)
@@ -838,8 +838,8 @@ def plot_averages(j, logs, wells, results, results_per_well, figs_and_axes, temp
     for i, key in enumerate(logs):
         for k, well in enumerate(wells.values()):
             this_well_name = uio.fix_well_name(well.well)
-            this_color = xp.cnames[k]
-            this_symbol = xp.cnames[k]
+            this_color = xp.cnames[k % len(xp.cnames)]
+            this_symbol = xp.msymbols[k % len(xp.msymbols)]
             if templates is not None:
                 this_color = templates[this_well_name]['color']
                 this_symbol = templates[this_well_name]['symbol']
@@ -875,7 +875,7 @@ def plot_histograms_tops(logs, results, interval, ncols, well_names, results_per
             histtype='bar',
             stacked=True,
             label=well_names,
-            color=[xp.cnames[k] for k in range(len(well_names))]
+            color=[xp.cnames[k % len(xp.cnames)] for k in range(len(well_names))]
         )
         axs[i].set_ylabel('N')
         axs[i].set_xlabel(key)
@@ -903,7 +903,7 @@ def plot_histograms(logs, results, wi_name, ncols, well_names, results_per_well,
             histtype='bar',
             stacked=True,
             label=well_names,
-            color=[xp.cnames[k] for k in range(len(well_names))]
+            color=[xp.cnames[k % len(xp.cnames)] for k in range(len(well_names))]
         )
         axs[i].set_ylabel('N')
         axs[i].set_xlabel(key)
