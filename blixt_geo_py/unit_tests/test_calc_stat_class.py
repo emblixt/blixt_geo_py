@@ -1,6 +1,7 @@
 import os
 import unittest
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from blixt_geo_py import Q_
@@ -16,6 +17,16 @@ log_table = {'P velocity': 'vp_dry', 'S velocity': 'vs_dry', 'Density': 'rho_dry
              'Volume': 'vcl'}
 wi_sands = ['Sand F', 'Sand E', 'Sand D']
 wi_shales = ['Shale G', 'Shale C']
+
+# Set to True, or set the environment variable BLIXT_SHOW_PLOTS=1, to view the plots created by the tests.
+# Off by default, so running the whole test suite doesn't stop at every plot window
+show_plots = os.environ.get('BLIXT_SHOW_PLOTS', '0') == '1'
+
+def show_or_close():
+    if show_plots:
+        plt.show()
+    else:
+        plt.close('all')
 
 
 def make_project():
@@ -59,6 +70,18 @@ class TestCases(unittest.TestCase):
         for _log in log_table.values():
             self.assertEqual(len(data[_log]), len(depth_from_top))
 
+        if show_plots:
+            # Selected data versus depth from the top of the interval
+            fig, axes = plt.subplots(ncols=len(log_table), figsize=(2 * len(log_table), 4), sharey=True)
+            for ax, _log in zip(axes, log_table.values()):
+                ax.plot(data[_log].magnitude, depth_from_top, '.', ms=2)
+                ax.set_xlabel('{} [{}]'.format(_log, data[_log].units))
+            axes[0].set_ylabel('Depth from top of Sand F [m]')
+            axes[0].invert_yaxis()
+            fig.suptitle('WELL_F, Sand F: {}'.format(cutoffs))
+            fig.tight_layout()
+        show_or_close()
+
     def test_missing_interval(self):
         # WELL_F has no 'Abenaki' interval, so no data should be collected (and not the whole well)
         if self.wis.get_interval('Abenaki', 'WELL_F') is not None:
@@ -98,6 +121,7 @@ class TestCases(unittest.TestCase):
         figs = stats.plot_averages(results)
         self.assertEqual(list(figs.keys()), list(log_table.keys()))
         print(stats.summary(results).to_string())
+        show_or_close()
 
 
 if __name__ == '__main__':

@@ -7,3 +7,5 @@ plot.html
 /MyProject_log.txt
 /results_folder/WELL_F_XXX.las
 /testing_log.txt
+# Lock files created by Excel/Word while a document is open
+~$*
