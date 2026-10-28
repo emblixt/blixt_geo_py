@@ -622,7 +622,7 @@ class Layer:
         if ntg is None:
             self.ntg = 1.
         elif (ntg != 1. or isinstance(ntg, Callable)) and not self.target:
-            print_info('Only target layers can have a NTG separate from 1.', 'error', logger, 'IOError')
+            print_info('Only target layers can have a NTG separate from 1.', 'error', logger, raiser='IOError')
         else:
             self.ntg = ntg
 
@@ -2949,7 +2949,7 @@ def check_domain(_input):
     return domain
 
 def calc_synth_cds(_vp, _vs, _rho, _twt, _dt, _angles, avo_or_eei, freq):
-    from blixt_geo_py.plotting.plot_logs_new import get_wiggles_in_depth
+    from blixt_geo_py.plotting.plot_logs import get_wiggles_in_depth
     if avo_or_eei == 'avo':
         _avo_angles = _angles
         _chi_angles = None

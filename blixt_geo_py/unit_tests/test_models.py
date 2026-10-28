@@ -95,7 +95,7 @@ class TestCase(unittest.TestCase):
         print(m.depth_array(res)[m.interface_indexes(res)])
         test = m.depth_array(res)[m.interface_indexes(res)] == Q_([2050., 2070.], 'm')
         print(test)
-        self.assertTrue(test.all())
+        self.assertTrue(all(test))
 
     def test_1d_twt(self):
         first_layer = Layer(name='A', thickness=Q_(0.1, 's'), litho_fluid=l1)
@@ -104,8 +104,8 @@ class TestCase(unittest.TestCase):
         m = Model(depth_to_top=Q_(2.0, 's'), layers=[first_layer, second_layer])
         m.append(third_layer)
         print(m.layer_names)
-        # m.plot()
-        # plt.show()
+        m.plot()
+        plt.show()
 
     def test_1d_z(self):
         first_layer = Layer(thickness=Q_(150, 'm'), litho_fluid=l1)
@@ -128,6 +128,7 @@ class TestCase(unittest.TestCase):
         m.append(first_layer)
 
         wavelet = bumw.ricker(0.096, 0.001, 25)
+        # TODO: There is a collision between the "old" and "new" model layers, and the sample_rate
         plot_wiggles(m, 0.001, wavelet, avo_angles=[0., 5., 10., 15., 20., 25., 30., 35., 40.])
         plot_wiggles(m, 0.001, wavelet, eei=True, avo_angles=[-90, -70., -50., -30., -15., 0., 15., 30., 50., 70., 90.],
                      extract_avo_at=(-90, 1.99))
@@ -138,10 +139,14 @@ class TestCase(unittest.TestCase):
         net_vp = 3000.
         resolution = 0.001
         fig, axs = plt.subplots(nrows=11)
+        # TODO: This raises an AttributeError. 'Layer' object has no attribute 'ntg'.
+        # It is because the Layer has no attribute 'target' on initialization now. To create a 'target' layer we
+        # need to have two layers, one base case and one perturbed case, for the same layer.
+        # The "old" model interface and plotting will not be able to handle this right now
         for i in range(11):
             ntg = i / 10.
 
-            ntg_layer = Layer(target=True, thickness=0.1, vp=net_vp, ntg=ntg, thin_bed_factor=thin_bed_factor)
+            ntg_layer = Layer(target=True, thickness=Q_(0.1, 's'), vp=net_vp, ntg=ntg, thin_bed_factor=thin_bed_factor)
 
             m = Model(layers=[ntg_layer])
 
@@ -155,8 +160,8 @@ class TestCase(unittest.TestCase):
 
     def test_realization(self):
         # in TWT
-        first_layer = Layer(thickness=0.1, vp=3300, vs=1500, rho=2.1)
-        second_layer = Layer(thickness=0.1, vp=3500, vs=1600, rho=2.3, target=True, ntg=0.8)
+        first_layer = Layer(thickness=Q_(0.1, 's'), vp=3300, vs=1500, rho=2.1)
+        second_layer = Layer(thickness=Q_(0.1, 's'), vp=3500, vs=1600, rho=2.3)
         m = Model(layers=[first_layer, second_layer])
         m.append(first_layer)
         m.plot()
@@ -166,8 +171,8 @@ class TestCase(unittest.TestCase):
         ax.plot(twt, vp / 1000., twt, li)
 
         # in Z
-        first_layer = Layer(thickness=100, vp=3300, vs=1500, rho=2.1, domain='Z')
-        second_layer = Layer(thickness=20., vp=3500, vs=1600, rho=2.3, target=True, ntg=0.8, domain='Z')
+        first_layer = Layer(thickness=Q_(100, 'm'), vp=3300, vs=1500, rho=2.1)
+        second_layer = Layer(thickness=Q_(20., 'm'), vp=3500, vs=1600, rho=2.3)
         m = Model(layers=[first_layer, second_layer])
         m.append(first_layer)
         m.plot()
@@ -287,15 +292,6 @@ class TestCase(unittest.TestCase):
             return None
         else:
             return model_table, model_controls, lf_table, lf_controls
-
-    def test_layered_model(self):
-        wavelet = bumw.ricker(0.096, 0.001, 25)
-        length = wavelet['time'][-1] - wavelet['time'][0]
-        dt = wavelet['header']['Sample rate']  # should be given in seconds
-        top_thickness = length / 2.
-        m = build_layered_model(2., top_thickness, 0.05, l1, l2, l1, domain='TWT')
-        laminar_model_analysis(m, dt, wavelet, extract_avo_at=(0, 2.01), extract_on='nearest max')
-        plt.show()
 
     def test_saturation_wedge(self):
         from blixt_geo_py.rp.rp_core import rpt_parameters

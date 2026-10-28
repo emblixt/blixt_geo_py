@@ -358,7 +358,7 @@ class LogCurveTestCase(unittest.TestCase):
         print(lc.well, lc.name, lc.log_type, lc.min, lc.max, lc.units, lc.depth_type, lc.depth.top,
               lc.depth.base, lc.depth_units)
 
-        l_file = 'C:\\Users\\emb\\OneDrive - Petrolia NOCO AS\\Technical work\\PL1258 Corvina\\Wells\\33_9_17.las'
+        l_file = 'C:\\Users\\marten.blixt\\OneDrive - Petrolia NOCO AS\\Technical work\\PL1258 Corvina\\Wells\\33_9_17.las'
         # this works:
         rename_logs = {'phie_smooth': ['phie_0_0_15_100'], 'vcl_smooth': ['vcl_used_0_0_15_100']}
         # BUT NOT THIS:

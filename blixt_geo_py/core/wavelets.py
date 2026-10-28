@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pywt
+from copy import deepcopy
 
 
 def binary_search_scale(f, wavelet_name, dt, start_at_scale=10., freq_tolerance=1., last_scale=None):
