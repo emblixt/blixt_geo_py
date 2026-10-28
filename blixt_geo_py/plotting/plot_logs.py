@@ -1282,7 +1282,6 @@ def plot_trends(x_name: str, wells: list, log_table: LogTable, wis:Intervals, wi
     """
     from blixt_geo_py.misc.curve_fitting import (linear_function,
                                                 calculate_depth_trend)
-    from blixt_geo_py.utils.utils import mask_string
     from blixt_geo_py.plotting import crossplot as xp
 
     if skip is None:

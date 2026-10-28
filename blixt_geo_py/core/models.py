@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pint
 from bokeh.models import ColumnDataSource
-from scipy.stats import theilslopes
 
 from .core import LithoFluid, LithoFluidsTable, LithoFluids
 from .log_curve import LogCurve, Depth
@@ -2450,9 +2449,9 @@ class FaultModel(LaminarModel):
         ---------------------i0--------------------------------------
          - layers[0]
          ---------------------\
-          - layers[1:-1]      \------------------------------------
+          - layers[1:-1]      \\------------------------------------
          ......................\
-                                \..................................
+                                \\..................................
          - layers[-1]
         -----------------------------------------------------------
 
@@ -2573,7 +2572,8 @@ class FaultModel(LaminarModel):
             )
             synth_2d_cds.data = dict(_synth_2d_cds.data)
 
-        update_m.on_click(update_faulting)
+        model_controls.children[2].on_click(update_faulting)
+        # update_m.on_click(update_faulting)
 
         return (title, lf_table, lf_controls, model_table,
                 model_controls, grid,
