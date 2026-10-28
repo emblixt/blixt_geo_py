@@ -2,6 +2,7 @@ import logging
 import os
 import unittest
 from copy import deepcopy
+from typing import Literal
 
 import bokeh.plotting
 import matplotlib as mpl
@@ -25,7 +26,7 @@ from pandas import DataFrame, cut
 
 # from blixt_geo_py.utils.utils import necessary_keys
 from blixt_geo_py.core.core import Template
-from blixt_geo_py.core.seismic import SeismicTraces, test_data_length
+from blixt_geo_py.core.seismic import SeismicTraces
 from blixt_geo_py import Q_
 
 logger = logging.getLogger(__name__)
@@ -388,7 +389,7 @@ class LogColumn:
                  rel_header_height: float = 0.,
                  lines: list | None = None,
                  seismic_traces: SeismicTraces | None = None,
-                 scale: str = 'linear'
+                 scale: Literal['linear', 'log'] = 'linear'
                  ):
         """
         :param name:
@@ -656,9 +657,9 @@ class WellPlotter(LogPlotter):
         if buffer is None:
             buffer = 50.
         if width is None:
-            width = 800.
+            width = 800
         if height is None:
-            height = 1000.
+            height = 1000
 
         # Gather data that should be plotted in each of the columns
         plot_columns = []
@@ -967,7 +968,7 @@ def add_strat_table(_p: bokeh.plotting.figure,
 
     stratigraphy_frame = DataFrame(stratigraphy)
 
-    names = sorted(stratigraphy_frame['name'].unique())
+    names = [str(_n) for _n in sorted(stratigraphy_frame['name'].unique())]
     levels = sorted(stratigraphy_frame['level'].unique())
     line_widths = ['1', '2', '3', '4', '5']
     line_styles = ['solid', 'dashed', 'dotted', 'dotdash', 'dashdot']

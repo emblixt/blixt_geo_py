@@ -478,7 +478,7 @@ class CrossPlotter:
 
     """
     def __init__(self,
-                 data_sources: dict | None = None,
+                 data_sources: dict,
                  x: str | None = None,
                  y: str | None = None,
                  working_intervals: Intervals | None = None,
@@ -621,7 +621,7 @@ class CrossPlotter:
         _dict = {}
         _i = 0
         for _key, _item in self._data_sources.items():
-            _len = None
+            _len = 0
             for _var in self.common_variables:
                 _len = len(_item.cds.data[_var])
                 if _i == 0:
@@ -1240,13 +1240,13 @@ class CrossPlotter:
         )
 
         def apply_mask_function():
-            if self.cutoffs_table is not None:
+            if self.cutoffs_table is not None and ct_cds is not None:
                 _mask_ct = self.cutoffs_table.create_mask(ct_cds, cds, verbose=True)
                 self.active_cutoffs = self.cutoffs_table.active_cutoffs(ct_cds)
             else:
                 _mask_ct = np.ones(len(cds.data['mask']), dtype=bool)
 
-            if self.interval_table is not None:
+            if self.interval_table is not None and wis_cds is not None:
                _mask_wis = self.interval_table.create_mask(
                    wis_cds,
                    Q_(cds.data['md'], 'm'),
@@ -1399,6 +1399,7 @@ class TestCases(unittest.TestCase):
         wis.read_blixt_tops(project.project_table)
 
         project.load_all_wells(log_table=log_table)
+        assert project.wells is not None
         # print([(w.name, list(w.style.keys()), w.style.full_name) for w in project.wells])
         xp = CrossPlotter(
             {w.name: w.data_source() for w in project.wells}
@@ -1444,7 +1445,7 @@ class TestCases(unittest.TestCase):
     def test_moduli(self):
         from blixt_geo_py.core.well import Well
         from blixt_geo_py.core.core import LogTable
-        from blixt_geo_py.rp.rp_wrapper_new import data_source_moduli
+        from blixt_geo_py.rp.rp_wrapper import data_source_moduli
         las_fileA = os.path.join(project_dir, "blixt_geo_py\\test_data\\Well A.las")
         w = Well()
         w.read_las(las_fileA, True)
