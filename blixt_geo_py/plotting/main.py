@@ -39,8 +39,8 @@ elif test == 'log_plotter__test_well_plotter_with_cutoffs':
         )
     )
 elif test == 'cross_plotter__test_working_intervals':
-    import cross_plotter
-    test = cross_plotter.TestCases()
+    from blixt_geo_py.unit_tests import test_cross_plotter
+    test = test_cross_plotter.TestCases()
     xplot, x_menu, y_menu, size_menu, color_menu, apply_mask, reset_mask, wis_guis = test.test_working_intervals()
     curdoc().add_root(
         row(
@@ -54,8 +54,8 @@ elif test == 'cross_plotter__test_working_intervals':
     )
 
 elif test == 'cross_plotter__test_both':
-    import cross_plotter
-    test = cross_plotter.TestCases()
+    from blixt_geo_py.unit_tests import test_cross_plotter
+    test = test_cross_plotter.TestCases()
     xplot, x_menu, y_menu, size_menu, color_menu, apply_mask, reset_mask, ct_guis, wis_guis = test.test_both()
     curdoc().add_root(
        row(

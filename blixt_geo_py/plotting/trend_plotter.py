@@ -12,7 +12,6 @@ from bokeh.models import (Slider, ColorPicker, Range1d, LinearAxis, LogAxis, Spa
                           CustomJS, CustomJSTransform, LinearColorMapper, CheckboxEditor, Select)
 from bokeh.plotting import column, row
 from bokeh.plotting import figure, show
-from scripts.regsetup import description
 
 
 from blixt_geo_py.core.core import Intervals
@@ -216,10 +215,9 @@ class TrendPlotter(CrossPlotter):
 class TestCases(unittest.TestCase):
 
     def test_data_cds(self):
-        import blixt_geo_py.plotting.cross_plotter as xp
-        test = xp.TestCases()
+        from blixt_geo_py.unit_tests.test_cross_plotter import make_data_sources
 
-        ds1, ds2, wis, coffs = test.test_data()
+        ds1, ds2, wis, coffs = make_data_sources()
 
         tp = TrendPlotter({str(_s.name):_s for _s in [ds1, ds2]},
                           x='md',
@@ -234,10 +232,9 @@ class TestCases(unittest.TestCase):
 
     def test_calc_trend(self):
         import matplotlib.pyplot as plt
-        import blixt_geo_py.plotting.cross_plotter as xp
-        test = xp.TestCases()
+        from blixt_geo_py.unit_tests.test_cross_plotter import make_data_sources
 
-        ds1, ds2, wis, coffs = test.test_data()
+        ds1, ds2, wis, coffs = make_data_sources()
 
         tp = TrendPlotter({str(_s.name):_s for _s in [ds1, ds2]},
                           x='md',

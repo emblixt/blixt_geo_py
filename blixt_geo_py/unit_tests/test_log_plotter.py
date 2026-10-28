@@ -18,9 +18,8 @@ test_file_dir = str(os.path.dirname(__file__).replace(
 
 def make_test_data():
     # Builds some line objects using a common CDS
-    from blixt_geo_py.plotting import cross_plotter
-    test = cross_plotter.TestCases()
-    ds1, ds2, wis, cutoffs = test.test_data()
+    from blixt_geo_py.unit_tests.test_cross_plotter import make_data_sources
+    ds1, ds2, wis, cutoffs = make_data_sources()
     cds = ds1.cds
     line1 = Line(x='var_one', y='md', cds=cds, style=ds1.templates['var_one'])
     line2 = Line(x='var_two', y='md', cds=cds, style=ds1.templates['var_two'])
