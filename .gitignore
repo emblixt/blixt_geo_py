@@ -3,3 +3,4 @@ __pycache__/
 .mcp.json
 # Bokeh output written when plots are shown
 plot.html
+/FluidSub_log.txt
