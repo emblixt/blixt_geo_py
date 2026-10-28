@@ -8,7 +8,7 @@ from blixt_geo_py import Q_
 from blixt_geo_py.core.core import Cutoffs, CutoffRule, LogTable
 from blixt_geo_py.core.project import Project
 from blixt_geo_py.utils.calc_stat_class import (IntervalStats, StatsCalculation, break_at_gaps,
-                                                collect_interval_stats, to_cutoffs)
+                                                collect_interval_stats, isolated_samples, to_cutoffs)
 
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
 project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx')
@@ -61,6 +61,14 @@ class TestCases(unittest.TestCase):
         # Without gaps nothing changes
         new_values, new_depth = break_at_gaps(values[:4], depth[:4])
         np.testing.assert_array_equal(new_depth, depth[:4])
+
+    def test_isolated_samples(self):
+        # A single sample between two gaps, one at the start, and one next to a NaN in the log
+        depth = np.array([0.0, np.nan, 0.5, 0.6, np.nan, 1.0, np.nan, 1.5, 1.6, 1.7])
+        values = np.array([1., np.nan, 2., 3., np.nan, 4., np.nan, 5., np.nan, 6.])
+        np.testing.assert_array_equal(
+            isolated_samples(values, depth),
+            [True, False, False, False, False, True, False, True, False, True])
 
     def test_collect_interval_stats(self):
         cutoffs = Cutoffs([CutoffRule('Volume', '<', Q_(0.5, '')), CutoffRule('Porosity', '>', Q_(0.1, ''))])

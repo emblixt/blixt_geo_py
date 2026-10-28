@@ -106,6 +106,24 @@ def break_at_gaps(values: np.ndarray, depth: np.ndarray, factor: float = 1.5) ->
             np.insert(depth.astype(float), gaps, np.nan))
 
 
+def isolated_samples(values: np.ndarray, depth: np.ndarray) -> np.ndarray:
+    """
+    Returns a boolean mask which is True for samples without a valid neighbour on either side.
+    A line plot doesn't draw these, so they need a marker to show up
+
+    :param values:
+        np.ndarray, e.g. from break_at_gaps()
+    :param depth:
+        np.ndarray, e.g. from break_at_gaps()
+    :return:
+        np.ndarray of bool
+    """
+    valid = ~np.isnan(values) & ~np.isnan(depth)
+    has_previous = np.r_[False, valid[:-1]]
+    has_next = np.r_[valid[1:], False]
+    return valid & ~has_previous & ~has_next
+
+
 @dataclass
 class IntervalStats:
     """
@@ -343,8 +361,10 @@ class StatsCalculation:
                         continue
                     units = str(data[log_name].units)
                     color, _ = self.well_style(well_name, all_wells.index(well_name))
-                    ax.plot(*break_at_gaps(data[log_name].magnitude, stats.depth_from_top[well_name].magnitude),
-                            c=color, label=well_name)
+                    x, y = break_at_gaps(data[log_name].magnitude, stats.depth_from_top[well_name].magnitude)
+                    ax.plot(x, y, c=color, label=well_name)
+                    single = isolated_samples(x, y)
+                    ax.plot(x[single], y[single], ls='none', marker='.', ms=4, c=color)
                 self._set_xaxis(ax, log_name, units)
                 ax.set_ylim(ax.get_ylim()[::-1])
             axes[j][0].set_ylabel('Depth from top of {} [m]'.format(stats.label))
