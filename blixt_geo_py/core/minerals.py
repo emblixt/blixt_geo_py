@@ -578,11 +578,11 @@ class MineralMix(object):
 
                         # Calculate the necessary cutoffs
                         # First the ones defined in the mineral mix table
-                        cutoffs = self.minerals[well_name][wi_name][mineral].cutoffs
-                        # Then for the given working interval
-                        cutoffs.cutoffs.append(
-                            wis.get_cutoff_rule(wi_name, well_name)
-                        )
+                        mineral_cutoffs = self.minerals[well_name][wi_name][mineral].cutoffs
+                        mineral_rules = [] if mineral_cutoffs is None else deepcopy(mineral_cutoffs.cutoffs)
+                        # Then for the given working interval, in a new Cutoffs so the mineral's own
+                        # cutoffs don't collect an extra interval rule on every call
+                        cutoffs = Cutoffs(cutoffs=mineral_rules + [wis.get_cutoff_rule(wi_name, well_name)])
 
                         # To make sure alle the logs we're using are of the same length, we convert the well to
                         # a ("harmonized") dictionary, with a 'mask' key that meets the requirements of the cutoffs
