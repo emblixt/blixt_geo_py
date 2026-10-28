@@ -4,3 +4,5 @@ __pycache__/
 # Bokeh output written when plots are shown
 plot.html
 /FluidSub_log.txt
+/MyProject_log.txt
+/results_folder/WELL_F_XXX.las
