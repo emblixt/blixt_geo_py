@@ -1,7 +1,7 @@
 import unittest
 
 import blixt_geo_py.utils.calc_stats as uc
-from blixt_geo_py.core.well import Project
+from blixt_geo_py.core.project import Project
 
 def_lb_name = 'Logs'  # default Block name
 def_msk_name = 'Mask'  # default mask name

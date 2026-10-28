@@ -1,7 +1,7 @@
 import logging
 import os
 
-import blixt_geo_py.misc.io as uio
+import blixt_geo_py.utils.utils as uio
 import matplotlib.pyplot as plt
 import numpy as np
 from blixt_geo_py.utils.utils import get_from_template
@@ -385,7 +385,7 @@ class CalculateStats:
 
 
 def test_calc_stat():
-    from blixt_geo_py.core.well import Project
+    from blixt_geo_py.core.project import Project
 
     wp = Project(
         name='MyProject',
