@@ -15,8 +15,8 @@ test = 'test_lf_table'
 
 
 if test == 'seismic__test_avo_qc':
-    import seismic
-    test = seismic.TestCases()
+    from blixt_geo_py.unit_tests import test_seismic
+    test = test_seismic.TestCases()
     p, b1, b2, b3, b4, b5, b6, b7, b8 = test.test_avo_qc()
     curdoc().add_root(row(column(row(b1, b2, b3, b4), p, b5), column(b7, b8, b6)))
 
@@ -58,12 +58,14 @@ elif test == 'test_laminar_q2d_model':
     )
 
 elif test == 'mineral_table':
-    test = minerals.TestCases()
+    from blixt_geo_py.unit_tests import test_minerals
+    test = test_minerals.TestCases()
     table, add_row, delete_row, update = test.test_mineral_table(unit_test=False)
     curdoc().add_root(column(table, row(add_row, delete_row, update)))
 
 elif test == 'fluid_table':
-    test = fluids.TestCases()
+    from blixt_geo_py.unit_tests import test_fluids
+    test = test_fluids.TestCases()
     table, add_row, delete_row, update = test.test_fluid_table(unit_test=False)
     curdoc().add_root(column(table, row(add_row, delete_row, update)))
 
