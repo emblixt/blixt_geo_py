@@ -9,7 +9,6 @@ from typing import Callable
 
 import numpy as np
 import pint
-from blixt_geo_py.rp.rp_wrapper_new import data_source_moduli
 from bokeh.io import output_file
 from bokeh.models import PanTool, BoxZoomTool, WheelZoomTool, ResetTool, SaveTool, CrosshairTool, HoverTool, TextInput
 from bokeh.models import (Slider, ColorPicker, Range1d, LinearAxis, LogAxis, Span, Legend, ColumnDataSource, Text,
@@ -19,7 +18,7 @@ from bokeh.plotting import figure, show
 
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\plotting', ''))
 
-from blixt_geo_py.utils.utils import print_info, add_one, fix_well_name, cycle_colors, isnan
+from blixt_geo_py.rp.rp_wrapper import data_source_moduli
 from blixt_geo_py.core.core import Intervals
 from blixt_geo_py.core.core import Cutoffs
 from blixt_geo_py.plotting.cross_plotter import CrossPlotter
