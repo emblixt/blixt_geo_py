@@ -398,8 +398,8 @@ class DataSourceStyle:
         _dict = {_key: [] for _key in self.keys}
         for _i, _name in enumerate(self.names):
             _dict['name'].append(_name)
-            _dict['color'].append(cnames[_i])
-            _dict['marker'].append(markers[_i])
+            _dict['color'].append(cnames[_i % len(cnames)])
+            _dict['marker'].append(markers[_i % len(markers)])
             _dict['size'].append(5.)
             _dict['opacity'].append(1.)
             _dict['order'].append(_i)
@@ -632,16 +632,16 @@ class CrossPlotter:
             if _i == 0:
                 _dict['source_name'] = np.array([_key] * _len)
                 _dict['legend_group'] = np.array([_key] * _len)
-                _dict['color'] = np.array([cnames[_i]] * _len)
-                _dict['marker'] = np.array([markers[_i]] * _len)
+                _dict['color'] = np.array([cnames[_i % len(cnames)]] * _len)
+                _dict['marker'] = np.array([markers[_i % len(markers)]] * _len)
                 _dict['size'] = np.array([5.] * _len)
                 _dict['opacity'] = np.array([1.] * _len)
                 _dict['mask'] = np.array([True] * _len)
             else:
                 _dict['source_name'] = np.append(_dict['source_name'], np.array([_key] * _len))
                 _dict['legend_group'] = np.append(_dict['legend_group'], np.array([_key] * _len))
-                _dict['color'] = np.append(_dict['color'], np.array([cnames[_i]] * _len))
-                _dict['marker'] = np.append(_dict['marker'], np.array([markers[_i]] * _len))
+                _dict['color'] = np.append(_dict['color'], np.array([cnames[_i % len(cnames)]] * _len))
+                _dict['marker'] = np.append(_dict['marker'], np.array([markers[_i % len(markers)]] * _len))
                 _dict['size'] = np.append(_dict['size'], np.array([5.] * _len))
                 _dict['opacity'] = np.append(_dict['opacity'], np.array([1.] * _len))
                 _dict['mask'] = np.append(_dict['mask'], np.array([True] * _len))
