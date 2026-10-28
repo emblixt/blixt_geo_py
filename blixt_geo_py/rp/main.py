@@ -4,16 +4,18 @@
 
 from bokeh.plotting import column, figure, show, curdoc, row
 
+from blixt_geo_py.rp import rp_wrapper
+
 
 test = 'rp_wrapper_table'
 
 
 if test == 'rp_wrapper_table':
-    test = rp_wrapper_new.TestCases()
-    table, add_row, delete_row, update_table = test.test_rpt_table()
+    test = rp_wrapper.TestCases()
+    table, add_row, var_select, delete_row, update_table, _ = test.test_rpt_table()
     curdoc().add_root(
         column(
             table,
-            row(add_row, delete_row, update_table)
+            row(add_row, var_select, delete_row, update_table)
         )
     )

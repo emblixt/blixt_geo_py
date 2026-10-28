@@ -126,7 +126,7 @@ class RockPhysicsPlotter(CrossPlotter):
 
         :return:
         """
-        from blixt_geo_py.rp.rp_wrapper_new import return_rpt_keywords, rpt_wrapper, rpt_to_moduli, RptVariableTable
+        from blixt_geo_py.rp.rp_wrapper import return_rpt_keywords, rpt_wrapper, rpt_to_moduli, RptVariableTable
 
         if (rpt_variable is None) or (rpt_constants is None) or (rpt_function is None) or (rpt_annotations is None):
             return None, None, None, None, None, None, None
@@ -357,7 +357,7 @@ class TestCases(unittest.TestCase):
     def test_well(self, unit_test=True):
         from blixt_geo_py.core.well import Well
         from blixt_geo_py.core.core import LogTable, CutoffRule, Cutoffs
-        from blixt_geo_py.rp.rp_wrapper_new import data_source_moduli
+        from blixt_geo_py.rp.rp_wrapper import data_source_moduli
 
         w = Well()
         w.read_las(las_fileA, True)
@@ -405,7 +405,7 @@ class TestCases(unittest.TestCase):
     def test_well_with_rpt(self, unit_test=True):
         from blixt_geo_py.core.well import Well
         from blixt_geo_py.core.core import LogTable, CutoffRule, Cutoffs
-        from blixt_geo_py.rp.rp_wrapper_new import (data_source_moduli, rpt_wrapper, rpt_to_moduli,
+        from blixt_geo_py.rp.rp_wrapper import (data_source_moduli, rpt_wrapper, rpt_to_moduli,
                                                 rpt_phi_sw, return_rpt_keywords, RptVariableTable)
 
         w = Well()
