@@ -173,7 +173,7 @@ class LogPlotter:
                 for (const r of grid.children[_c][0].renderers) {
                     console.log('Plot column ', _c);
                     // If the renderer is a Line glyph
-                    if (r.glyph && r.glyph.constructor.__name__ === 'Line') {
+                    if (r.glyph && r.glyph.type === 'Line') {
                         console.log('Found a line renderer:', r.name);
                         // Iterate over all lines in the settings table
                         for (let i = 0; i < nrows; i++) {
@@ -181,7 +181,7 @@ class LogPlotter:
                                 console.log(data['name'][i]);
                                 r.glyph.line_color = data['line_color'][i];
                                 r.glyph.line_width = data['line_width'][i];
-                                r.glyph.line_dash = styles[data['line_style'][i]];
+                                r.glyph.line_dash = styles[data['line_style'][i]] ?? 'solid';
                             }
                         }
                     }
