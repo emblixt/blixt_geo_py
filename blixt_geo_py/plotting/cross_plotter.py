@@ -8,6 +8,7 @@ import logging
 import os.path
 import unittest
 
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 import pint
@@ -38,7 +39,7 @@ default_tools = [
     SaveTool()
 ]
 
-cnames = [tmp['color'] for tmp, j in zip(plt.rcParams['axes.prop_cycle'], range(20))]
+cnames = [mcolors.to_hex(tmp['color']) for tmp, j in zip(plt.rcParams['axes.prop_cycle'], range(20))]
 markers = ['circle', 'diamond', 'hex', 'inverted_triangle', 'plus', 'square', 'star', 'triangle']
 
 
