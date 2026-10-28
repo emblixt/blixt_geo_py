@@ -1,3 +1,5 @@
 __pycache__/
 *.py[cod]
 .mcp.json
+# Bokeh output written when plots are shown
+plot.html
