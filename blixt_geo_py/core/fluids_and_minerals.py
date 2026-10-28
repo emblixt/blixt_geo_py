@@ -127,7 +127,7 @@ class FluidSpec:
             _p = self.params['P ref [MPa]'] + self.params['P gradient [MPa/m]'] * burial_depth.to('meter').magnitude
             if pvt_table is None:
                 print_info('A table of pressure, rho and k is needed for the calculation of an Interpolation fluid',
-                           'error', logger, 'IOError')
+                           'error', logger, raiser='IOError')
             _fluid = InterpolatedFluid(**pvt_table)
             if fluid_type.lower() == 'gas condensate':
                 _this_density = _fluid.rho(Q_(_p, 'MPa')).to('g/cc').magnitude
@@ -334,7 +334,7 @@ class SubstitutionCase:
 
         if from_fluids and burial_depth is None:
             err_txt = 'Burial depth is necessary for calculating the elastic properties of fluid mixtures'
-            print_info(err_txt, 'error', logger, 'IOError')
+            print_info(err_txt, 'error', logger, raiser='IOError')
 
 
         # Check the logs if they are of the same length, and extract that length

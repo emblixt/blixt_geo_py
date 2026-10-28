@@ -13,6 +13,12 @@ from blixt_geo_py.core.fluids_and_minerals import (FluidSpec, InterpolatedFluid,
 
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
 
+# Example PVT table, used by fluids with the 'Interpolation' calculation method (e.g. gas condensates)
+pvt_table = dict(
+    pressure = Q_([10., 15., 20., 25., 30., 35., 40., 45., 50.], 'MPa'),
+    rho = Q_([0.12, 0.18, 0.25, 0.31, 0.38, 0.45, 0.52, 0.58, 0.64], 'g/cc'),
+    k = Q_([0.020, 0.035, 0.055, 0.080, 0.110, 0.145, 0.185, 0.230, 0.28], 'GPa')
+)
 
 class TestCases(unittest.TestCase):
     def test_lowercase(self):
@@ -34,8 +40,13 @@ class TestCases(unittest.TestCase):
     def test_load_fluid_spec(self):
         project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx')
         for _key, _value in list(load_fluid_specs(project_table).items()):
-            for _fluid in ['brine', 'oil', 'gas']:
-                info_txt = _value.calc_elastics(_fluid, Q_(3000., 'm'))
+            # Interpolation fluids are gas condensates whose properties come from a PVT table
+            if _value.calculation_method == 'interpolation':
+                fluid_types = ['gas condensate']
+            else:
+                fluid_types = ['brine', 'oil', 'gas']
+            for _fluid in fluid_types:
+                info_txt = _value.calc_elastics(_fluid, Q_(3000., 'm'), pvt_table=pvt_table)
                 print(info_txt, _key, _fluid , _value)
 
     def test_load_mineral_spec(self):
@@ -169,7 +180,7 @@ class TestCases(unittest.TestCase):
         print('FLUIDS')
         for c in cases:
             print(f'{c.well} | {c.interval} | tag={c.tag}')
-            _str = c.calc_elastics(logs, Q_(3000., 'meter'), verbose=True)
+            _str = c.calc_elastics(logs, Q_(3000., 'meter'), pvt_table=pvt_table, verbose=True)
             print(_str)
 
         # Then for minerals
@@ -239,7 +250,7 @@ class TestCases(unittest.TestCase):
         gas_density = fs.density_gcc
 
         # The water saturation goes from 0 to 1
-        info_txt = sc.calc_elastics({'SW': np.linspace(0.05, 1., 10)}, Q_(2000., 'm'), verbose=False)
+        info_txt = sc.calc_elastics({'SW': np.linspace(0., 1., 10)}, Q_(2000., 'm'), verbose=False)
 
         # print(brine_bulk, brine_density)
         # print(gas_bulk, gas_density)
@@ -285,12 +296,6 @@ class TestCases(unittest.TestCase):
         print(ms)
 
     def test_interpolated_fluid(self):
-        pvt_table = dict(
-            pressure = Q_([10., 15., 20., 25., 30., 35., 40., 45., 50.], 'MPa'),
-            rho = Q_([0.12, 0.18, 0.25, 0.31, 0.38, 0.45, 0.52, 0.58, 0.64], 'g/cc'),
-            k = Q_([0.020, 0.035, 0.055, 0.080, 0.110, 0.145, 0.185, 0.230, 0.28], 'GPa')
-        )
-
         eos_fluid = InterpolatedFluid(**pvt_table)
 
         for p in [Q_(_p, 'Pa') for _p in [12.5E+6, 15.E+6, 17.5E+6, 60.E+6]]:
