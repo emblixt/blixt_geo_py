@@ -71,8 +71,8 @@ elif test == 'cross_plotter__test_both':
     )
 
 elif test == 'rp_plotter__test_well':
-    import rp_plotter
-    test = rp_plotter.TestCases()
+    from blixt_geo_py.unit_tests import test_rp_plotter
+    test = test_rp_plotter.TestCases()
     xplot, x_menu, y_menu, size_menu, color_menu, apply_mask, reset_mask, ct_guis, wis_guis, style_table\
         = test.test_well(unit_test=False)
     curdoc().add_root(
@@ -89,8 +89,8 @@ elif test == 'rp_plotter__test_well':
     )
 
 elif test == 'rp_plotter__test_well_with_rpt':
-    import rp_plotter
-    test = rp_plotter.TestCases()
+    from blixt_geo_py.unit_tests import test_rp_plotter
+    test = test_rp_plotter.TestCases()
     (xplot, x_menu, y_menu, size_menu, color_menu, apply_mask, reset_mask, ct_guis, wis_guis, style_table,
      rpt_dt, add_row, var_select, delete_row, update_table) = test.test_well_with_rpt(unit_test=False)
     curdoc().add_root(
