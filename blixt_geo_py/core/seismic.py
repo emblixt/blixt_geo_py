@@ -473,7 +473,7 @@ class AvoAmplitudes:
                         if _case.lower() == model.model.base_case_name.lower():
                             _marker = 'circle'
                         else:
-                            _marker = markers[_n]
+                            _marker = markers[_n % len(markers)]
                         synths = calc_synth_cds(
                             elastics_dict[_case]['vp'],
                             elastics_dict[_case]['vs'],
@@ -783,7 +783,7 @@ class AvoAnalyzer:
             _dict['y'].append(ys[_i])
             _dict['i'].append(i_indxs[_i])
             _dict['j'].append(j_indxs[_i])
-            _dict['color'].append(colors[_i])
+            _dict['color'].append(colors[_i % len(colors)])
             _dict['intercept'].append(0.)
             _dict['intercept_var'].append(0.)
             _dict['gradient'].append(0.)

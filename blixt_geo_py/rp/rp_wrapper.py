@@ -355,7 +355,7 @@ def rpt_to_moduli(v_p: list, v_s: list, rho: list, annotations: list) -> dict:
                 _dict[_key].append(_moduli[_val])
 
         # add annotations and colors
-        _dict['colors'].append(cnames[_i])
+        _dict['colors'].append(cnames[_i % len(cnames)])
         _dict['labels'].append(annotations[_i])
 
     return _dict

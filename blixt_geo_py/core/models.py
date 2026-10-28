@@ -471,19 +471,19 @@ def plot_wiggles(model, sample_rate, wavelet, angle=0., eei=False, ax=None, colo
 
         for _i, avo in list(avo_curves.items()):
             if plot_domain == 'TWT':
-                ax.annotate('{}'.format(_i + 1), avo_positions[_i], bbox={'boxstyle': 'circle', 'color': cnames[_i]})
-                # ax.annotate('{}'.format(_i + 1), (10, 2.), bbox={'boxstyle': 'circle', 'color': cnames[_i]})
+                ax.annotate('{}'.format(_i + 1), avo_positions[_i], bbox={'boxstyle': 'circle', 'color': cnames[_i % len(cnames)]})
+                # ax.annotate('{}'.format(_i + 1), (10, 2.), bbox={'boxstyle': 'circle', 'color': cnames[_i % len(cnames)]})
             else:
                 # TODO
                 # The Z position is not entirely correct, as we have hard-coded it to use the first
                 # vector of the Z array
                 twt_index = np.argmin((twt - avo_positions[_i][1]) ** 2)
                 ax.annotate('{}'.format(_i + 1),
-                            (avo_positions[_i][0], z[0, twt_index]), bbox={'boxstyle': 'circle', 'color': cnames[_i]})
+                            (avo_positions[_i][0], z[0, twt_index]), bbox={'boxstyle': 'circle', 'color': cnames[_i % len(cnames)]})
             if tmp_avo_angles:
-                avo_ax.plot(tmp_avo_angles, avo, c=cnames[_i], label='{}'.format(_i + 1))
+                avo_ax.plot(tmp_avo_angles, avo, c=cnames[_i % len(cnames)], label='{}'.format(_i + 1))
             else:
-                avo_ax.plot(avo_angles, avo, c=cnames[_i], label='{}'.format(_i + 1))
+                avo_ax.plot(avo_angles, avo, c=cnames[_i % len(cnames)], label='{}'.format(_i + 1))
         # avo_ax.legend()
         avo_ax.tick_params(direction='in', labelsize='small')
         avo_ax.tick_params(axis='x', pad=-15)
