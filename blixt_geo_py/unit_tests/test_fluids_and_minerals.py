@@ -64,7 +64,6 @@ class TestCases(unittest.TestCase):
         mix = mix[mix['Use'].astype(str).str.strip().str.lower().eq('yes')].copy()
         print(mix)
 
-
     def test_component_from_row(self):
         project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx')
 
@@ -122,7 +121,6 @@ class TestCases(unittest.TestCase):
         for key, g in mix.groupby(group_cols, dropna=False, sort=False):
             _minerals = [component_from_row(r, minerals) for _, r in g.iterrows()]
             print('Minerals are valid:\n', validate_component_set(_minerals, 'TEST MINERAL'))
-
 
     def test_load_substitution_cases(self):
         project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx')
