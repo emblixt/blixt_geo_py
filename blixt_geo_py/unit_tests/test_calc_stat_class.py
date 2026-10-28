@@ -7,8 +7,8 @@ import numpy as np
 from blixt_geo_py import Q_
 from blixt_geo_py.core.core import Cutoffs, CutoffRule, LogTable
 from blixt_geo_py.core.project import Project
-from blixt_geo_py.utils.calc_stat_class import (IntervalStats, StatsCalculation, collect_interval_stats,
-                                                to_cutoffs)
+from blixt_geo_py.utils.calc_stat_class import (IntervalStats, StatsCalculation, break_at_gaps,
+                                                collect_interval_stats, to_cutoffs)
 
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
 project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx')
@@ -48,6 +48,19 @@ class TestCases(unittest.TestCase):
             self.assertEqual(_c.cutoff_params, ['Volume', 'Porosity'])
             self.assertEqual(_c.get_dict(), {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]})
         self.assertEqual(len(to_cutoffs(None)), 0)
+
+    def test_break_at_gaps(self):
+        # Samples every 0.1 m, with the ones between 0.3 and 1.0 m removed by the cutoffs
+        depth = np.array([0.0, 0.1, 0.2, 0.3, 1.0, 1.1, 1.2])
+        values = np.arange(len(depth))
+        new_values, new_depth = break_at_gaps(values, depth)
+        self.assertEqual(len(new_depth), len(depth) + 1)
+        self.assertTrue(np.isnan(new_depth[4]) and np.isnan(new_values[4]))
+        np.testing.assert_array_equal(new_depth[~np.isnan(new_depth)], depth)
+        np.testing.assert_array_equal(new_values[~np.isnan(new_values)], values)
+        # Without gaps nothing changes
+        new_values, new_depth = break_at_gaps(values[:4], depth[:4])
+        np.testing.assert_array_equal(new_depth, depth[:4])
 
     def test_collect_interval_stats(self):
         cutoffs = Cutoffs([CutoffRule('Volume', '<', Q_(0.5, '')), CutoffRule('Porosity', '>', Q_(0.1, ''))])

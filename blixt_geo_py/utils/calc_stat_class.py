@@ -83,6 +83,29 @@ def _per_interval(value, n: int, name: str, single_types: tuple) -> list:
     raise TypeError('{} must be a single value or a list, not {}'.format(name, type(value)))
 
 
+def break_at_gaps(values: np.ndarray, depth: np.ndarray, factor: float = 1.5) -> tuple:
+    """
+    Inserts a NaN in both arrays wherever the depth step is larger than factor times the median step,
+    so a line plot is broken where the cutoffs have removed samples, instead of bridging the gap
+
+    :param values:
+        np.ndarray
+    :param depth:
+        np.ndarray, increasing
+    :param factor:
+        float
+        A depth step larger than factor times the median step counts as a gap
+    :return:
+        values, depth
+    """
+    if len(depth) < 3:
+        return values, depth
+    steps = np.diff(depth)
+    gaps = np.nonzero(steps > factor * np.median(steps))[0] + 1
+    return (np.insert(values.astype(float), gaps, np.nan),
+            np.insert(depth.astype(float), gaps, np.nan))
+
+
 @dataclass
 class IntervalStats:
     """
@@ -320,7 +343,7 @@ class StatsCalculation:
                         continue
                     units = str(data[log_name].units)
                     color, _ = self.well_style(well_name, all_wells.index(well_name))
-                    ax.plot(data[log_name].magnitude, stats.depth_from_top[well_name].magnitude,
+                    ax.plot(*break_at_gaps(data[log_name].magnitude, stats.depth_from_top[well_name].magnitude),
                             c=color, label=well_name)
                 self._set_xaxis(ax, log_name, units)
                 ax.set_ylim(ax.get_ylim()[::-1])
