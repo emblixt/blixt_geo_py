@@ -4,7 +4,6 @@ and calculates the trend vs.TVD for that parameter
 """
 import logging
 import os.path
-import unittest
 
 import numpy as np
 from bokeh.models import PanTool, BoxZoomTool, WheelZoomTool, ResetTool, SaveTool, CrosshairTool, HoverTool, TextInput
@@ -211,37 +210,3 @@ class TrendPlotter(CrossPlotter):
                 ct_guis,
                 wis_guis,
                 calc_trend, calc_all_and_save)
-
-class TestCases(unittest.TestCase):
-
-    def test_data_cds(self):
-        from blixt_geo_py.unit_tests.test_cross_plotter import make_data_sources
-
-        ds1, ds2, wis, coffs = make_data_sources()
-
-        tp = TrendPlotter({str(_s.name):_s for _s in [ds1, ds2]},
-                          x='md',
-                          y='var_two',
-                          cutoffs=coffs,
-                          working_intervals=wis,
-                          project_table="C:\\Users\\emb\\Downloads\\Book.xlsx")
-
-        d_cds = tp.cds
-
-        return tp.draw(d_cds)
-
-    def test_calc_trend(self):
-        import matplotlib.pyplot as plt
-        from blixt_geo_py.unit_tests.test_cross_plotter import make_data_sources
-
-        ds1, ds2, wis, coffs = make_data_sources()
-
-        tp = TrendPlotter({str(_s.name):_s for _s in [ds1, ds2]},
-                          x='md',
-                          y='var_two',
-                          cutoffs=coffs,
-                          working_intervals=wis)
-        cds = tp.cds
-        tp.calc_trend(cds, verbose=True)
-
-        plt.show()
