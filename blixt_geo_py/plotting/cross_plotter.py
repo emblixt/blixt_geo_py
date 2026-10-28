@@ -583,7 +583,7 @@ class CrossPlotter:
         for _source in self._data_sources.values():
             for _key, _val in _source.templates.items():
                 # Avoid incomplete templates
-                if list(_val.dict().keys())[0] is None:
+                if _val is None or list(_val.dict().keys())[0] is None:
                     continue
                 _all[_key] = _val
         return _all
@@ -607,7 +607,7 @@ class CrossPlotter:
                 _units.append('')
                 continue
             _units.append(
-                self.templates[_param].units
+                self.templates[_param].units if _param in self.templates else ''
             )
         return _units
 
@@ -1119,9 +1119,9 @@ class CrossPlotter:
         if self.cutoffs_table is not None:
             ct_cds = self.cutoffs_table.cds
             ct_guis = self.cutoffs_table.draw(ct_cds, self.common_variables, self.common_units, verbose=verbose)
-            # ct_guis = table, add_row, delete_row, update, use
+            # ct_guis = table, table_buttons
         else:
-            ct_guis = [Div(text='', width=10, height=10)]*4
+            ct_guis = [Div(text='', width=10, height=10)]*2
 
         # Draw the working intervals table
         wis_cds = None

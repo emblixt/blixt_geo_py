@@ -345,7 +345,7 @@ class TestCases(unittest.TestCase):
                         row(x_menu, y_menu, size_menu, color_menu, apply_mask, reset_mask)
                     ),
                     column(style_table,
-                           column(ct_guis[0], row(ct_guis[1], ct_guis[2], ct_guis[3])),  # ,  ct_guis[4])),
+                           column(ct_guis[0], ct_guis[1]),
                            # ct_guis,
                            wis_guis
                            )
@@ -394,7 +394,7 @@ class TestCases(unittest.TestCase):
                         row(x_menu, y_menu, size_menu, color_menu, apply_mask, reset_mask)
                     ),
                     column(style_table,
-                           column(ct_guis[0], row(ct_guis[1], ct_guis[2], ct_guis[3])),  # ,  ct_guis[4])),
+                           column(ct_guis[0], ct_guis[1]),
                            column(wis_guis)
                            )
                 )
@@ -469,7 +469,7 @@ class TestCases(unittest.TestCase):
                         row(x_menu, y_menu, size_menu, color_menu, apply_mask, reset_mask)
                     ),
                     column(style_table,
-                           column(ct_guis[0], row(ct_guis[1], ct_guis[2], ct_guis[3])),  #,  ct_guis[4])),
+                           column(ct_guis[0], ct_guis[1]),
                            column(wis_guis)
                            )
                 )

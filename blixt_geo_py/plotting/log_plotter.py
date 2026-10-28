@@ -252,14 +252,15 @@ class LogPlotter:
             _cutoffs_table = None
 
         # Initialize the Cutoffs table and its controls
-        table_cds = _cutoffs_table.cds
-        # table, add_row, delete_row, update, use = _cutoffs_table.draw(table_cds,
-        table, add_row, delete_row, update = _cutoffs_table.draw(table_cds,
-                                                                      parameters=self.logs,
-                                                                      units=self.units)
+        if _cutoffs_table is not None:
+            table_cds = _cutoffs_table.cds
+            table, table_buttons = _cutoffs_table.draw(table_cds, parameters=self.logs, units=self.units)
+        else:
+            table_cds = None
+            table, table_buttons = [Div(text='', width=10, height=10)]*2
         def apply_mask_function():
             _data = dict(common_cds.data)
-            if _cutoffs_table is not None:
+            if _cutoffs_table is not None and table_cds is not None:
                 _mask_ct = _cutoffs_table.create_mask(table_cds, common_cds, verbose=True)
                 _active_cutoffs = _cutoffs_table.active_cutoffs(table_cds)
                 print('XXX: Trying to apply mask using: ', _active_cutoffs)
@@ -285,7 +286,7 @@ class LogPlotter:
         # reset_mask.js_on_click(CustomJS(args=args_dict, code=self.js_code()))
         # table_cds.js_on_change('patching', CustomJS(code="""console.log('Change in Common CDS');"""))
 
-        return table, add_row, delete_row, update, apply_mask, reset_mask
+        return table, table_buttons, apply_mask, reset_mask
 
     def draw(self, title: str | None = None) -> gridplot:
         children = []
@@ -1245,19 +1246,19 @@ class TestCases(unittest.TestCase):
         lp.columns = [c2, c1]
         print(common_cds.data.keys())
         grid = lp.draw()
-        table, add_row, delete_row, update, apply_mask, reset_mask = lp.add_cutoffs_table(
+        table, table_buttons, apply_mask, reset_mask = lp.add_cutoffs_table(
             common_cds=common_cds, cutoffs=cutoffs)
         if unit_test:
             show(
                 row(
                     grid, column(
                         table,
-                        row(add_row, delete_row, update, apply_mask, reset_mask)
+                        row(table_buttons, apply_mask, reset_mask)
                     )
                 )
             )
         else:
-            return grid, table, add_row, delete_row, update, apply_mask, reset_mask
+            return grid, table, table_buttons, apply_mask, reset_mask
 
     def test_add_settings(self):
         _, line1, line2, line3, _, _ = test_data()
@@ -1312,19 +1313,19 @@ class TestCases(unittest.TestCase):
         well, cutoffs = test_well_data()
         column_content = [['vsh'], ['phie'], ['vp_dry', 'vp_sg08']]
         well_plot = WellPlotter(well, column_content)
-        table, add_row, delete_row, update, apply_mask, reset_mask = well_plot.add_cutoffs_table(cutoffs)
+        table, table_buttons, apply_mask, reset_mask = well_plot.add_cutoffs_table(cutoffs)
         grid = well_plot.draw()
         if unit_test:
             show(
                 row(
                     grid, column(
                         table,
-                        row(add_row, delete_row, update, apply_mask, reset_mask)
+                        row(table_buttons, apply_mask, reset_mask)
                     )
                 )
             )
         else:
-            return grid, table, add_row, delete_row, update, apply_mask, reset_mask
+            return grid, table, table_buttons, apply_mask, reset_mask
 
     def test_well_plotter_with_settings(self):
         well, cutoffs = test_well_data()
