@@ -569,26 +569,6 @@ def create_containers(_logs):
     return _results, _results_per_well, _depth_from_top
 
 
-def test_top_presence_tops(tops, interval, this_well_name, results_per_well, logs, depth_from_top):
-    results_per_well[this_well_name] = {}
-    _cont = False
-    try:
-        print_info('Well: {}'.format(this_well_name), 'info', logger)
-        print_info(' Top: {}: {:.2f} [m] MD'.format(interval['tops'][0],
-                                                     tops[this_well_name][interval['tops'][0].upper()]), 'info', logger)
-        print_info(' Base: {}: {:.2f} [m] MD'.format(interval['tops'][1],
-                                                      tops[this_well_name][interval['tops'][1].upper()]), 'info', logger)
-    except KeyError:
-        print_info(
-            'Tops {} & {} not present in {}'.format(interval['tops'][0], interval['tops'][1], this_well_name), 'info', logger)
-        depth_from_top[this_well_name] = np.empty(0)
-        for key in logs:
-            results_per_well[this_well_name][key.lower()] = np.empty(0)
-        _cont = True
-
-    return _cont
-
-
 def test_top_presence(wis, wi_name, this_well_name, results_per_well, logs, depth_from_top):
     results_per_well[this_well_name] = {}
     _cont = False
@@ -617,41 +597,6 @@ def test_log_presence(this_well_name, results_per_well, logs):
             results_per_well[this_well_name][key.lower()] = np.empty(0)
             log_string += '  DOES NOT contains log: {}\n'.format(key)
     print_info(log_string, 'info', logger)
-
-
-def collect_data_for_this_interval_tops(
-        wells, logs, tops, interval, results, results_per_well,
-        depth_from_top, cutoffs, log_table, block_name=ud.def_lb_name
-):
-    # start looping over the well objects
-    for this_well_name, well in wells.items():
-        cont = test_top_presence(tops, interval, this_well_name, results_per_well, logs, depth_from_top)
-        if cont:
-            continue
-
-        # Create the mask
-        well.calc_mask(
-            cutoffs,
-            name=def_msk_name,
-            tops=tops,
-            use_tops=interval['tops'],
-            log_type_input=True,
-            log_table=log_table
-        )
-
-        # Calculate mask
-        mask = well.block[block_name].masks[def_msk_name].values
-
-        this_depth = well.block[block_name].logs['depth'].values[mask]
-        test_depth(this_depth, interval, this_well_name)
-
-        # calculate the depth from the top for each well
-        depth_from_top[this_well_name] = this_depth - tops[this_well_name][interval['tops'][0].upper()]
-
-        for key in logs:
-            this_data = well.block[block_name].logs[key].values[mask]
-            results[key] = np.append(results[key], this_data)
-            results_per_well[this_well_name][key] = this_data
 
 
 def collect_data_for_this_interval(
@@ -738,23 +683,6 @@ def collect_data_for_this_interval(
             results_per_well[this_well_name][key] = this_data
 
 
-def test_depth_tops(_this_depth, _interval, _this_well_name):
-    if len(_this_depth) > 0:
-        _this_string = '   Interval {}, in well {}, has the depth range: {:.1f} - {:.1f}'.format(
-            _interval['name'],
-            _this_well_name,
-            np.nanmin(_this_depth),
-            np.nanmax(_this_depth)
-        )
-    else:
-        _this_string = '   Interval {}, is lacking in well {}'.format(
-            _interval['name'],
-            _this_well_name
-        )
-    print_info(_this_string, 'info', logger)
-    # print('   '.format(_this_string))
-
-
 def test_depth(_this_depth, _wi_name, _this_well_name):
     if len(_this_depth) > 0:
         _this_string = '   Interval {}, in well {}, has the depth range: {:.1f} - {:.1f}'.format(
@@ -770,34 +698,6 @@ def test_depth(_this_depth, _wi_name, _this_well_name):
         )
     print_info(_this_string, 'info', logger)
     # print('   '.format(_this_string))
-
-
-def plot_logs_vs_depth_tops(logs, wells, interval, ncols, well_names, results_per_well, depth_from_top,
-                            working_dir, cutoffs_str, suffix):
-    # create plot of logs vs depth
-    fig, axs = plt.subplots(
-        nrows=1,
-        ncols=ncols,
-        sharey='all',
-        figsize=(ncols * 6, 8))
-    for i, key in enumerate(logs):
-        key = key.lower()
-        for k, well in enumerate(wells.values()):
-            this_well_name = uio.fix_well_name(well.well)
-            axs[i].plot(
-                results_per_well[this_well_name][key],
-                depth_from_top[this_well_name],
-                c=xp.cnames[k % len(xp.cnames)])
-
-        axs[i].set_xlabel(key)
-        axs[i].set_ylim(axs[i].get_ylim()[1], axs[i].get_ylim()[0])
-
-    axs[0].set_ylabel('Depth from {} [m]'.format(interval['tops'][0]))
-    axs[-1].legend(well_names, prop={'size': 10})
-    fig.suptitle('{}, {}'.format(interval['name'], cutoffs_str))
-    fig.tight_layout()
-    if working_dir is not None:
-        fig.savefig(os.path.join(working_dir, '{}_logs_depth{}.png'.format(interval['name'], suffix)))
 
 
 def plot_logs_vs_depth(logs, wells, wi_name, ncols, well_names, results_per_well, depth_from_top,
@@ -862,34 +762,6 @@ def plot_averages(j, logs, wells, results, results_per_well, figs_and_axes, temp
             capthick=3, elinewidth=3, ecolor='pink')
         figs_and_axes[i][1].scatter(mn, j, marker='*', s=360, c='pink')
         figs_and_axes[i][1].set_xlabel(key)
-
-
-def plot_histograms_tops(logs, results, interval, ncols, well_names, results_per_well,
-                         working_dir, cutoffs_str, suffix):
-    fig, axs = plt.subplots(nrows=ncols, ncols=1, figsize=(9, 8 * ncols))
-    for i, key in enumerate(logs):
-        key = key.lower()
-        n, bins, patches = axs[i].hist(
-            [results_per_well[wid][key] for wid in well_names],
-            10,
-            histtype='bar',
-            stacked=True,
-            label=well_names,
-            color=[xp.cnames[k % len(xp.cnames)] for k in range(len(well_names))]
-        )
-        axs[i].set_ylabel('N')
-        axs[i].set_xlabel(key)
-        ylim = axs[i].get_ylim()
-        mn = np.nanmean(results[key])
-        std = np.nanstd(results[key])
-        axs[i].plot([mn, mn], ylim, c='black', lw=2)
-        axs[i].plot([mn + std, mn + std], ylim, 'b--')
-        axs[i].plot([mn - std, mn - std], ylim, 'b--')
-    axs[-1].legend(prop={'size': 10})
-    axs[0].set_title('{}, {}'.format(interval['name'], cutoffs_str))
-    fig.tight_layout()
-    if working_dir is not None:
-        fig.savefig(os.path.join(working_dir, '{}_logs_hist{}.png'.format(interval['name'], suffix)))
 
 
 def plot_histograms(logs, results, wi_name, ncols, well_names, results_per_well,
@@ -1043,78 +915,6 @@ def plot_pcube_lfp(log_table, results, wi_name, well_names, results_per_well,
     if save_plots:
         fig.savefig(os.path.join(working_dir, '{}_XXX_{}{}.png'.format(
             wi_name, filename_safe_string(cutoffs_str), suffix)))
-
-
-def save_rokdoc_output_tops(rokdoc_output, results, interval, log_table, cutoffs_str, suffix):
-    # Write result to RokDoc compatible excel Sums And Average xls file:
-    log_table = small_log_table(log_table)
-    if rokdoc_output is not None:
-        uio.write_sums_and_averages(rokdoc_output,
-                                    [
-                                        '{}{}'.format(interval['name'], suffix),
-                                        'NONE',
-                                        'MD',
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        np.nanmean(results[log_table['P velocity'].lower()]),
-                                        np.nanmean(results[log_table['S velocity'].lower()]),
-                                        np.nanmean(results[log_table['Density'].lower()]),
-                                        np.nanmedian(results[log_table['P velocity'].lower()]),
-                                        np.nanmedian(results[log_table['S velocity'].lower()]),
-                                        np.nanmedian(results[log_table['Density'].lower()]),
-                                        np.nanmean(results[log_table['P velocity'].lower()]),
-                                        # this should be a mode value, but uncertain what it means
-                                        np.nanmean(results[log_table['S velocity'].lower()]),
-                                        # this should be a mode value, but uncertain what it means
-                                        np.nanmean(results[log_table['Density'].lower()]),
-                                        # this should be a mode value, but uncertain what it means
-                                        'NONE',
-                                        np.nanmean(results[log_table['Porosity'].lower()]),
-                                        np.nanstd(results[log_table['Porosity'].lower()]),
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        np.nanstd(results[log_table['P velocity'].lower()]),
-                                        np.nanstd(results[log_table['S velocity'].lower()]),
-                                        np.nanstd(results[log_table['Density'].lower()]),
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        nan_corrcoef(results[log_table['P velocity'].lower()],
-                                                     results[log_table['S velocity'].lower()])[0, 1],
-                                        nan_corrcoef(results[log_table['P velocity'].lower()],
-                                                     results[log_table['Density'].lower()])[0, 1],
-                                        nan_corrcoef(results[log_table['S velocity'].lower()],
-                                                     results[log_table['Density'].lower()])[0, 1],
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        -999.25,
-                                        np.nanmean(results[log_table['Volume'].lower()]),
-                                        np.nanstd(results[log_table['Volume'].lower()]),
-                                        'None',
-                                        0.0,
-                                        cutoffs_str,
-                                        '-',
-                                        datetime.now()
-                                    ]
-                                    )
 
 
 def save_rokdoc_output(rokdoc_output, results, wi_name, log_table, cutoffs_str, suffix, well_name=None):
