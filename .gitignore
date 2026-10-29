@@ -5,7 +5,9 @@ __pycache__/
 plot.html
 /FluidSub_log.txt
 /MyProject_log.txt
-/results_folder/WELL_F_XXX.las
+# Files generated in the results folder, e.g. by the unit tests. The files already tracked there stay tracked,
+# use 'git add -f' to add a new one
+/results_folder/*
 /testing_log.txt
 # Lock files created by Excel/Word while a document is open
 ~$*
