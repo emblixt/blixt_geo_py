@@ -429,7 +429,6 @@ class Well(object):
         :return:
         """
         from blixt_geo_py.core.log_curve import read_las as _read_las
-        from blixt_geo_py.core.core import templates_from_table
         log_curves, well_dict = _read_las(file_name, verbose=verbose, encoding=encoding, log_table=log_table,
                                           template=template_file, rename_logs=rename_logs, only_md=True)
 
@@ -451,25 +450,35 @@ class Well(object):
             self.header = add_headers(self.header, well_dict, [], None)
 
         if template_file is not None:
-            table = pd.read_excel(template_file, header=1, sheet_name='Well settings', engine='openpyxl')
+            self.read_well_settings(template_file)
 
-            # set the style from the template file (project table)
-            template_dict = templates_from_table(table, well_style=True)
-            if self.name in list(template_dict.keys()):
-                self.style = template_dict[self.name]
+    def read_well_settings(self, template_file: str):
+        """
+        Sets the well style, and adds kelly bushing, water depth and other well info to the header, from the
+        'Well settings' sheet of the template file (project table)
 
-            # add well info to the header
-            for i, ans in enumerate(table['Given well name']):
-                if not isinstance(ans, str):
-                    continue
-                if ans.upper() == self.name.upper():
-                    self.header.kb = Q_(float(table['KB'][i]), 'm')
-                    self.header.water_depth = Q_(float(table['Water depth'][i]), 'm')
-                    self.header.note = str(table['Note'][i])
-                    self.header.content = table['Content'][i]
-                    self.header.discovery_in = table['Discovery in'][i]
-                    print(ans, float(table['KB'][i]), table['Water depth'][i], table['Note'][i], table['Content'][i], table['Discovery in'][i])
+        :param template_file:
+            str
+            full filename of .xlsx file of the format used by the project_table.xlsx file
+        """
+        from blixt_geo_py.core.core import templates_from_table
+        table = pd.read_excel(template_file, header=1, sheet_name='Well settings', engine='openpyxl')
 
+        # set the style from the template file (project table)
+        template_dict = templates_from_table(table, well_style=True)
+        if self.name in list(template_dict.keys()):
+            self.style = template_dict[self.name]
+
+        # add well info to the header
+        for i, ans in enumerate(table['Given well name']):
+            if not isinstance(ans, str):
+                continue
+            if ans.upper() == self.name.upper():
+                self.header.kb = Q_(float(table['KB'][i]), 'm')
+                self.header.water_depth = Q_(float(table['Water depth'][i]), 'm')
+                self.header.note = table['Note'][i] if isinstance(table['Note'][i], str) else None  # avoid NaN
+                self.header.content = table['Content'][i]
+                self.header.discovery_in = table['Discovery in'][i]
 
     def read_general_ascii(self,
                            file_name: str,
@@ -481,7 +490,15 @@ class Well(object):
                            var_types: list | None = None,
                            if_log_exists: str = 'overwrite',
                            verbose: bool = False,
-                           encoding: str | None = 'UTF8'):
+                           encoding: str | None = 'UTF8',
+                           template_file: str | None = None):
+        """
+        :param template_file:
+            str
+            full filename of .xlsx file of the format used by the project_table.xlsx file.
+            Kelly bushing, water depth and other information is extracted from the file.
+            Requires that the well name is set beforehand
+        """
         from blixt_geo_py.core.log_curve import read_general_ascii as _read_general_ascii
         log_curves = _read_general_ascii(file_name, separator, data_begins_on_row, var_names, var_columns, var_units,
                                          var_types, verbose, encoding)
@@ -490,6 +507,9 @@ class Well(object):
         else:
             for _val in list(log_curves.values()):
                 self.add_log(_val, if_log_exists=if_log_exists)
+
+        if template_file is not None:
+            self.read_well_settings(template_file)
 
     def write_las(self, file_name, overwrite=False):
         # from blixt_geo_py.utils.utils import print_info

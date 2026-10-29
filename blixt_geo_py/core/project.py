@@ -176,7 +176,10 @@ class Project(object):
                 for _log in well.logs:
                     self.wells[_index].add_log(_log, if_log_exists=if_log_exists)
                 if well.header.note is not None:
-                    self.wells[_index].header.note += well.header.note
+                    if self.wells[_index].header.note is None:
+                        self.wells[_index].header.note = well.header.note
+                    else:
+                        self.wells[_index].header.note += well.header.note
                 self.wells[_index].header.modification_history += "Appended logs: {}, using '{}'".format(
                     ', '.join([_l.name for _l in well.logs]), if_log_exists)
             elif if_well_exists == 'overwrite':
@@ -282,6 +285,9 @@ class Project(object):
                 var_columns = [result[_key]['columns'][_var] for _var in var_names]
                 var_units = [result[_key]['units'][_var] for _var in var_names]
                 var_types = [result[_key]['logs'][_var] for _var in var_names]
+                # The well name must be set before reading, so that the well settings in the project table are found
+                w.name = result[_key]['Given well name']
+                w.header.name = result[_key]['Given well name']
                 w.read_general_ascii(
                     file_name=_key,
                     separator=result[_key]['Separator'],
@@ -291,8 +297,8 @@ class Project(object):
                     var_units=var_units,
                     var_types=var_types,
                     encoding=None,
+                    template_file=self.project_table,
                 )
-                w.name = result[_key]['Given well name']
                 w.header.note = result[_key]['Note']
             else:
                 print_info('File {} is of unknown format. Skipped'.format(_key), 'warning', logger)
