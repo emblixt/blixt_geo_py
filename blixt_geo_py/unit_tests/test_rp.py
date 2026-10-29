@@ -11,10 +11,17 @@ import numpy as np
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
 
 import blixt_geo_py.io.io as uio
+from blixt_geo_py import Q_
 from blixt_geo_py.core.project import Project
-# TODO: Skip the convert_data import and replace it with the Pint function .to()
-from blixt_geo_py.misc.convert_data import convert as cnvrt
 import blixt_geo_py.rp.rp_core as rp
+
+
+def velocity_from_sonic(sonic_values, sonic_unit='us/ft'):
+    """
+    Returns the velocity in m/s, without units, from sonic (slowness) values. The velocity is the reciprocal of the
+    slowness
+    """
+    return (1. / Q_(sonic_values, sonic_unit)).to('m/s').magnitude
 
 
 def return_well_table():
@@ -124,7 +131,7 @@ class RpTestCase(unittest.TestCase):
         :return:
         """
         rho = RpTestCase.w.block['Logs'].logs['den'].values
-        success, vp = cnvrt(RpTestCase.w.block['Logs'].logs['ac'].values, 'us/ft', 'm/s')
+        vp = velocity_from_sonic(RpTestCase.w.block['Logs'].logs['ac'].values)
         incept2 = rp.intercept(vp, None, rho, None, along_wiggle=True)
         i = np.nanargmax(incept2)
         incept1 = rp.intercept(vp[i], vp[i+1], rho[i], rho[i+1])
@@ -142,8 +149,8 @@ class RpTestCase(unittest.TestCase):
         :return:
         """
         rho = RpTestCase.w.block['Logs'].logs['den'].values
-        success, vp = cnvrt(RpTestCase.w.block['Logs'].logs['ac'].values, 'us/ft', 'm/s')
-        success, vs = cnvrt(RpTestCase.w.block['Logs'].logs['acs'].values, 'us/ft', 'm/s')
+        vp = velocity_from_sonic(RpTestCase.w.block['Logs'].logs['ac'].values)
+        vs = velocity_from_sonic(RpTestCase.w.block['Logs'].logs['acs'].values)
         grad2 = rp.gradient(vp, None, vs, None, rho, None, along_wiggle=True)
         i = 10637
         grad1 = rp.gradient(vp[i], vp[i+1], vs[i], vs[i+1], rho[i], rho[i+1])
@@ -163,8 +170,8 @@ class RpTestCase(unittest.TestCase):
         i = 10637
         theta = 10.  # degrees
         rho = RpTestCase.w.block['Logs'].logs['den'].values
-        success, vp = cnvrt(RpTestCase.w.block['Logs'].logs['ac'].values, 'us/ft', 'm/s')
-        success, vs = cnvrt(RpTestCase.w.block['Logs'].logs['acs'].values, 'us/ft', 'm/s')
+        vp = velocity_from_sonic(RpTestCase.w.block['Logs'].logs['ac'].values)
+        vs = velocity_from_sonic(RpTestCase.w.block['Logs'].logs['acs'].values)
 
         func1 = rp.reflectivity(vp[i], vp[i+1], vs[i], vs[i+1], rho[i], rho[i+1])
         func1_2 = rp.reflectivity(vp[i+1], vp[i+2], vs[i+1], vs[i+2], rho[i+1], rho[i+2])

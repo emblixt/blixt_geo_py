@@ -4,7 +4,7 @@ from copy import deepcopy
 import blixt_geo_py.rp.anisotropy as bra
 import matplotlib.pyplot as plt
 import numpy as np
-from blixt_geo_py.misc.convert_data import convert as cnvrt
+from blixt_geo_py import Q_
 from blixt_geo_py.plotting import crossplot as xp
 from blixt_geo_py.utils.utils import log_table_in_smallcaps as small_log_table
 from blixt_geo_py.utils.utils import print_info
@@ -169,14 +169,13 @@ def plot_rp(wells, log_table, wis, wi_name, cutoffs=None, templates=None, legend
             vs = well.block[block_name].logs[log_table['S velocity'].lower()].values
             vs_unit = well.block[block_name].logs[log_table['S velocity'].lower()].header.unit
         else:  # Assume we can use the sonic logs instead.
+            # The sonic logs are slowness, so the velocity is the reciprocal
+            sonic = well.block[block_name].logs[log_table['Sonic'].lower()]
             vp_unit = 'm/s'
-            success, vp = cnvrt(well.block[block_name].logs[log_table['Sonic'].lower()].values,  # convert this data
-                                well.block[block_name].logs[log_table['Sonic'].lower()].header.unit,  # from this unit
-                                vp_unit)  # to this unit
+            vp = (1. / Q_(sonic.values, sonic.header.unit)).to(vp_unit).magnitude
+            shear_sonic = well.block[block_name].logs[log_table['Shear sonic'].lower()]
             vs_unit = 'm/s'
-            success, vs = cnvrt(well.block[block_name].logs[log_table['Shear sonic'].lower()].values,
-                                well.block[block_name].logs[log_table['Shear sonic'].lower()].header.unit,
-                                vs_unit)
+            vs = (1. / Q_(shear_sonic.values, shear_sonic.header.unit)).to(vs_unit).magnitude
 
         # Apply Backus average if requested
         if backus is True:
