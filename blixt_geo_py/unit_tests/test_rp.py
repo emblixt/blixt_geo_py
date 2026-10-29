@@ -63,18 +63,6 @@ class RpTestCase(unittest.TestCase):
         rho = self.w.get_log_curve('den').data.to('g/cm^3').magnitude
         return vp, vs, rho
 
-    def test_mixes(self):
-        import blixt_geo_py.core.fluids as flds
-
-        # FluidMix needs a name, which is used to name its intervals
-        fluid_mix = flds.FluidMix(name='Fluids')
-        fluid_mix.read_excel(TestData.wp.project_table, return_wis())
-        fluid_mix.calc_elastics(return_wells(), debug=True)
-        print(fluid_mix.print_all_fluids())
-
-        # mineral_mix = mnrls.MineralMix()
-        # mineral_mix.read_excel(TestData.wp.project_table)
-
     def test_step(self):
         i = 5
         theta = 10. # degrees
@@ -343,6 +331,3 @@ class RpTestCase(unittest.TestCase):
         rpt_params = rp.rpt_parameters(verbose=True)
         for key, item in rpt_params.items():
             print(key, item)
-
-
-

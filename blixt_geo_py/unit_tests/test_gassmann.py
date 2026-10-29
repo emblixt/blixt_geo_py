@@ -1,17 +1,9 @@
 import unittest
 
-# Imported before any plots are made. Set BLIXT_SHOW_PLOTS=1 to view the plots, see plot_settings.py
-from blixt_geo_py.unit_tests.plot_settings import show_or_close
-
-import matplotlib.pyplot as plt
 import numpy as np
-from blixt_geo_py.core.log_curve import LogCurve
-from blixt_geo_py.utils.attribdict import AttribDict
 
-import blixt_geo_py.core.well as cw
-from blixt_geo_py import rp as rp, rp as moduli
-from blixt_geo_py.core.well import Block
-from blixt_geo_py.core.well import Well
+import blixt_geo_py.rp.rp_core as rp
+import blixt_geo_py.rp.moduli as moduli
 
 
 def avseth_gassmann(ksat1, kf1, kf2, kmin, phi):
@@ -77,84 +69,6 @@ def avseth_fluidsub(vp, vs, rho, phi, rhof1, rhof2, kmin, kf1, kf2):
     vs2 = moduli.vs(mu=musat2, rho=rho2)
 
     return vp2, vs2, rho2
-
-
-def create_well_and_wis(wname, z0, z1, int_name, int_top, int_base):
-    """
-    Creates a simple well from z0 to z1 with constant values, and a working interval from int_top
-    :param wname:
-    :param z0:
-    :param z1:
-    :param int_name:
-    :param int_top:
-    :param int_base:
-    :return:
-    """
-    test_data = create_test_data(
-        2000,
-        GMTest.vp_const,
-        GMTest.vp_vs,
-        GMTest.rho_const,
-        GMTest.k0,
-        GMTest.k_f1,
-        GMTest.rho_f1,
-        GMTest.k_f2,
-        GMTest.rho_f2,
-        GMTest.por)
-    # create LogCurves
-    these_logs = {}
-    test_data_index = [0, 1, 2, -1]
-    log_types = ['P velocity', 'S velocity', 'Density', 'Porosity']
-    for i, nn in enumerate(['vp', 'vs', 'rho', 'phie']):
-        these_logs[nn] = LogCurve(
-            name=nn,
-            block=cw.def_lb_name,
-            well=wname,
-            data=test_data[test_data_index[i]],
-            header={
-                'name': nn,
-                'well': wname,
-                'log_type': log_types[i],
-                'unit': '-',
-                'desc': log_types[i]
-            }
-        )
-    # And add the depth curve
-    these_logs['depth'] = LogCurve(
-        name='depth',
-        block=cw.def_lb_name,
-        well=wname,
-        data=np.linspace(z0,z1, 2000),
-        header={
-            'name': 'depth',
-            'well': wname,
-            'log_type': 'Depth',
-            'unit': '-',
-            'desc': 'Depth'
-        }
-    )
-    # Create the log Block
-    lb = Block(
-        name=cw.def_lb_name,
-        well=wname,
-        logs=these_logs,
-        header={
-            'strt': z0,
-            'stop': z1,
-            'step': (z1-z0)/(2000-1)
-        }
-    )
-    well = Well(
-        header={
-            'well': AttribDict({'value': wname})
-        }
-    )
-    well.block[cw.def_lb_name] = lb
-
-    wis = {wname: {int_name: [int_top, int_base]}}
-    return well, wis
-
-
 
 
 def create_test_data(l, vp1, vp_vs, rho, k0, kf1, rhof1, kf2, rhof2, por):
@@ -242,85 +156,3 @@ class GMTest(unittest.TestCase):
         with self.subTest():
             max_diff = max(abs(rho2 - rho22/1000.))
             self.assertLess(max_diff, 1E-3)
-
-
-    def test_fs(self):
-        from blixt_geo_py.core.fluids import Fluid, FluidMix
-        from blixt_geo_py.core.minerals import Mineral, MineralMix
-        well, wis = create_well_and_wis('TEST', 500., 1500., 'TARGET', 1000., 1200.)
-
-        print(well.block['Logs'].logs.keys(), wis)
-        well.depth_plot('P velocity', wis=wis)
-
-        brine1 = Fluid(
-            calculation_method='User specified',
-            k=GMTest.k_f1,
-            rho=GMTest.rho_f1,
-            name='brine',
-            volume_fraction=1.
-        )
-        brine2 = Fluid(
-            calculation_method='User specified',
-            k=GMTest.k_f1,
-            rho=GMTest.rho_f1,
-            name='brine',
-            volume_fraction='complement'
-        )
-        oil1 = Fluid(
-            calculation_method='User specified',
-            k=GMTest.k_f2,
-            rho=GMTest.rho_f2,
-            name='oil',
-            volume_fraction='complement'
-        )
-        oil2 = Fluid(
-            calculation_method='User specified',
-            k=GMTest.k_f2,
-            rho=GMTest.rho_f2,
-            name='oil',
-            volume_fraction=1.
-        )
-        fm = FluidMix()
-        fm.fluids = {
-            'initial': {'TEST': {'TARGET': {'brine': brine1, 'oil': oil1}}},
-            'final': {'TEST': {'TARGET': {'brine': brine2, 'oil': oil2}}}
-        }
-        quartz = Mineral(
-            name='quartz',
-            mu=np.nan,
-            k=GMTest.k0,
-            volume_fraction=1.
-        )
-        shale = Mineral(
-            name='shale',
-            mu=np.nan,
-            k=GMTest.k0,
-            volume_fraction='complement'
-        )
-        mm = MineralMix()
-        mm.minerals = {'TEST': {'TARGET': {'quartz': quartz, 'shale': shale}}}
-
-        rp.run_fluid_sub(
-            {'TEST': well},
-            {'P velocity': 'vp',
-             'S velocity': 'vs',
-             'Density': 'rho',
-             'Porosity': 'phie'},
-            mm,
-            fm,
-            {'P velocity': ['>', 10.]},
-            wis,
-            'tt'
-        )
-
-        well.depth_plot('P velocity', wis=wis)
-        fig, ax = plt.subplots()
-        ax.plot(well.block['Logs'].logs['vp'].values)
-        ax.plot(well.block['Logs'].logs['vp_target_tt'].values)
-        show_or_close()
-
-
-
-
-
-
