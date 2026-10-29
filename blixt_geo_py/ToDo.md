@@ -50,3 +50,13 @@ files and will be updated to deal with las 3 format that is coming.
 Use the Agile Geoscience bruges library for wavelets, filters and rock physics instead of self-built programs. It is no
 longer developed from Agile Geoscience, but it is maintained by volunteers (seldomly). Write a wrapper so that it takes 
 pint units into use. 
+
+### 2026-10-29
+- Clean up / Remove all the unused "calc_stats" functionality - it is only obstructing
+- Make Project to ignore the "Use well" (Yes/No) column in the project_table.xlsx, and instead specify in the call which wells to use
+  - Make this optional, so that the old method still works
+- Take use of the new environmental variable "show_plots" in all unit tests that creates plots
+- Figure out how to use the de_trend functionality in calc_stats_class, and apply it 
+- Remove the dependency of the old "convert_data" function, and put pint into proper use.
+- In rp_core.py and rp_wrapper.py clarify which type of pressure the functions depend on, effective or pore pressure. And CORRECT any mistakes
+- Let Claude have a look at project.py, fix weak code and suggest that Project also should set up a results folder ("results_folder")

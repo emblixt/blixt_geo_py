@@ -19,14 +19,17 @@ from blixt_geo_py.core.log_curve import read_las, read_general_ascii
 from blixt_geo_py.core.core import Template, LogTable, Intervals, Cutoffs, CutoffRule
 from blixt_geo_py.core.well import Well
 from blixt_geo_py.core.project import Project
-import blixt_geo_py.plotting.plot_logs_new as bupp
+import blixt_geo_py.plotting.plot_logs as bupp
 from blixt_geo_py.plotting.log_plotter import LogColumn, Line, add_lines, add_strat_table, LogPlotter
 from blixt_geo_py.core.seismic import SeismicTraces, interpolate_along_offset
 
 test_file_dir = str(os.path.dirname(__file__).replace(
     'blixt_geo_py\\unit_tests',
     'test_data'))
-output_file(os.path.join(test_file_dir, 'plot.html'))
+results_dir = str(os.path.dirname(__file__).replace(
+    'blixt_geo_py\\unit_tests',
+    'results_folder'))
+output_file(os.path.join(results_dir, 'plot.html'))
 
 project_table = os.path.join(test_file_dir.replace('test_data', 'excels'), 'project_table.xlsx')
 project_table2 = "C:\\Users\\emb\\OneDrive - Petrolia NOCO AS\\Technical work\\PL1221\\PL1221 project.xlsx"
@@ -473,16 +476,18 @@ class TestPlot(unittest.TestCase):
                               'Porosity': 'PHIE', 'Volume': 'VCL'})
         wp = Project(name='MyProject', log_to_stdout=True)
         wp.load_all_wells(log_table=log_table)
-        wis = wp.load_all_wis()
-        wi_name = 'Sand D'
-        de_trend_loc = 1850.
-        de_trend_scale = 2.
-        rule1 = CutoffRule('vcl', '<', Q_(0.5, ''))
-        rule2 = CutoffRule('phie', '>', Q_(0.05, ''))
-        cutoffs = Cutoffs(cutoffs=[rule1, rule2])
-        bupp.plot_trends('tvd', wp.wells, log_table, wis, wi_name, cutoffs,
-                         de_trend_loc=de_trend_loc, de_trend_scale=de_trend_scale,
-                         results_folder="C:\\Users\\emb\\Downloads", verbose=True)
+        for well in wp.wells:
+            print(well.name)
+        # wis = wp.load_all_wis()
+        # wi_name = 'Sand D'
+        # de_trend_loc = 1850.
+        # de_trend_scale = 2.
+        # rule1 = CutoffRule('vcl', '<', Q_(0.5, ''))
+        # rule2 = CutoffRule('phie', '>', Q_(0.05, ''))
+        # cutoffs = Cutoffs(cutoffs=[rule1, rule2])
+        # bupp.plot_trends('tvd', wp.wells, log_table, wis, wi_name, cutoffs,
+        #                  de_trend_loc=de_trend_loc, de_trend_scale=de_trend_scale,
+        #                  results_folder=results_dir, verbose=True)
 
 
 def save_as_las():
