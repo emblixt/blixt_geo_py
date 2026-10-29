@@ -13,7 +13,7 @@ import logging
 import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 import numpy as np
-from blixt_geo_py.utils.utils import handle_template
+from blixt_geo_py.core.core import Template
 from matplotlib.font_manager import FontProperties
 
 import blixt_geo_py.rp.rp_core as rp
@@ -123,8 +123,10 @@ def plot(
     grid = kwargs.get('grid', True)
 
     # handle templates
-    xlabel, xlim, xcmap, xcnt, xbnds, xscale = handle_template(xtempl)
-    ylabel, ylim, ycmap, ycnt, ybnds, yscale = handle_template(ytempl)
+    xlabel, xlim, _, xplot_style = Template.from_dict(xtempl).plot_settings()
+    ylabel, ylim, _, yplot_style = Template.from_dict(ytempl).plot_settings()
+    xscale = xplot_style['scale']
+    yscale = yplot_style['scale']
 
     # Handle mask
     if mask is None:

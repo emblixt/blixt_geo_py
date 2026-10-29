@@ -24,7 +24,7 @@ import numpy.ma as ma
 from matplotlib.font_manager import FontProperties
 import logging
 
-from blixt_geo_py.utils.utils import get_from_template
+from blixt_geo_py.core.core import Template
 
 log = logging.getLogger(__name__)
 
@@ -166,14 +166,10 @@ def plot(
     grid = kwargs.pop('grid', True)
 
     # handle templates
-    # xlabel, xlim, xcmap, xcnt, xbnds, xscale = handle_template(xtempl)
-    # ylabel, ylim, ycmap, ycnt, ybnds, yscale = handle_template(ytempl)
-    # clabel, clim, ccmap, ccnt, cbnds, cscale = handle_template(ctempl)
-    # plabel, plim, pcmap, pcnt, pbnds, pscale = handle_template(ptempl)
-    xlabel, xlim, xline_style, xplot_style = get_from_template(xtempl)
-    ylabel, ylim, yline_style, yplot_style = get_from_template(ytempl)
-    clabel, clim, cline_style, cplot_style = get_from_template(ctempl)
-    plabel, plim, pline_style, pplot_style = get_from_template(ptempl)
+    xlabel, xlim, xline_style, xplot_style = Template.from_dict(xtempl).plot_settings()
+    ylabel, ylim, yline_style, yplot_style = Template.from_dict(ytempl).plot_settings()
+    clabel, clim, cline_style, cplot_style = Template.from_dict(ctempl).plot_settings()
+    plabel, plim, pline_style, pplot_style = Template.from_dict(ptempl).plot_settings()
 
     # Handle mask
     if mask is None:
@@ -251,7 +247,6 @@ def plot(
 
     # plot errorbars
     if xerror is not None:
-        # if xscale == 'log':
         if xplot_style['scale'] == 'log':
             raise NotImplementedError('Error bars on logarithmic scale needs testing before relase')
         ax.errorbar(

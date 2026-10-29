@@ -5,7 +5,7 @@ which are implemented in rp_core.py
 import matplotlib.pyplot as plt
 import numpy as np
 from blixt_geo_py.core.log_curve import LogCurve
-from blixt_geo_py.utils.utils import default_templates
+from blixt_geo_py.core.core import Template
 from blixt_geo_py.plotting.helpers import axis_plot, annotate_plot, header_plot, deltalogr_plot, set_up_column_plot, \
     axis_plot_with_color_gradient
 
@@ -149,7 +149,8 @@ def calc_toc(
     if (mask is not None) and (mask_desc is None):
         mask_desc = 'UNKNOWN'
     if templates is None:
-        templates = default_templates
+        templates = Template.default_templates()
+    templates = {_key: Template.from_dict(_t) for _key, _t in templates.items()}
 
     ax_names = ['r_ac_ax', 'dlr_ax', 'toc_ax']
     if reference_logs is not None:
@@ -239,10 +240,10 @@ def calc_toc(
 
             log_types = ['Sonic', 'Resistivity']
             limits = [[200., 0.], [_sr, 10000 * _sr]]
-            styles = [{'lw': templates[x]['line width'],
-                       'color': templates[x]['line color'],
-                       'ls': templates[x]['line style']} for x in log_types]
-            legends = ['{} [{}]'.format(x, templates[x]['unit']) for x in log_types]
+            styles = [{'lw': templates[x].line_width,
+                       'color': templates[x].line_color,
+                       'ls': templates[x].line_style} for x in log_types]
+            legends = ['{} [{}]'.format(x, templates[x].units) for x in log_types]
             # xlims = deltalogr_plot(axes['dlr_ax'], depth[mask],
             #                        [ac.data[mask], r.data[mask]],
             #                        limits, styles, yticks=False, ylim=[md_min, md_max])
@@ -256,14 +257,14 @@ def calc_toc(
                 _sr), ha='center', va='bottom', **text_style)
 
             legends = ['TOC [%], picked baseline', 'TOC [%], trend baseline']
-            limits = [[templates['TOC']['min'], templates['TOC']['max']]] * 2
+            limits = [[templates['TOC'].min, templates['TOC'].max]] * 2
             styles = [
-                {'lw': templates['TOC']['line width'],
-                 'color': templates['TOC']['line color'],
-                 'ls': templates['TOC']['line style']},
-                {'lw': templates['TOC']['line width'],
+                {'lw': templates['TOC'].line_width,
+                 'color': templates['TOC'].line_color,
+                 'ls': templates['TOC'].line_style},
+                {'lw': templates['TOC'].line_width,
                  'color': 'b',
-                 'ls': templates['TOC']['line style']},
+                 'ls': templates['TOC'].line_style},
             ]
             # xlims = axis_plot(axes['toc_ax'], depth[mask],
             #                   [_toc_picked.magnitude[mask], toc_trend.magnitude[mask]],
@@ -275,10 +276,10 @@ def calc_toc(
                           limits, styles, yticks=False, ylim=[md_min, md_max])
             if true_toc is not None:
                 axes['toc_ax'].scatter(true_toc['toc'], true_toc['depth'],
-                                       c='red', marker=templates['TOC']['marker'])
+                                       c='red', marker=templates['TOC'].marker)
                 xlims.append(xlims[0])
                 legends.append('TOC from cuttings/core [%]')
-                styles.append({'lw': 0, 'color': 'red', 'marker': templates['TOC']['marker']})
+                styles.append({'lw': 0, 'color': 'red', 'marker': templates['TOC'].marker})
             header_plot(header_axes['toc_ax'], xlims, legends, styles)
             header_axes['toc_ax'].text(1.5, 1.0, '$r_0$={:.1f}, $ac_0$={:.1f}, LOM={:.1f}'.format(
                 _r0, _ac0, lom), ha='center', va='bottom', **text_style)
@@ -300,8 +301,8 @@ def calc_toc(
         lws = [1, 1, 1, 1]
         lss = ['-', '--', '-', '--']
         styles = [{'lw': lws[i], 'color': cls[i], 'ls': lss[i]} for i in range(4)]
-        legends = ['{} [{}]'.format(x, templates['Resistivity']['unit']) for x in lognames[:2]]
-        legends += ['{} [{}]'.format(x, templates['Sonic']['unit']) for x in lognames[2:]]
+        legends = ['{} [{}]'.format(x, templates['Resistivity'].units) for x in lognames[:2]]
+        legends += ['{} [{}]'.format(x, templates['Sonic'].units) for x in lognames[2:]]
 
         # logs_to_plot = [r.data[mask],
         #                 fitted_rdep[mask],
@@ -324,12 +325,12 @@ def calc_toc(
                 reference_logs = [reference_logs]
             # logs_to_plot = [xx.data for xx in reference_logs]
             logs_to_plot = [xx.values for xx in reference_logs]
-            styles = [{'lw': templates[xx.log_type]['line width'],
-                       'color': templates[xx.log_type]['line color'],
-                       'ls': templates[xx.log_type]['line style']}
+            styles = [{'lw': templates[xx.log_type].line_width,
+                       'color': templates[xx.log_type].line_color,
+                       'ls': templates[xx.log_type].line_style}
                       for xx in reference_logs]
-            limits = [[templates[xx.log_type]['min'], templates[xx.log_type]['max']] for xx in reference_logs]
-            legends = ['{} [{}]'.format(xx.name, templates[xx.log_type]['unit']) for xx in reference_logs]
+            limits = [[templates[xx.log_type].min, templates[xx.log_type].max] for xx in reference_logs]
+            legends = ['{} [{}]'.format(xx.name, templates[xx.log_type].units) for xx in reference_logs]
             # xlims = axis_plot(axes['ref_ax'], depth, logs_to_plot,
             #                   limits, styles, yticks=not((intervals is not None) or preset_axes), ylim=[md_min, md_max])
             xlims = list()

@@ -8,13 +8,14 @@ import blixt_geo_py.core.wavelets as bumw
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from blixt_geo_py.utils.utils import default_templates
+from blixt_geo_py.core.core import Template
 from blixt_geo_py.plotting.helpers import axis_plot, annotate_plot, header_plot, wiggle_plot, set_up_column_plot
 
 import blixt_geo_py.plotting.plot_logs as rpp
 import blixt_geo_py.rp.rp_core as rp
 from blixt_geo_py.core.models import Model, Layer
-from blixt_geo_py.core.well import Project, LogCurve
+from blixt_geo_py.core.project import Project
+from blixt_geo_py.core.log_curve import LogCurve
 
 h_above = 50.
 h_below = 50.
@@ -91,7 +92,8 @@ def calc_ai_around_top(
     if (mask is not None) and (mask_desc is None):
         mask_desc = 'UNKNOWN'
     if templates is None:
-        templates = default_templates
+        templates = Template.default_templates()
+    templates = {_key: Template.from_dict(_t) for _key, _t in templates.items()}
     if ref_logs is not None:
         if isinstance(ref_logs, LogCurve):
             ref_logs = [ref_logs]
@@ -155,12 +157,12 @@ def calc_ai_around_top(
 
     log_types = ['Impedance', 'P velocity', 'Density']
     lws = {ltype: _x for ltype, _x in zip(log_types, [2, 0.5, 0.5])}
-    limits = [[templates[xx]['min'], templates[xx]['max']] for xx in log_types]
+    limits = [[templates[xx].min, templates[xx].max] for xx in log_types]
     styles = [{'lw': lws[xx],
-               'color': templates[xx]['line color'],
-               'ls': templates[xx]['line style']}
+               'color': templates[xx].line_color,
+               'ls': templates[xx].line_style}
               for xx in log_types]
-    legends = ['{} [{}]'.format(xx, templates[xx]['unit']) for xx in log_types]
+    legends = ['{} [{}]'.format(xx, templates[xx].units) for xx in log_types]
 
     _x1 = vp.values; _x1[~mask] = np.nan
     _x2 = rho.values; _x2[~mask] = np.nan
@@ -314,12 +316,12 @@ def calc_ai_around_top(
 
         if _ref_logs is not None:
             logs_to_plot = [xx.values for xx in _ref_logs]
-            _styles = [{'lw': templates[xx.log_type]['line width'],
-                       'color': templates[xx.log_type]['line color'],
-                       'ls': templates[xx.log_type]['line style']}
+            _styles = [{'lw': templates[xx.log_type].line_width,
+                       'color': templates[xx.log_type].line_color,
+                       'ls': templates[xx.log_type].line_style}
                       for xx in _ref_logs]
-            _limits = [[templates[xx.log_type]['min'], templates[xx.log_type]['max']] for xx in _ref_logs]
-            _legends = ['{} [{}]'.format(xx.name, templates[xx.log_type]['unit']) for xx in _ref_logs]
+            _limits = [[templates[xx.log_type].min, templates[xx.log_type].max] for xx in _ref_logs]
+            _legends = ['{} [{}]'.format(xx.name, templates[xx.log_type].units) for xx in _ref_logs]
             xlims = axis_plot(axes['ref_ax'], depth, logs_to_plot,
                               _limits, _styles, yticks=False, ylim=[md_min, md_max])
             header_plot(header_axes['ref_ax'], xlims, _legends, _styles)

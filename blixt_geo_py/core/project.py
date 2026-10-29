@@ -390,7 +390,7 @@ class Project(object):
                 table = pd.read_excel(xl, sheet_name=sheet_name, header=1)
                 template_dict = templates_from_table(table, well_style=well_style)
                 for _key in list(template_dict.keys()):
-                    _templates[_key] = Template(template_dict[_key])
+                    _templates[_key] = Template.from_dict(template_dict[_key])
         self.templates = _templates
 
     def load_all_wis(self):

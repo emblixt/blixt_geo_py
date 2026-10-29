@@ -885,6 +885,95 @@ class Template:
     def dict(self):
         return {self.name: self.__dict__}
 
+    @classmethod
+    def from_dict(cls, template_dict: 'dict | Template | None') -> 'Template':
+        """
+        Creates a Template from a template dictionary, as used by the plotting functions, e.g.
+            {'full_name': 'Sonic', 'unit': 'us/ft', 'min': 60., 'max': 120., 'line color': 'g'}
+
+        :param template_dict:
+            dict, Template or None
+            Both the attribute names of Template, and the old keys with spaces, e.g. 'line color' and 'unit', are
+            accepted. Keys that are not attributes of Template, e.g. 'description' and 'type', are ignored.
+            A Template is returned as it is, and None returns an empty Template
+        :return:
+            Template
+        """
+        if template_dict is None:
+            return cls()
+        if isinstance(template_dict, Template):
+            return template_dict
+        if not isinstance(template_dict, dict):
+            raise TypeError('Template should be a dictionary, not {}'.format(type(template_dict)))
+        attributes = vars(cls()).keys()
+        kwargs = {}
+        for key, value in template_dict.items():
+            key = _TEMPLATE_KEYS.get(key, key)
+            if key in attributes:
+                kwargs[key] = value
+        return cls(**kwargs)
+
+    @classmethod
+    def default_templates(cls) -> dict:
+        """
+        Returns a dictionary of log type: Template, with default templates for some log types
+        A new set of Templates is returned for each call, so they can be modified without changing the defaults
+        """
+        return {_key: cls(**_kwargs) for _key, _kwargs in _DEFAULT_TEMPLATES.items()}
+
+    def plot_settings(self):
+        """
+        Returns the settings of this template in a form directly useful for the plotting functions
+
+        :return:
+            label, limits, line_style, plot_style
+            str, list, dict, dict
+            e.g.
+            'Sonic [us/ft]',
+            [60., 120.],
+            {'lw': 1, 'color': '#2ca02c', 'ls': '-'},
+            {'cmap': 'jet', 'cnt': None, 'bnds': None, 'scale': 'lin'}
+        """
+        label = self.full_name if self.full_name is not None else self.name
+        label = '' if label is None else str(label)
+        if self.units is not None:
+            label += ' [{}]'.format(self.units)
+
+        limits = [_to_float(self.min), _to_float(self.max)]
+        line_style = {'lw': self.line_width, 'color': self.line_color, 'ls': self.line_style}
+        plot_style = {'cmap': self.colormap, 'cnt': self.center, 'bnds': self.bounds, 'scale': self.scale}
+        return label, limits, line_style, plot_style
+
+
+def _to_float(value):
+    """
+    Returns value as a float, or None if that's not possible
+    """
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+# Maps the old keys of the template dictionaries to the attribute names of Template
+_TEMPLATE_KEYS = {
+    'unit': 'units',
+    'line color': 'line_color',
+    'line style': 'line_style',
+    'line width': 'line_width',
+    'fill color': 'fill_color',
+}
+
+# Used by Template.default_templates()
+_DEFAULT_TEMPLATES = {
+    'Resistivity': dict(full_name='Resistivity', name='Resistivity', units='$\\Omega m$', min=0.2, max=200.,
+                        colormap='jet', scale='log', line_color='#1f77b4', line_style='-', line_width=1),
+    'Sonic': dict(full_name='Sonic', name='Sonic', units='$\\mu s/F$', min=60., max=120.,
+                  colormap='jet', scale='lin', line_color='#2ca02c', line_style='-', line_width=1),
+    'TOC': dict(full_name='TOC', name='TOC', units='%', min=1., max=5.,
+                colormap='jet', scale='lin', line_color='#9467bd', line_style='-', line_width=1, marker='*'),
+}
+
 
 class TemplatesTable:
     def __init__(self,
