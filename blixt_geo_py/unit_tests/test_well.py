@@ -1,6 +1,9 @@
 import os
 import unittest
 
+# Imported before any plots are made. Set BLIXT_SHOW_PLOTS=1 to view the plots, see plot_settings.py
+from blixt_geo_py.unit_tests.plot_settings import show_or_close
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -355,7 +358,7 @@ class WellTestCase(unittest.TestCase):
         )
 
         lfs = well1.calc_blocked_litho_fluids(log_table2, wis, down_weight_outliers=False, verbose=True)
-        plt.show()
+        show_or_close()
 
         lf_table = LithoFluidsTable(lfs)
 
@@ -385,5 +388,5 @@ class WellTestCase(unittest.TestCase):
         lfs, model = well1.one_d_model(log_table2, wis, down_weight_outliers=False, verbose=True)
         print(model.domain)
         model.plot()
-        plt.show()
+        show_or_close()
 

@@ -1,5 +1,8 @@
 import unittest
 
+# Imported before any plots are made. Set BLIXT_SHOW_PLOTS=1 to view the plots, see plot_settings.py
+from blixt_geo_py.unit_tests.plot_settings import show_or_close
+
 import matplotlib.pyplot as plt
 
 from blixt_geo_py.plotting.trend_plotter import TrendPlotter
@@ -33,4 +36,4 @@ class TestCases(unittest.TestCase):
         cds = tp.cds
         tp.calc_trend('md', 'var_two', cds, verbose=True)
 
-        plt.show()
+        show_or_close()

@@ -1,6 +1,9 @@
 import os
 import unittest
 
+# Imported before any plots are made. Set BLIXT_SHOW_PLOTS=1 to view the plots, see plot_settings.py
+from blixt_geo_py.unit_tests.plot_settings import show_or_close
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -296,7 +299,7 @@ class RpTestCase(unittest.TestCase):
 
         plt.plot(phi, phi*rho_fluid/rho_min + 1 - phi)
 
-        plt.show()
+        show_or_close()
 
     def test_gassmann(self):
         k_dry, k_min, rho_min, k_fluid, rho_fluid, phi = [10., 15., 20.], 36.6, 2.65, 1.29, 0.84, np.linspace(0.0, 1.0)
@@ -313,7 +316,7 @@ class RpTestCase(unittest.TestCase):
             # plt.plot(phi, rp.v_p(_k, _mu, rho))
 
             # plt.axhline(_k_dry / k_min, 0, 1 )
-        plt.show()
+        show_or_close()
         self.assertTrue(True)
 
     def test_rpt_parameters(self):

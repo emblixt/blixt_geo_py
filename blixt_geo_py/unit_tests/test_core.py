@@ -1,6 +1,9 @@
 import os
 import unittest
 
+# Imported before any plots are made. Set BLIXT_SHOW_PLOTS=1 to view the plots, see plot_settings.py
+from blixt_geo_py.unit_tests.plot_settings import show_or_close
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -556,7 +559,7 @@ class LithoFluidTests(unittest.TestCase):
         from blixt_geo_py.core.core import LithoFluid
         lf = LithoFluid()
         lf.plot()
-        plt.show()
+        show_or_close()
         self.assertTrue(True)
 
     def test_table(self, unit_test=True):

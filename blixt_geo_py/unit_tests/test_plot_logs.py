@@ -1,5 +1,8 @@
 import os
 import unittest
+
+# Imported before any plots are made. Set BLIXT_SHOW_PLOTS=1 to view the plots, see plot_settings.py
+from blixt_geo_py.unit_tests.plot_settings import show_or_close
 from tkinter import Tk
 from tkinter.filedialog import asksaveasfilename
 
@@ -342,7 +345,7 @@ class TestPlot(unittest.TestCase):
             verbose=True
         )
         plt.imshow(result[:, ::100])
-        plt.show()
+        show_or_close()
 
     def test_plot_wiggles(self):
         well = Well()

@@ -1,5 +1,8 @@
 import unittest
 
+# Imported before any plots are made. Set BLIXT_SHOW_PLOTS=1 to view the plots, see plot_settings.py
+from blixt_geo_py.unit_tests.plot_settings import show_or_close
+
 import matplotlib.pyplot as plt
 
 # Add to path to avoid having to install libraries, useful in development
@@ -54,7 +57,7 @@ class TestCase(unittest.TestCase):
             plt.plot(_avo)
         fig, axs = plt.subplots(ncols=2)
         havo.plot_one_mc_result(result, 'TEST', 'b', axs[0], axs[1])
-        plt.show()
+        show_or_close()
 
     def test_layered_mc(self):
         havo.main(

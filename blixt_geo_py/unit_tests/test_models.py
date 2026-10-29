@@ -1,6 +1,9 @@
 import os
 import unittest
 
+# Imported before any plots are made. Set BLIXT_SHOW_PLOTS=1 to view the plots, see plot_settings.py
+from blixt_geo_py.unit_tests.plot_settings import show_or_close
+
 import matplotlib.pyplot as plt
 import numpy as np
 from bokeh.io import output_file
@@ -43,7 +46,7 @@ class TestCase(unittest.TestCase):
         print(l1.layer_type, l1.thickness, l1.thickness(5))
         i = np.arange(10)
         plt.plot(i, l1.thickness(i).magnitude)
-        plt.show()
+        show_or_close()
 
 
     def test_1d(self):
@@ -104,7 +107,7 @@ class TestCase(unittest.TestCase):
         m.append(third_layer)
         print(m.layer_names)
         m.plot()
-        plt.show()
+        show_or_close()
 
     def test_1d_z(self):
         first_layer = Layer(thickness=Q_(150, 'm'), litho_fluid=l1)
@@ -112,13 +115,13 @@ class TestCase(unittest.TestCase):
         m = Model(depth_to_top=Q_(3000., 'm'), layers=[first_layer, second_layer])
         m.append(first_layer)
         m.plot()
-        plt.show()
+        show_or_close()
 
     def test_wedge_old(self):
         m = build_wedge(Q_(2.0, 's'), Q_(0.02, 's'), Q_(0.1, 's'), 51, l1, l2, l1)
         # m = build_wedge(3000., 10.0, 40., 51, l1, l2, l1, domain='Z')
         m.plot()
-        plt.show()
+        show_or_close()
 
     def test_plot(self):
         first_layer = Layer(thickness=Q_(0.1, 's'), litho_fluid=l1)
@@ -155,7 +158,7 @@ class TestCase(unittest.TestCase):
             print('Requested len: {}, returned len: {}'.format(int(m.layers[0].thickness / resolution), len(x)))
             axs[i].set_title('NTG={}, tbf={}. Observed NTG {:.2f}'.format(ntg, thin_bed_factor, net / len(x)))
             axs[i].plot(x)
-        plt.show()
+        show_or_close()
 
     def test_realization(self):
         # in TWT
@@ -324,7 +327,7 @@ class TestCase(unittest.TestCase):
         wedge_ax.set_ylabel('Amplitude')
         wedge_ax.set_xlabel('HC saturation')
         wedge_ax.legend(loc='upper left')
-        plt.show()
+        show_or_close()
 
     def test_model_table(self, unit_test=True, only_verbatim=False):
         from bokeh.plotting import show, row, column
@@ -483,7 +486,7 @@ class TestCase(unittest.TestCase):
         lf_table, lf_controls, model_table, model_controls, grid, controls, new_grid, synth_2d_cds = wm.draw()
 
         wm.model.plot()
-        plt.show()
+        show_or_close()
 
         # Test adding some extraction points
         analyze_avo = AvoAnalyzer(grid, 'line section', None, model=wm)
@@ -632,7 +635,7 @@ class TestCase(unittest.TestCase):
 
         axs[1].legend()
 
-        plt.show()
+        show_or_close()
 
     def test_save_model(self, unit_test=True):
         from bokeh.plotting import show, row, column

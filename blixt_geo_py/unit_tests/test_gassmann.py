@@ -1,5 +1,8 @@
 import unittest
 
+# Imported before any plots are made. Set BLIXT_SHOW_PLOTS=1 to view the plots, see plot_settings.py
+from blixt_geo_py.unit_tests.plot_settings import show_or_close
+
 import matplotlib.pyplot as plt
 import numpy as np
 from blixt_geo_py.core.log_curve import LogCurve
@@ -314,7 +317,7 @@ class GMTest(unittest.TestCase):
         fig, ax = plt.subplots()
         ax.plot(well.block['Logs'].logs['vp'].values)
         ax.plot(well.block['Logs'].logs['vp_target_tt'].values)
-        plt.show()
+        show_or_close()
 
 
 

@@ -1,6 +1,9 @@
 import pickle
 import unittest
 
+# Imported before any plots are made. Set BLIXT_SHOW_PLOTS=1 to view the plots, see plot_settings.py
+from blixt_geo_py.unit_tests.plot_settings import show_or_close
+
 from bokeh.models import ColumnDataSource, DataTable, PointDrawTool, TableColumn
 from bokeh.plotting import column, figure, row, show
 from scipy.optimize import least_squares
@@ -249,7 +252,7 @@ class TestCases(unittest.TestCase):
         ax.set_title('Inline: 6550, Residual')
         ax.set_xlabel('X lines')
         ax.set_ylabel('TWT [ms]')
-        plt.show()
+        show_or_close()
 
 
     def test_plot_amp_vs_offset(self):
@@ -288,7 +291,7 @@ class TestCases(unittest.TestCase):
         _angs = np.linspace(1, angs[-1]+10)
         axes[1].plot(_angs, i + g*np.sin(np.radians(_angs))**2)
 
-        plt.show()
+        show_or_close()
 
 
     def test_plot_line(self):
@@ -298,7 +301,7 @@ class TestCases(unittest.TestCase):
         uu={'add_colorbar':False,'robust':True,'interpolation':'spline16'}
         fig, ax = plt.subplots()
         data.plot.imshow(x='XLINE', y='TWT', yincrease=False, ax=ax, **uu)
-        plt.show()
+        show_or_close()
 
 
     def test_amp_spectra(self):
@@ -359,7 +362,7 @@ class TestCases(unittest.TestCase):
         #ax2.set_ylabel('TWT')
         #ax2.set_xlabel('Frequency [Hz]')
         #ax2.grid(True)
-        plt.show()
+        show_or_close()
 
 
     def test_read_zgy(self):

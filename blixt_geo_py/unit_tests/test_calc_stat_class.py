@@ -1,6 +1,8 @@
 import os
 import unittest
 
+# Imported before any plots are made. Set BLIXT_SHOW_PLOTS=1 to view the plots, see plot_settings.py
+from blixt_geo_py.unit_tests.plot_settings import show_plots, show_or_close
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -17,16 +19,6 @@ log_table = {'P velocity': 'vp_dry', 'S velocity': 'vs_dry', 'Density': 'rho_dry
              'Volume': 'vcl'}
 wi_sands = ['Sand F', 'Sand E', 'Sand D']
 wi_shales = ['Shale G', 'Shale C']
-
-# Set to True, or set the environment variable BLIXT_SHOW_PLOTS=1, to view the plots created by the tests.
-# Off by default, so running the whole test suite doesn't stop at every plot window
-show_plots = os.environ.get('BLIXT_SHOW_PLOTS', '0') == '1'
-
-def show_or_close():
-    if show_plots:
-        plt.show()
-    else:
-        plt.close('all')
 
 
 def make_project():

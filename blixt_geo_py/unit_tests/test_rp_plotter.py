@@ -1,6 +1,9 @@
 import os
 import unittest
 
+# Imported before any plots are made. Set BLIXT_SHOW_PLOTS=1 to view the plots, see plot_settings.py
+import blixt_geo_py.unit_tests.plot_settings  # noqa: F401
+
 import numpy as np
 from bokeh.plotting import show, row, column
 

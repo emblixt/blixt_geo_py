@@ -1,5 +1,8 @@
 import os
 import unittest
+
+# Imported before any plots are made. Set BLIXT_SHOW_PLOTS=1 to view the plots, see plot_settings.py
+from blixt_geo_py.unit_tests.plot_settings import show_or_close
 from math import isclose
 
 import matplotlib.pyplot as plt
@@ -223,7 +226,7 @@ class LogCurveTestCase(unittest.TestCase):
         print('        Top {}, Step {}, Base {}. Length {}'.format(lc_new.top, lc_new.step(), lc_new.base, len(lc_new)))
         fig, ax = plt.subplots()
         lc1.plot(ax=ax); lc_new.plot(ax=ax)
-        plt.show()
+        show_or_close()
 
     def test_LogCurve_copy(self):
         lc = LogCurve(
@@ -423,7 +426,7 @@ class LogCurveTestCase(unittest.TestCase):
         print(lc_smooth10.header)
         lc_smooth10.plot(ax=ax)
 
-        plt.show()
+        show_or_close()
         self.assertTrue(True)
 
     @requires_files(las_file2)
@@ -446,7 +449,7 @@ class LogCurveTestCase(unittest.TestCase):
         # ; lc.data.plot(); lc_fill2.data.plot.line('k--')
         lc.plot(ax=ax)
 
-        plt.show()
+        show_or_close()
         self.assertTrue(True)
 
     def test_despike(self):
@@ -459,7 +462,7 @@ class LogCurveTestCase(unittest.TestCase):
         lc_despiked = lc.despike(20, window_len=Q_(20., 'm'), suffix='despike')
         lc_despiked.plot(ax=ax)
         print(lc_despiked.header)
-        plt.show()
+        show_or_close()
         self.assertTrue(True)
 
     @requires_files(las_file2)
@@ -468,7 +471,7 @@ class LogCurveTestCase(unittest.TestCase):
         lc = log_curves['rdep']
         res = lc.calc_depth_trend(verbose=True, discrete_intervals=[Q_(_z, 'km').to('m') for _z in [1., 2., 3.]])
         res = lc.calc_depth_trend(verbose=True)
-        plt.show()
+        show_or_close()
         # print(res)
         self.assertIsInstance(res, list)
 
@@ -481,7 +484,7 @@ class LogCurveTestCase(unittest.TestCase):
         res = lc.calc_blocking(verbose=True, discrete_intervals=[Q_(_z, 'km').to('m') for _z in [1., 2., 3.]])
         print('-x-')
         res = lc.calc_blocking(verbose=True)
-        plt.show()
+        show_or_close()
         # print(res)
         self.assertIsInstance(res, list)
 
@@ -491,7 +494,7 @@ class LogCurveTestCase(unittest.TestCase):
         lc = log_curves['dt']
         res = lc.calc_depth_trend(verbose=True)
         lc_de_trend = lc.de_trend(Q_(2., 'km'), None, *res[0].x, suffix='test', verbose=True)
-        plt.show()
+        show_or_close()
         print(lc_de_trend.header)
         self.assertIsInstance(res, list)
 
@@ -583,7 +586,7 @@ class DomainConversionTest(unittest.TestCase):
 
         data_twt = _to_depth(twt_in, Q_(twt_out, 'millisecond'), data_out)
         ax.scatter(twt_in, data_twt, marker='x', color='yellow')
-        plt.show()
+        show_or_close()
 
     @requires_files(las_file2, data_file2)
     def test_convert_real_data(self):

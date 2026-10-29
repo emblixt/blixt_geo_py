@@ -1,6 +1,9 @@
 import os
 import unittest
 
+# Imported before any plots are made. Set BLIXT_SHOW_PLOTS=1 to view the plots, see plot_settings.py
+from blixt_geo_py.unit_tests.plot_settings import show_or_close
+
 import blixt_geo_py.misc.io as uio
 import matplotlib.pyplot as plt
 from blixt_geo_py.plotting.helpers import header_plot, axis_plot
@@ -51,7 +54,7 @@ class PlotTestCase(unittest.TestCase):
                    'color': templ[x]['line color'],
                    'ls': templ[x]['line style']} for x in log_types]
         header_plot(ax, limits, legends, styles)
-        plt.show()
+        show_or_close()
         with self.subTest():
             self.assertTrue(True)
 
@@ -68,7 +71,7 @@ class PlotTestCase(unittest.TestCase):
                    'ls': templ[x]['line style']} for x in log_types]
         axis_plot(ax, y, data, limits, styles, nxt=2)
 
-        plt.show()
+        show_or_close()
 
 
     def test_plot_logs(self):
