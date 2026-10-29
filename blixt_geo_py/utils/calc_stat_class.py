@@ -21,17 +21,19 @@ import logging
 import os
 from copy import deepcopy
 from dataclasses import dataclass, field
+from datetime import datetime
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pint
 
+import blixt_geo_py.misc.io as uio
 from blixt_geo_py import Q_
 from blixt_geo_py.core.core import Cutoffs, CutoffRule, Intervals, LogTable
 from blixt_geo_py.core.well import Well
 from blixt_geo_py.plotting import crossplot as xp
-from blixt_geo_py.utils.utils import print_info
+from blixt_geo_py.utils.utils import nan_corrcoef, print_info
 
 logger = logging.getLogger(__name__)
 
@@ -423,8 +425,6 @@ class StatsCalculation:
         Writes the averages of each interval, for all wells and for each well, to a RokDoc compatible
         Sums and Averages excel file
         """
-        from blixt_geo_py.utils.calc_stats import save_rokdoc_output
-
         for stats in results.values():
             missing = [_lt for _lt in rokdoc_log_types if _lt not in stats.log_table]
             if len(missing) > 0:
@@ -434,12 +434,132 @@ class StatsCalculation:
             suffix = '_{}'.format(stats.suffix) if stats.suffix else ''
             sources = [(None, stats.combined())] + list(stats.per_well.items())
             for well_name, data in sources:
-                # save_rokdoc_output expects arrays without units, for all logs in the log table
+                # write_rokdoc_sums_and_averages expects arrays without units, for all logs in the log table
                 _arrays = {_log: data[_log].magnitude if _log in data else np.array([np.nan])
                            for _log in stats.log_table.log_names}
-                save_rokdoc_output(file_name, _arrays, stats.wi_name, stats.log_table, str(stats.cutoffs), suffix,
-                                   well_name=well_name)
+                write_rokdoc_sums_and_averages(file_name, _arrays, stats.wi_name, stats.log_table,
+                                               str(stats.cutoffs), suffix, well_name=well_name)
 
     def _save(self, fig, file_name: str | None):
         if self.working_dir is not None and file_name is not None:
             fig.savefig(os.path.join(self.working_dir, file_name), dpi=300)
+
+
+def write_rokdoc_sums_and_averages(rokdoc_output, results, wi_name, log_table, cutoffs_str, suffix, well_name=None):
+    """
+    Writes one line of averages to a RokDoc compatible Sums and Averages excel file.
+    Moved here from the old calc_stats.py (save_rokdoc_output())
+
+    :param rokdoc_output:
+        str
+        full pathname of the excel file. It is created if it does not exist, otherwise the line is appended
+    :param results:
+        dict
+        arrays without units, with the log names in the log table as keys
+    :param wi_name:
+        str
+        name of the working interval
+    :param log_table:
+        LogTable or dict
+        must contain the log types 'P velocity', 'S velocity', 'Density', 'Porosity' and 'Volume'
+    :param cutoffs_str:
+        str
+        description of the cutoffs used
+    :param suffix:
+        str
+        added to the name of the line
+    :param well_name:
+        str
+        If None, the line holds the averages of all wells
+    """
+    if well_name is not None:
+        well_name = str(well_name)
+        name = '{} {}{}'.format(well_name, wi_name, suffix)
+    else:
+        well_name = 'NONE'
+        name = '{}{}'.format(wi_name, suffix)
+    log_table_str = ''
+    for key in log_table:
+        log_table_str += '{}: {}, '.format(key, log_table[key])
+    log_table_str = log_table_str.rstrip(', ')
+
+    # To calculate correlation coefficients, the results for P-, and S- velocity, and Density, must
+    # be equal in length.
+    # Create a naive fix by cutting the data to the shortest
+    min_len = min([len(results[log_table['P velocity'].lower()]),
+                   len(results[log_table['S velocity'].lower()]),
+                   len(results[log_table['Density'].lower()])
+                   ])
+    cc_p_s = nan_corrcoef(results[log_table['P velocity'].lower()][:min_len],
+                          results[log_table['S velocity'].lower()][:min_len])[0, 1]
+    cc_p_d = nan_corrcoef(results[log_table['P velocity'].lower()][:min_len],
+                          results[log_table['Density'].lower()][:min_len])[0, 1]
+    cc_s_d = nan_corrcoef(results[log_table['S velocity'].lower()][:min_len],
+                          results[log_table['Density'].lower()][:min_len])[0, 1]
+
+    if rokdoc_output is not None:
+        uio.write_sums_and_averages(rokdoc_output,
+                                    [
+                                        name,
+                                        well_name,
+                                        'MD',
+                                        -999.25,
+                                        -999.25,
+                                        -999.25,
+                                        np.nanmean(results[log_table['P velocity'].lower()]),
+                                        np.nanmean(results[log_table['S velocity'].lower()]),
+                                        np.nanmean(results[log_table['Density'].lower()]),
+                                        np.nanmedian(results[log_table['P velocity'].lower()]),
+                                        np.nanmedian(results[log_table['S velocity'].lower()]),
+                                        np.nanmedian(results[log_table['Density'].lower()]),
+                                        np.nanmean(results[log_table['P velocity'].lower()]),
+                                        # this should be a mode value, but uncertain what it means
+                                        np.nanmean(results[log_table['S velocity'].lower()]),
+                                        # this should be a mode value, but uncertain what it means
+                                        np.nanmean(results[log_table['Density'].lower()]),
+                                        # this should be a mode value, but uncertain what it means
+                                        'NONE',
+                                        np.nanmean(results[log_table['Porosity'].lower()]),
+                                        np.nanstd(results[log_table['Porosity'].lower()]),
+                                        -999.25,
+                                        -999.25,
+                                        -999.25,
+                                        -999.25,
+                                        -999.25,
+                                        -999.25,
+                                        -999.25,
+                                        -999.25,
+                                        -999.25,
+                                        -999.25,
+                                        -999.25,
+                                        np.nanstd(results[log_table['P velocity'].lower()]),
+                                        np.nanstd(results[log_table['S velocity'].lower()]),
+                                        np.nanstd(results[log_table['Density'].lower()]),
+                                        -999.25,
+                                        -999.25,
+                                        -999.25,
+                                        cc_p_s,
+                                        cc_p_d,
+                                        cc_s_d,
+                                        -999.25,
+                                        -999.25,
+                                        -999.25,
+                                        np.nanmean(results[log_table['Shear modulus'].lower()]) \
+                                            if ('Shear modulus' in list(log_table.keys())) else -999.25,
+                                        np.nanmean(results[log_table['Bulk modulus'].lower()]) \
+                                            if ('Bulk modulus' in list(log_table.keys())) else -999.25,
+                                        -999.25,
+                                        -999.25,
+                                        -999.25,
+                                        -999.25,
+                                        -999.25,
+                                        -999.25,
+                                        np.nanmean(results[log_table['Volume'].lower()]),
+                                        np.nanstd(results[log_table['Volume'].lower()]),
+                                        'None',
+                                        0.0,
+                                        cutoffs_str,
+                                        log_table_str,
+                                        datetime.now()
+                                    ]
+                                    )

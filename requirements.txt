@@ -8,10 +8,8 @@ xarray
 
 # Plotting / interactive
 bokeh
-seaborn
 
 # Geophysics
-bruges          # still used in plotting/, utils/calc_stats.py, core/seismic_modelling.py and unit tests
 segyio          # misc/io.py
 PyWavelets      # imported as pywt in core/wavelets.py
 

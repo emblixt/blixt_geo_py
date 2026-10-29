@@ -136,6 +136,47 @@ class TestCases(unittest.TestCase):
         print(stats.summary(results).to_string())
         show_or_close()
 
+    def test_write_rokdoc_sums_and_averages(self):
+        """
+        Write the averages of synthetic data to a RokDoc Sums and Averages file, and read them back
+        """
+        import tempfile
+        from openpyxl import load_workbook
+        from blixt_geo_py.utils.calc_stat_class import write_rokdoc_sums_and_averages
+
+        _log_table = LogTable(log_table)
+        rng = np.random.default_rng(0)
+        # Arrays without units, with the log names as keys, as StatsCalculation.save_rokdoc_output() passes them
+        results = {'vp_dry': rng.normal(3000., 100., 50), 'vs_dry': rng.normal(1500., 50., 50),
+                   'rho_dry': rng.normal(2.3, 0.05, 50), 'phie': rng.normal(0.2, 0.02, 50),
+                   'vcl': rng.normal(0.1, 0.01, 50)}
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_name = os.path.join(tmp_dir, 'SumsAndAverages.xlsx')
+            # The first call creates the file, the second appends a line to it
+            write_rokdoc_sums_and_averages(file_name, results, 'Sand F', _log_table, 'vcl<0.5', '_test')
+            write_rokdoc_sums_and_averages(file_name, results, 'Sand F', _log_table, 'vcl<0.5', '_test',
+                                           well_name='WELL_A')
+
+            wb = load_workbook(file_name)
+            rows = [_r for _r in wb.active.iter_rows(values_only=True)]
+            wb.close()
+
+        # The data lines follow the line with the column names
+        header_index = [_r[0] for _r in rows].index('Name')
+        columns = rows[header_index]
+        lines = [dict(zip(columns, _r)) for _r in rows[header_index + 1:]]
+        self.assertEqual(2, len(lines))
+
+        # The line without a well name holds the averages of all wells
+        self.assertEqual(('Sand F_test', 'NONE'), (lines[0]['Name'], lines[0]['Well']))
+        self.assertEqual(('WELL_A Sand F_test', 'WELL_A'), (lines[1]['Name'], lines[1]['Well']))
+        for line in lines:
+            self.assertAlmostEqual(np.mean(results['vp_dry']), line['VpMean'])
+            self.assertAlmostEqual(np.median(results['vs_dry']), line['VsMedian'])
+            self.assertAlmostEqual(np.std(results['rho_dry']), line['RhoStdDev'])
+            self.assertAlmostEqual(np.mean(results['phie']), line['PorosityMean'])
+
 
 if __name__ == '__main__':
     unittest.main()
