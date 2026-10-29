@@ -86,6 +86,61 @@ class ProjectTestCase(unittest.TestCase):
             self.assertTrue(any(_well in _txt for _txt in warned_txt),
                             'No warning raised for skipped well {}'.format(_well))
 
+    def test_load_selected_wells(self):
+        """
+        Load wells by name with load_wells(), which ignores the "Use" column of the 'Well settings' sheet.
+        Assumes that Well_A has a las file in use in the 'Well logs' sheet, and that Well_F has not
+        """
+        import warnings
+
+        # (well names given to load_wells(), expected loaded wells, wells expected to be warned about)
+        # Loaded well names are cleaned by fix_well_name(), i.e. in upper case
+        cases = [
+            # A single well name given as a string. Well_A is loaded although "Use" is "No" in 'Well settings'
+            ('Well_A', {'WELL_A'}, set()),
+            # The well name is matched regardless of upper or lower case
+            ('well_a', {'WELL_A'}, set()),
+            # A list of well names. Well_A is loaded, while Well_F has no las file in use, so it is skipped with a
+            # warning, without stopping the loading of Well_A
+            (['Well_A', 'Well_F'], {'WELL_A'}, {'WELL_F'}),
+            # Well_F alone: its data in the 'Well data' sheet is in use, but that is not enough, as no las file
+            # is in use in the 'Well logs' sheet. So nothing is loaded
+            ('Well_F', set(), {'WELL_F'}),
+            # A well that does not exist in the project table. Nothing is loaded
+            ('No_such_well', set(), {'NO_SUCH_WELL'}),
+        ]
+        for well_names, expected_wells, warned_wells in cases:
+            with self.subTest(well_names=well_names):
+                # Start with a fresh project for each case, so that no wells are left from the previous case
+                wp = Project(name='MyProject', log_to_stdout=False)
+
+                # Record the warnings. 'always' makes sure a warning is caught every time, and not only the first
+                # time it is raised from the same line of code
+                with warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter('always')
+                    wp.load_wells(well_names)
+
+                # Exactly the expected wells must be loaded, no more and no less
+                loaded_wells = {_w.name for _w in wp.wells}
+                print('Asked for: {}, loaded: {}'.format(well_names, sorted(loaded_wells)))
+                self.assertSetEqual(expected_wells, loaded_wells)
+
+                # Every skipped well must be mentioned in a warning, and a loaded well must not be
+                warned_txt = [str(_w.message) for _w in caught if issubclass(_w.category, UserWarning)]
+                for _well in warned_wells:
+                    self.assertTrue(any(_well in _txt for _txt in warned_txt),
+                                    'No warning raised for well {}'.format(_well))
+                for _well in expected_wells:
+                    self.assertFalse(any(_well in _txt for _txt in warned_txt),
+                                     'Unexpected warning raised for loaded well {}'.format(_well))
+
+        # Anything else than a string, or a non-empty list of strings, must raise a TypeError
+        with self.subTest(well_names='wrong type'):
+            wp = Project(name='MyProject', log_to_stdout=False)
+            for bad_names in (None, [], ['Well_A', 1]):
+                with self.assertRaises(TypeError):
+                    wp.load_wells(bad_names)
+
     def test_load_wells_with_rename(self):
         """
         Set only Well A active in the project table (_new), because it has a rename in it

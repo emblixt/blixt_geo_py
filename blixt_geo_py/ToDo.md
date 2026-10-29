@@ -53,8 +53,8 @@ pint units into use.
 
 ### 2026-10-29
 - Clean up / Remove all the unused "calc_stats" functionality - it is only obstructing
-- Make Project to ignore the "Use well" (Yes/No) column in the project_table.xlsx, and instead specify in the call which wells to use
-  - Make this optional, so that the old method still works
+- ~~Make Project to ignore the "Use well" (Yes/No) column in the project_table.xlsx, and instead specify in the call which wells to use~~ (Project.load_wells())
+  - ~~Make this optional, so that the old method still works~~
 - Take use of the new environmental variable "show_plots" in all unit tests that creates plots
 - Figure out how to use the de_trend functionality in calc_stats_class, and apply it 
 - Remove the dependency of the old "convert_data" function, and put pint into proper use.

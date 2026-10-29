@@ -532,7 +532,7 @@ def read_general_ascii_GENERAL(
     return data, units
 
 
-def project_wells_new(filename, working_dir, sheet_name=None, do_rename=False):
+def project_wells_new(filename, working_dir, sheet_name=None, do_rename=False, selected_wells=None):
     """
     Returns a dictionary containing the requested wells from the project excel table
     Avoids using the old "Translate log names" column of the project excel table, and uses
@@ -540,6 +540,9 @@ def project_wells_new(filename, working_dir, sheet_name=None, do_rename=False):
 
     ALSO looks in the sheet named 'Well data' (sheet with data not stored in las format, typically checkshots etc.)
     and adds the data listed there
+
+    Only wells with at least one las file in use ("Use this file" == "Yes") in the 'Well logs' sheet are returned.
+    A warning is raised for each selected well that is skipped
 
     :param filename:
         Excel file with well names and filenames
@@ -551,6 +554,10 @@ def project_wells_new(filename, working_dir, sheet_name=None, do_rename=False):
     :param do_rename:
         bool
         If True the renaming rules are taken into use, and logs are renamed
+    :param selected_wells:
+        list
+        List of well names to read.
+        If None, the wells set to "Use" == "Yes" in the 'Well settings' sheet are read
     :return:
         dict
         dictionary with las file names as keys
@@ -559,7 +566,12 @@ def project_wells_new(filename, working_dir, sheet_name=None, do_rename=False):
     from blixt_geo_py.utils.utils import fix_well_name
     from blixt_geo_py.utils.utils import print_info
     result = {}
-    selected_wells = get_selected_wells(filename)
+    if selected_wells is None:
+        selected_wells = get_selected_wells(filename)
+        selected_in = " in 'Well settings'"
+    else:
+        selected_wells = [fix_well_name(_well) for _well in selected_wells]
+        selected_in = ''
     if sheet_name is None:
         sheet_name = 'Well logs'
     # Read the sheets within a context manager, so that the excel file is closed afterward
@@ -640,12 +652,18 @@ def project_wells_new(filename, working_dir, sheet_name=None, do_rename=False):
                 raise Warning(warn_txt)
             result[test_file_path(table['las file'][i], working_dir)] = temp_dict
 
+    listed_wells = [fix_well_name(_well) for _well in table['Given well name'] if isinstance(_well, str)]
     for _well in selected_wells:
-        if _well not in wells_in_use:
-            warn_txt = "Well {} is selected in 'Well settings', but none of its files in '{}' are in use. " \
-                       "Nothing is read for this well".format(_well, sheet_name)
-            print_info(warn_txt, 'warning', logger)
-            warnings.warn(warn_txt, UserWarning, stacklevel=2)
+        if _well in wells_in_use:
+            continue
+        if _well not in listed_wells:
+            warn_txt = "Well {} is selected{}, but it is not listed in '{}'. " \
+                       "Nothing is read for this well".format(_well, selected_in, sheet_name)
+        else:
+            warn_txt = "Well {} is selected{}, but none of its files in '{}' are in use. " \
+                       "Nothing is read for this well".format(_well, selected_in, sheet_name)
+        print_info(warn_txt, 'warning', logger)
+        warnings.warn(warn_txt, UserWarning, stacklevel=2)
 
     # Test if the sheet 'Well data' exists in the project table, and then add the data files listed there
     if data_table is not None:

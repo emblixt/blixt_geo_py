@@ -234,7 +234,39 @@ class Project(object):
                        log_table: LogTable | None = None, verbose: bool = False):
         """
         Load all logs and well data that are listed in the project table where "Use" == "Yes"
+        See _load_wells() for the parameters
+        """
+        self._load_wells(None, if_well_exists=if_well_exists, if_log_exists=if_log_exists,
+                         log_table=log_table, verbose=verbose)
+
+    def load_wells(self, well_names: str | list[str], if_well_exists: str = 'append',
+                   if_log_exists: str = 'overwrite', log_table: LogTable | None = None, verbose: bool = False):
+        """
+        Load the logs and well data of the given wells, ignoring the "Use" column of the 'Well settings' sheet in
+        the project table. Only files with "Use this file" == "Yes" are loaded.
+        See _load_wells() for the other parameters
+
+        :param well_names:
+            str or list of str
+            Name(s) of the well(s) to load, as given in the "Given well name" column of the project table
+        """
+        if isinstance(well_names, str):
+            well_names = [well_names]
+        if not (isinstance(well_names, list) and len(well_names) > 0 and
+                all(isinstance(_name, str) for _name in well_names)):
+            raise TypeError('well_names must be a string, or a non-empty list of strings, not {}'.format(well_names))
+        self._load_wells(well_names, if_well_exists=if_well_exists, if_log_exists=if_log_exists,
+                         log_table=log_table, verbose=verbose)
+
+    def _load_wells(self, well_names: list[str] | None, if_well_exists: str = 'append',
+                    if_log_exists: str = 'overwrite', log_table: LogTable | None = None, verbose: bool = False):
+        """
+        Load logs and well data that are listed in the project table
         :param self:
+        :param well_names:
+            list of str
+            Names of the wells to load.
+            If None, the wells set to "Use" == "Yes" in the 'Well settings' sheet of the project table are loaded
         :param if_well_exists:
             str
             Describes what to do if the well exists from before
@@ -256,7 +288,8 @@ class Project(object):
         """
         from blixt_geo_py.core.core import LogTable
 
-        result = uio.project_wells_new(self.project_table, self.working_dir, do_rename=True)
+        result = uio.project_wells_new(self.project_table, self.working_dir, do_rename=True,
+                                       selected_wells=well_names)
 
         for _key in list(result.keys()):  # _key is the name of the file to read
             print('Reading from file ', _key)
