@@ -2389,8 +2389,8 @@ class WedgeModel(LaminarModel):
             _last_width = _child[0].width
             _total_width += _last_width
         _height = 300
-        p_scatter = figure(width=_total_width - _last_width, height=_height, tools=default_tools)
-        p_lines = figure(width=_last_width, height=_height, tools=default_tools)
+        p_scatter = figure(width=_total_width - _last_width, height=_height, tools=default_tools())
+        p_lines = figure(width=_last_width, height=_height, tools=default_tools())
 
         p_scatter.scatter(x='Apparent thickness', y='Top amp', source=horizons_cds)
         p_lines.line(

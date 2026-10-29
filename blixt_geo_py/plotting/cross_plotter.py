@@ -25,15 +25,20 @@ from blixt_geo_py.utils.utils import print_info
 
 logger = logging.getLogger(__name__)
 
-default_tools = [
-    PanTool(),
-    WheelZoomTool(),
-    BoxZoomTool(),
-    HoverTool(),
-    CrosshairTool(),
-    ResetTool(),
-    SaveTool()
-]
+def default_tools() -> list:
+    """
+    Returns a new set of the default tools for each call. A bokeh model, like a tool, can only belong to one document,
+    so reusing the same tools in a second plot raises "Models must be owned by only a single document"
+    """
+    return [
+        PanTool(),
+        WheelZoomTool(),
+        BoxZoomTool(),
+        HoverTool(),
+        CrosshairTool(),
+        ResetTool(),
+        SaveTool()
+    ]
 
 cnames = [mcolors.to_hex(tmp['color']) for tmp, j in zip(plt.rcParams['axes.prop_cycle'], range(20))]
 markers = ['circle', 'diamond', 'hex', 'inverted_triangle', 'plus', 'square', 'star', 'triangle']
@@ -546,7 +551,7 @@ class CrossPlotter:
 
 
         if tools is None:
-            tools = default_tools
+            tools = default_tools()
         self._tools = tools
 
         self.fixed_sizes = ['1', '5', '10', '20']

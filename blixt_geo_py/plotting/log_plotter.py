@@ -35,14 +35,19 @@ test_file_dir = str(os.path.dirname(__file__).replace(
 
 output_file(os.path.join(test_file_dir, 'plot.html'))
 
-default_tools = [
-    PanTool(),
-    WheelZoomTool(),
-    HoverTool(),
-    # CrosshairTool(),
-    ResetTool(),
-    SaveTool()
-]
+def default_tools() -> list:
+    """
+    Returns a new set of the default tools for each call. A bokeh model, like a tool, can only belong to one document,
+    so reusing the same tools in a second plot raises "Models must be owned by only a single document"
+    """
+    return [
+        PanTool(),
+        WheelZoomTool(),
+        HoverTool(),
+        # CrosshairTool(),
+        ResetTool(),
+        SaveTool()
+    ]
 
 line_dashes = {
     '-': 'solid',
@@ -86,7 +91,7 @@ class LogPlotter:
         self.active_cutoffs = []
 
         if tools is None:
-            tools = default_tools
+            tools = default_tools()
         self._tools = tools
 
 
