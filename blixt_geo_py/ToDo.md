@@ -25,7 +25,7 @@ Many functions could use a mask, and its description, as input. See blixt_rp.rp_
 ##### 2023-03-20
 ~~Move LogCurve class in to well.py~~
 
-Get rid of the "AttribDict" thing~~ 
+~~Get rid of the "AttribDict" thing~~
 
 ~~Make "start", "stop", and "step" mandatory items of the LogCurve object too~~
 

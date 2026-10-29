@@ -242,10 +242,10 @@ class LogCurve(object):
 
         if header is None:
             self.header = Header(header={})
-        elif isinstance(header, dict):
-            self.header = Header(header=header)
         elif isinstance(header, Header):
             self.header = header
+        elif isinstance(header, dict):
+            self.header = Header(header=header)
         else:
             raise TypeError('header must be either a dict or a Header, not {}'.format(type(header)))
 

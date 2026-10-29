@@ -4,7 +4,7 @@ import unittest
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
 
 import blixt_geo_py.io.io as uio
-from blixt_geo_py.utils.attribdict import AttribDict
+from blixt_geo_py.core.core import AttributeDict, Header, LogTable
 from blixt_geo_py.core.well import Well
 from blixt_geo_py.core.project import Project
 from blixt_geo_py.io.io import well_reader
@@ -62,26 +62,23 @@ class LasTestCase(unittest.TestCase):
 
     def test_header_types(self):
         """
-        All header keys in the well header, and Block header should be of the AttribDict type
+        The well header, and the header of each log, is a Header. The sections of the las file that read_las() stores
+        in the well header, e.g. well_info, are AttributeDicts, so their items can also be accessed as attributes
         :return:
         """
-        w, data = create_test_data('phie')
-        success = True
-        for key in list(w.header.keys()):
-            if key == 'well':
-                # the well name is having a special treatment:-(
-                continue
-            if not isinstance(w.header[key], AttribDict):
-                print(key, w.header[key])
-                success = False
-        for lblock in list(w.block.keys()):
-            for key in list(w.block[lblock].header.keys()):
-                if key == 'well':
-                    continue
-                if not isinstance(w.block[lblock].header[key], AttribDict):
-                    print(key, w.block[lblock].header[key])
-                    success = False
-        self.assertTrue(success)
+        w = Well()
+        w.read_las(las_files[0], log_table=LogTable({'Porosity': 'phie'}))
+        with self.subTest('well header'):
+            self.assertIsInstance(w.header, Header)
+        with self.subTest('log headers'):
+            for _log in w.logs:
+                self.assertIsInstance(_log.header, Header, _log.name)
+        with self.subTest('las sections'):
+            # The 'other' section is free text, and is stored as a string
+            for key in ['well_info', 'version', 'parameter', 'curve']:
+                self.assertIsInstance(w.header[key], AttributeDict, key)
+        with self.subTest('attribute access'):
+            self.assertEqual(w.header['well_info']['well']['value'], w.header.well_info.well.value)
 
     def test_null_value(self):
         """

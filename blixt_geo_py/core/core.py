@@ -24,7 +24,6 @@ from .. import Q_
 
 from blixt_geo_py.utils.version import info
 from blixt_geo_py.utils.utils import fix_well_name, isnan, print_info
-from blixt_geo_py.utils.attribdict import AttribDict
 from blixt_geo_py.utils.masks import create_mask as _create_mask
 from blixt_geo_py.utils.masks import combine_masks as _combine_masks
 
@@ -1751,53 +1750,91 @@ class WorkingIntervalsTable:
         return column(title, dt, sizing_mode='stretch_width')  # , use_wis
 
 
-class Header(AttribDict):
+class AttributeDict(dict):
     """
-    Class for well header information
-    A ``Header`` object may contain all header information (also known as meta
-    data) of a Well object.
-    Those headers may be
-    accessed or modified either in the dictionary style or directly via a
-    corresponding attribute. There are various default attributes which are
-    required by every variable import and export modules
-    :param
-        header: Dictionary containing meta information of a single
-        Well object.
+    A dictionary whose items can also be accessed as attributes, e.g. d.name is the same as d['name']
+    Dictionaries stored in it are converted to AttributeDicts, so that nested items also can be accessed as attributes,
+    e.g. header.well_info.well.value
     """
-    defaults = {
-        'name': None,
-        'well': None,
-        'creation_info': info(),
-        'creation_date': datetime.now().isoformat(),
-        'orig_filename': None,
-        'modification_date': None,
-        'modification_history': '',
-        'note': '',
-        'log_type': None
-    }
-
-    def __init__(self, header=None):
-        """
-        """
-        if header is None:
-            header = {}
-        # super(Header, self).__init__(header)
-        super().__init__(header)
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.update(*args, **kwargs)
 
     def __setitem__(self, key, value):
-        """
-        """
-        # keys which shouldn't be modified
-        if key in ['creation_date', 'modification_date']:
-            pass
-        else:
-            # all other keys
-            super(Header, self).__setitem__(key, value)
+        if isinstance(value, dict) and not isinstance(value, AttributeDict):
+            value = AttributeDict(value)
+        super().__setitem__(key, value)
 
-            super(Header, self).__setitem__(
-                'modification_date',  datetime.now().isoformat())
+    def update(self, *args, **kwargs):
+        # dict.update() does not use __setitem__, so do it item by item
+        for _key, _value in dict(*args, **kwargs).items():
+            self[_key] = _value
 
-    __setattr__ = __setitem__
+    def setdefault(self, key, default=None):
+        if key not in self:
+            self[key] = default
+        return self[key]
+
+    def __getattr__(self, name):
+        # Only called when the normal attribute lookup fails. Raise an AttributeError, not a KeyError, for missing
+        # items, so that hasattr() and copy.deepcopy() work
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name) from None
+
+    def __setattr__(self, name, value):
+        self[name] = value
+
+    def __delattr__(self, name):
+        try:
+            del self[name]
+        except KeyError:
+            raise AttributeError(name) from None
+
+
+class Header(AttributeDict):
+    """
+    Class for well and log header information
+    A Header object may contain all header information (also known as meta data) of a Well or a LogCurve object.
+    The items may be accessed or modified either in the dictionary style, header['name'], or as an attribute,
+    header.name. Every Header has the keys in defaults(), which are required by the import and export functions.
+
+    Setting any item, other than the creation_date and the modification_date, updates the modification_date
+    :param header:
+        dict
+        Dictionary containing meta information of a single Well or LogCurve object
+    """
+    @staticmethod
+    def defaults() -> dict:
+        """
+        Returns the default items of a Header. Called for each new Header, so that the creation_date is the time the
+        Header was created
+        """
+        return {
+            'name': None,
+            'well': None,
+            'creation_info': info(),
+            'creation_date': datetime.now().isoformat(),
+            'orig_filename': None,
+            'modification_date': None,
+            'modification_history': '',
+            'note': '',
+            'log_type': None
+        }
+
+    def __init__(self, header: dict | None = None):
+        # Set the defaults without updating the modification_date
+        super().__init__()
+        for _key, _value in self.defaults().items():
+            dict.__setitem__(self, _key, _value)
+        if header is not None:
+            self.update(header)
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        if key not in ['creation_date', 'modification_date']:
+            super().__setitem__('modification_date', datetime.now().isoformat())
 
     def __str__(self):
         """
@@ -1811,7 +1848,7 @@ class Header(AttribDict):
             # no keys
             return ''
         pattern = "%%%ds: %%s" % (i)
-        head = [pattern % (k, self.__dict__[k]) for k in keys]
+        head = [pattern % (k, self[k]) for k in keys]
         return "\n".join(head)
 
     def _repr_pretty_(self, p, cycle):

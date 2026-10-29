@@ -201,15 +201,15 @@ class Well(object):
         from blixt_geo_py.core.core import Header, Template
         if header is None:
             self.header = Header({})
-        elif isinstance(header, dict):
-            self.header = Header(header=header)
         elif isinstance(header, Header):
             self.header = header
+        elif isinstance(header, dict):
+            self.header = Header(header=header)
         else:
             raise TypeError('header must be either a dict or a Header, not {}'.format(type(header)))
         self.logs = logs
         if self.header.name is None:
-            if 'well_info' in list(self.header.__dict__.keys()):
+            if 'well_info' in self.header:
                 self.header.name = self.header.well_info.well.value
         if style is None:
             style = Template()
