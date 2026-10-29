@@ -353,6 +353,11 @@ def calc_ai_around_top(
 
 
 def test_calc_elastics():
+    """
+    OLD Well API: Uses Project.load_all_wells(unit_convert_using_template=True), Well.add_twt(), Well.get_logs_of_name()
+    and the wells as a dictionary, which no longer exist, and fails. Kept as an example of how calc_ai_around_top() is
+    used
+    """
     dir_path = os.path.dirname(os.path.realpath(__file__)).replace('\\blixt_geo_py\\rp_utils', '')
     project_table = os.path.join(dir_path, 'excels', 'project_table.xlsx')
     wp = Project(project_table=project_table)

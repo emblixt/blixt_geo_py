@@ -1978,6 +1978,8 @@ def make_clean_list(input_str, small_cap=False, separator=None):
 
 def write_las(filename, wh, lh, data, overwrite=False):
     """
+    OLD Well API: Uses the Blocks of the old Well object, and is not used anywhere. Use Well.write_las() instead
+
     Write the well data to a las format file.
 
     :param filename:

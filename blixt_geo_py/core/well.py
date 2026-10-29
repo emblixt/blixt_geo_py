@@ -1116,6 +1116,8 @@ def test():
     w.read_las(las_file)
     return w
 
+# OLD Well API: The commented out code below uses Well.block, calc_mask(), apply_mask() and depth_plot(), which no
+# longer exist. Kept for reference only
 #    w.read_las(las_file, only_these_logs=well_table[las_file]['logs'])
 #
 #    w.calc_mask({'test': ['>', 10], 'phie': ['><', [0.05, 0.15]]}, name=ud.def_msk_name)

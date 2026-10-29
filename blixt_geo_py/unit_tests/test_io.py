@@ -6,17 +6,13 @@ project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\
 import blixt_geo_py.io.io as uio
 from blixt_geo_py.core.core import AttributeDict, Header, LogTable
 from blixt_geo_py.core.well import Well
-from blixt_geo_py.core.project import Project
 from blixt_geo_py.io.io import well_reader
 
 
 import numpy as np
 
-def_lb_name = 'Logs'  # default Block name
-def_msk_name = 'Mask'  # default mask name
-
 test_data_dir = os.path.join(project_dir, 'blixt_geo_py\\test_data')
-las_file = os.path.join(test_data_dir, 'test_data/Well A.las')
+las_file = os.path.join(test_data_dir, 'Well A.las')
 las_files = [os.path.join(test_data_dir, _las) for _las in ['Well A.las',
                                                              'Well A more data.las',
                                                              'Well B.las',
@@ -27,18 +23,6 @@ las_files = [os.path.join(test_data_dir, _las) for _las in ['Well A.las',
                                                              'Well F.las',
                                                              'L-30.las',
                                                              'WrongWellInfo.las']]
-
-
-def create_test_data(var_name):
-    w = Well()
-    w.read_las(
-        LasTestCase.las_file,
-        block_name=def_lb_name,
-        only_these_logs=LasTestCase.my_logs,
-        note='Test note')
-
-    # extract the phie log, and apply a mask on it
-    return w, w.block[def_lb_name].logs[var_name].values
 
 
 def read_las(lfile):
@@ -67,7 +51,7 @@ class LasTestCase(unittest.TestCase):
         :return:
         """
         w = Well()
-        w.read_las(las_files[0], log_table=LogTable({'Porosity': 'phie'}))
+        w.read_las(las_file, log_table=LogTable({'Porosity': 'phie'}))
         with self.subTest('well header'):
             self.assertIsInstance(w.header, Header)
         with self.subTest('log headers'):
@@ -85,7 +69,7 @@ class LasTestCase(unittest.TestCase):
         When reading in a las file, any 'null values' should be replaced with np.nan
         :return:
         """
-        null_value, gen_keys, well_dict = read_las(LasTestCase.las_file)
+        null_value, gen_keys, well_dict = read_las(las_file)
         var_name = gen_keys[1]
         data = np.array(well_dict['data'][var_name])
         # data should not contain explicit 'null_value's, so below null_data should have length zero
@@ -100,7 +84,7 @@ class LasTestCase(unittest.TestCase):
             self.assertTrue(any(t))
 
     def test_well_info(self):
-        _las_file = os.path.join(LasTestCase.wp.working_dir, 'test_data/WrongWellInfo.las')
+        _las_file = os.path.join(test_data_dir, 'WrongWellInfo.las')
         null_value, gen_keys, well_dict = read_las(_las_file)
         for key in list(well_dict['well_info'].keys()):
             print(well_dict['well_info'][key]['value'], type(well_dict['well_info'][key]['value']))

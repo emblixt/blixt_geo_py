@@ -6,8 +6,6 @@ import matplotlib.colors as mcolors
 from itertools import cycle
 import numbers
 
-from blixt_geo_py.utils.definitions import def_lb_name
-
 logger = logging.getLogger(__name__)
 
 clrs = list(mcolors.BASE_COLORS.keys())
@@ -74,20 +72,20 @@ def set_up_column_plot(ax_names=None, width_ratios=None, height_ratios=None, fig
     return fig, header_axes, plot_axes
 
 
-# TODO: This uses the old Well object. Needs to be updated to the new
 def plot_one_column(well, try_these_log_types, templates, header_ax=None, plot_ax=None, z_min=None, z_max=None,
-                    block_name=None, mask=None, fill_betweens=None):
+                    mask=None, fill_betweens=None):
     """
+    Plots the first log of each of the given log types in the well, against MD
 
     :param well:
-        well object
+        core.well.Well
     :param try_these_log_types:
         list
         list of log types, e.g. try_these_log_types = ['Saturation', 'Porosity'] which we will try to plot
         in this column plot
     :param templates:
         dict
-        Dictionary of different templates as returned from Project().load_all_templates()
+        Dictionary of log type: Template (or template dictionary), e.g. Project().templates
     :param header_ax:
         axis object
         Where the header will be plotted
@@ -95,7 +93,9 @@ def plot_one_column(well, try_these_log_types, templates, header_ax=None, plot_a
         axis object
         Where the data will be plotted
     :param z_min & z_max
-        Min and max value of the depth parameter
+        Min and max value of the depth parameter, in meters MD
+    :param mask:
+        Boolean array, with the same length as the harmonized logs of the well, of the data to plot
     :param fill_betweens:
         list
         list of triplets (logtype 1, logtype 2, color) which determines the fill_between color when logtype 1 is plotted
@@ -112,11 +112,12 @@ def plot_one_column(well, try_these_log_types, templates, header_ax=None, plot_a
         header_ax = h_ax['main']
         plot_ax = p_ax['main']
 
-    if block_name is None:
-        block_name = def_lb_name
-
-    tb = well.block[block_name]  # this log block
-    depth = tb.logs['depth'].values
+    from blixt_geo_py.core.core import Template
+    # The harmonized logs of the well, with the md log as depth
+    if 'md' not in well.get_log_names:
+        well.create_md_log()
+    data = well.dict()
+    depth = data['md'].to('m').magnitude
 
     if mask is None:
         mask = np.array(np.ones(len(depth)), dtype=bool)  # All True values -> all data is included
@@ -131,11 +132,12 @@ def plot_one_column(well, try_these_log_types, templates, header_ax=None, plot_a
     # Now we take the first log of each log type, generalize this so that it by default takes the first, but
     # can plot all or one specific
     log_names = {ltype: well.get_logs_of_type(ltype)[0].name for ltype in log_types}
-    limits = [[templates[x]['min'], templates[x]['max']] for x in log_types]
-    styles = [{'lw': templates[x]['line width'],
-               'color': templates[x]['line color'],
-               'ls': templates[x]['line style']} for x in log_types]
-    legends = ['{} [{}]'.format(log_names[x], templates[x]['unit']) for x in log_types]
+    _templates = {x: Template.from_dict(templates.get(x)) for x in log_types}
+    limits = [[_templates[x].min, _templates[x].max] for x in log_types]
+    styles = [{'lw': _templates[x].line_width,
+               'color': _templates[x].line_color,
+               'ls': _templates[x].line_style} for x in log_types]
+    legends = ['{} [{}]'.format(log_names[x], _templates[x].units) for x in log_types]
 
     if fill_betweens is not None:
         if not isinstance(fill_betweens, list):
@@ -169,7 +171,7 @@ def plot_one_column(well, try_these_log_types, templates, header_ax=None, plot_a
         axis_plot(plot_ax, None, None, None, None, ylim=[z_min, z_max])
     else:
         xlims = axis_plot(plot_ax, depth[mask],
-                          [tb.logs[log_names[xx]].values[mask] for xx in log_types],
+                          [data[log_names[xx]].magnitude[mask] for xx in log_types],
                           limits, styles, yticks=False, fill_betweens=_fill_betweens,
                           ylim=[z_min, z_max])
         header_plot(header_ax, xlims, legends, styles)

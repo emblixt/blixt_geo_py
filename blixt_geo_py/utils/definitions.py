@@ -2,6 +2,7 @@
 supported_version = {2.0, 3.0}
 
 allowed_depth_formats = ['md', 'tvd', 'owt', 'twt']  # allowed depth formats
+# OLD Well API: Wells no longer have Blocks or stored masks, these are only used in the commented out code in well.py
 def_lb_name = 'Logs'  # default Block name
 def_msk_name = 'Mask'  # default mask name
 def_water_depth_keys = ['gl', 'egl', 'water_depth', 'wdep']
