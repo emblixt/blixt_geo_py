@@ -1280,7 +1280,7 @@ def plot_trends(x_name: str, wells: list, log_table: LogTable, wis:Intervals, wi
 
     :return:
     """
-    from blixt_geo_py.misc.curve_fitting import (linear_function,
+    from blixt_geo_py.utils.curve_fitting import (linear_function,
                                                 calculate_depth_trend)
     from blixt_geo_py.plotting import crossplot as xp
 
@@ -1507,7 +1507,7 @@ def get_wiggles_in_depth(
             'wavelet': contains the wavelet amplitude
             'time': contains the time data [s]
             'header': a dictionary with info about the wavelet
-        see blixt_geo_py.misc.io.read_petrel_wavelet() for example
+        see blixt_geo_py.io.io.read_petrel_wavelet() for example
     :return:
        (M, N) size np.ndarray.
        M seismic traces, each of length N

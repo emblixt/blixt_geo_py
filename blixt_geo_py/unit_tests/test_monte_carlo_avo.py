@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 # Add to path to avoid having to install libraries, useful in development
 
-import blixt_geo_py.utils.avo_monte_carlo as havo
+import blixt_geo_py.analysis.avo_monte_carlo as havo
 import blixt_geo_py.core.wavelets as bumw
 
 wavelet = bumw.ricker(0.096, 0.001, 25)

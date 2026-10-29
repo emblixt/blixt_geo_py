@@ -21,11 +21,11 @@ from pandas import DataFrame
 
 
 from blixt_geo_py.core.core import Template, Cutoffs, LogTable
-from blixt_geo_py.misc.signal_analysis import smooth as _smooth
-from blixt_geo_py.misc.curve_fitting import linear_function, calculate_depth_trend, calculate_blocking
-from blixt_geo_py.misc import masks as msks
+from blixt_geo_py.utils.signal_analysis import smooth as _smooth
+from blixt_geo_py.utils.curve_fitting import linear_function, calculate_depth_trend, calculate_blocking
+from blixt_geo_py.utils import masks as msks
 import blixt_geo_py.utils.definitions as rud
-from blixt_geo_py.misc.io import read_general_ascii_GENERAL as read_file
+from blixt_geo_py.io.io import read_general_ascii_GENERAL as read_file
 
 
 from .. import ureg, Q_
@@ -1408,7 +1408,7 @@ def read_las(file_name: str, verbose: bool = False, encoding: str = 'UTF8',
     import pandas as pd
     from blixt_geo_py.utils.utils import fix_well_name
     from blixt_geo_py.utils.utils import print_info
-    from blixt_geo_py.misc.io import well_reader
+    from blixt_geo_py.io.io import well_reader
     from blixt_geo_py.core.core import Template, templates_from_table
 
     with open(file_name, "r", encoding=encoding) as f:

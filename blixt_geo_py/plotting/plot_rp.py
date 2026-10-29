@@ -45,7 +45,7 @@ def plot_rp(wells, log_table, wis, wi_name, cutoffs=None, templates=None, legend
         working intervals, as defined in the "Working intervals" sheet of the project table, and
         loaded through:
         wp = Project()
-        wis = utils.io.project_working_intervals(wp.project_table)
+        wis = blixt_geo_py.io.io.project_working_intervals(wp.project_table)
     :param wi_name:
         str
         name of working interval to plot
@@ -56,7 +56,7 @@ def plot_rp(wells, log_table, wis, wi_name, cutoffs=None, templates=None, legend
             {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}
     :param templates:
         dict
-        templates dictionary as returned from utils.io.project_templates()
+        templates dictionary as returned from blixt_geo_py.io.io.project_templates()
     :param legend_items:
         list
         list of Line2D objects that are used in the legends.
@@ -588,7 +588,7 @@ def return_rpt_keywords(prev_rpt_kwargs=None, modify_keys=None, verbose=False):
 
 def test():
     from blixt_geo_py.core.well import Project
-    import blixt_geo_py.misc.io as uio
+    import blixt_geo_py.io.io as uio
     from blixt_geo_py.core.minerals import MineralMix
     wi_name = 'SAND E'
 

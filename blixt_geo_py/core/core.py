@@ -24,9 +24,9 @@ from .. import Q_
 
 from blixt_geo_py.utils.version import info
 from blixt_geo_py.utils.utils import fix_well_name, isnan, print_info
-from blixt_geo_py.misc.attribdict import AttribDict
-from blixt_geo_py.misc.masks import create_mask as _create_mask
-from blixt_geo_py.misc.masks import combine_masks as _combine_masks
+from blixt_geo_py.utils.attribdict import AttribDict
+from blixt_geo_py.utils.masks import create_mask as _create_mask
+from blixt_geo_py.utils.masks import combine_masks as _combine_masks
 
 logger = logging.getLogger(__name__)
 
@@ -219,7 +219,7 @@ class CutoffRule:
     """
     Class for rules for cutoffs
     NOTE, a parameter (param) is masked OUT if its value is NOT within the given rules and limits
-    This behaviour is guaranteed through the function create_mask in blixt_geo_py.misc.masks.py
+    This behaviour is guaranteed through the function create_mask in blixt_geo_py.utils.masks.py
     EG:
     > t = np.arange(10)
     > mask = create_mask(t,'>=',8)
@@ -483,7 +483,7 @@ class ClassificationTable:
             The data cds is in the format specified by the CrossPlotter class
         :return:
         """
-        import blixt_geo_py.misc.masks as masks
+        import blixt_geo_py.utils.masks as masks
         cutoffs = []
         rules = []
         use_status = []
@@ -1926,7 +1926,7 @@ class LithoFluid:
 
         """
         import matplotlib.pyplot as plt
-        import blixt_geo_py.utils.avo_monte_carlo as havo
+        import blixt_geo_py.analysis.avo_monte_carlo as havo
         # from blixt_geo_py.plotting import helpers as uhelp
         # from blixt_geo_py.plotting import crossplot as xp
         if label is None:
@@ -2147,7 +2147,7 @@ class LithoFluids:
         :param avg_type:
         :return:
         """
-        # from blixt_geo_py.misc.io import read_sums_and_averages
+        # from blixt_geo_py.io.io import read_sums_and_averages
         postfix = ''
         if avg_type is None:
             avg_type = 'mean'

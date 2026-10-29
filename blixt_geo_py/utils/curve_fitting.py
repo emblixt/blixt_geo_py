@@ -5,7 +5,7 @@ from numpy.random import default_rng
 import typing
 import logging
 
-from blixt_geo_py.misc import masks as msks
+from blixt_geo_py.utils import masks as msks
 
 logger = logging.getLogger(__name__)
 

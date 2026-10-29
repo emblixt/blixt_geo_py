@@ -1243,7 +1243,7 @@ def read_tops(filename, top=True, zstick='md', frmt=None, only_these_wells=None)
         list
         list of well names to look for, so that the reading in can be speeded up
         Populate this list by extracting a well_table, and use the well listed there
-        > well_table = rp_utils.io.project_wells(project_table_file)
+        > well_table = blixt_geo_py.io.io.project_wells(project_table_file)
         > only_these_wells = list(set([x['Given well name'] for x in well_table.values()]))
         NOTE! The naming convention of the wells in the project table file must be the same as the one
         used in tops
@@ -1348,7 +1348,7 @@ def write_working_intervals(filename, tops, frmt, well_names=None, interval_name
 
     :param frmt:
         str
-        the file formats supported by blixt_utils.io.read_tops()
+        the file formats supported by read_tops() above
         'petrel'
         'npd'
         'rokdoc'

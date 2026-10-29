@@ -9,7 +9,7 @@ import numpy as np
 from blixt_geo_py import Q_
 from blixt_geo_py.core.core import Cutoffs, CutoffRule, LogTable
 from blixt_geo_py.core.project import Project
-from blixt_geo_py.utils.calc_stat_class import (IntervalStats, StatsCalculation, break_at_gaps,
+from blixt_geo_py.analysis.calc_stat_class import (IntervalStats, StatsCalculation, break_at_gaps,
                                                 collect_interval_stats, isolated_samples, to_cutoffs)
 
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
@@ -142,7 +142,7 @@ class TestCases(unittest.TestCase):
         """
         import tempfile
         from openpyxl import load_workbook
-        from blixt_geo_py.utils.calc_stat_class import write_rokdoc_sums_and_averages
+        from blixt_geo_py.analysis.calc_stat_class import write_rokdoc_sums_and_averages
 
         _log_table = LogTable(log_table)
         rng = np.random.default_rng(0)

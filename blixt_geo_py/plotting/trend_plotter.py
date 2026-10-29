@@ -93,7 +93,7 @@ class TrendPlotter(CrossPlotter):
         :param verbose:
         :return:
         """
-        from blixt_geo_py.misc.curve_fitting import (linear_function,
+        from blixt_geo_py.utils.curve_fitting import (linear_function,
                                                     calculate_depth_trend)
         target_function = linear_function
 
@@ -186,7 +186,7 @@ class TrendPlotter(CrossPlotter):
         calc_trend.on_click(calc_trend_func)
 
         def calc_save_func():
-            from blixt_geo_py.misc.io import write_regression
+            from blixt_geo_py.io.io import write_regression
             for y_param in y_menu.options:
                 if y_param in ['md', 'tvd', 'twt']:  # don't calculate trends for these
                     continue

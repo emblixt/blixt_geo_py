@@ -15,7 +15,7 @@ from openpyxl.styles.builtins import title
 from pandas import DataFrame
 
 
-import blixt_geo_py.utils.avo_monte_carlo as havo
+import blixt_geo_py.analysis.avo_monte_carlo as havo
 from blixt_geo_py.core.core import LithoFluid, LithoFluids
 import blixt_geo_py.rp.rp_core as rp
 

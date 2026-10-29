@@ -7,7 +7,7 @@ import blixt_geo_py.unit_tests.plot_settings  # noqa: F401
 from blixt_geo_py import Q_
 from blixt_geo_py.core.core import CutoffRule, Cutoffs, LogTable
 from blixt_geo_py.core.project import Project
-from blixt_geo_py.utils.fluid_substitution import run_fluid_substitution
+from blixt_geo_py.analysis.fluid_substitution import run_fluid_substitution
 
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
 

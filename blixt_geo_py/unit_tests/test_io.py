@@ -3,11 +3,11 @@ import unittest
 
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
 
-import blixt_geo_py.misc.io as uio
-from blixt_geo_py.misc.attribdict import AttribDict
+import blixt_geo_py.io.io as uio
+from blixt_geo_py.utils.attribdict import AttribDict
 from blixt_geo_py.core.well import Well
 from blixt_geo_py.core.project import Project
-from blixt_geo_py.misc.io import well_reader
+from blixt_geo_py.io.io import well_reader
 
 
 import numpy as np

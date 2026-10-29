@@ -402,7 +402,7 @@ class IntervalTests(unittest.TestCase):
 
 
     def test_cutoff_rule(self):
-        from blixt_geo_py.misc.masks import create_mask
+        from blixt_geo_py.utils.masks import create_mask
         project_file = os.path.join(project_dir,"blixt_geo_py\\excels\\project_table.xlsx")
         wis = Intervals()
         wis.read_blixt_tops(project_file)

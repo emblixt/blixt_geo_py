@@ -11,7 +11,7 @@ import pandas as pd
 from blixt_geo_py.core.well import Well
 from blixt_geo_py.core.core import LogTable
 
-import blixt_geo_py.misc.io as uio
+import blixt_geo_py.io.io as uio
 from blixt_geo_py.utils.utils import arrange_logging, print_info
 
 logger = logging.getLogger(__name__)

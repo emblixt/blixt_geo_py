@@ -7,7 +7,7 @@ import sys
 
 import numpy as np
 
-from blixt_geo_py.misc import masks as msks
+from blixt_geo_py.utils import masks as msks
 
 
 def fix_well_name(well_name):

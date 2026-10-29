@@ -1093,7 +1093,7 @@ class CrossPlotter:
 
     def draw(self, cds: ColumnDataSource, set_all_intervals_active: bool = False, verbose: bool = False):
         from bokeh.models import CDSView, BooleanFilter, Button, Div
-        import blixt_geo_py.misc.masks as masks
+        import blixt_geo_py.utils.masks as masks
         from blixt_geo_py import Q_
 
         self.xplot = self.fig()

@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pint
 
-import blixt_geo_py.misc.curve_fitting as mycf
-import blixt_geo_py.misc.io as uio
+import blixt_geo_py.utils.curve_fitting as mycf
+import blixt_geo_py.io.io as uio
 import blixt_geo_py.plotting.crossplot as xp
 from blixt_geo_py.core.core import LogTable, Template
 from blixt_geo_py.core.log_curve import read_las

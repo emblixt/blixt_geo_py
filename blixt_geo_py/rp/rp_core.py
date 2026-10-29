@@ -1232,7 +1232,7 @@ def run_fluid_sub(wells, log_table, mineral_mix, fluid_mix, cutoffs, working_int
     :param working_intervals:
         dict
         E.G.
-        import utils.io as uio
+        import blixt_geo_py.io.io as uio
         working_intervals = uio.project_working_intervals(wp.project_table)
     :param tag:
         str
@@ -1240,7 +1240,7 @@ def run_fluid_sub(wells, log_table, mineral_mix, fluid_mix, cutoffs, working_int
     :param templates:
         dict
         templates that can contain well information such as kelly bushing and sea water depth
-        templates = utils.io.project_tempplates(wp.project_table)
+        templates = uio.project_templates(wp.project_table)
     :param block_name:
         str
         Name of the log block which should contain the logs to fluid substitute

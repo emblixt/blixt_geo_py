@@ -28,7 +28,7 @@ import numpy as np
 import pandas as pd
 import pint
 
-import blixt_geo_py.misc.io as uio
+import blixt_geo_py.io.io as uio
 from blixt_geo_py import Q_
 from blixt_geo_py.core.core import Cutoffs, CutoffRule, Intervals, LogTable
 from blixt_geo_py.core.well import Well

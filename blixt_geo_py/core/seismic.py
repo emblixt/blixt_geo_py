@@ -20,7 +20,7 @@ from bokeh.plotting import figure, column
 
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\core', ''))
 
-import blixt_geo_py.misc.io as uio
+import blixt_geo_py.io.io as uio
 from blixt_geo_py.utils.utils import print_info
 import blixt_geo_py.core.wavelets_from_bruges as bruges
 

@@ -27,7 +27,7 @@ from bokeh.plotting import column, row
 from blixt_geo_py import Q_
 import blixt_geo_py.rp.rp_core as rp
 from blixt_geo_py.core.well import Well
-from blixt_geo_py.misc.attribdict import AttribDict
+from blixt_geo_py.utils.attribdict import AttribDict
 from blixt_geo_py.utils.version import info
 from blixt_geo_py.utils.utils import isnan, print_info
 from blixt_geo_py.core.core import Interval, Intervals

@@ -30,7 +30,7 @@ from bokeh.plotting import column, row
 from pandas.core.indexes.base import maybe_extract_name
 
 from blixt_geo_py import Q_
-from blixt_geo_py.misc.attribdict import AttribDict
+from blixt_geo_py.utils.attribdict import AttribDict
 from blixt_geo_py.utils.version import info
 from blixt_geo_py.utils.utils import isnan, print_info
 from blixt_geo_py.core.core import Cutoffs, LogTable, Intervals

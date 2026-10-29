@@ -35,7 +35,7 @@ from scipy.interpolate import interp1d
 from blixt_geo_py.core.core import Cutoffs, LithoFluid, LithoFluids
 from blixt_geo_py.core.log_curve import LogCurve, Depth
 from blixt_geo_py.utils.utils import print_info
-import blixt_geo_py.misc.masks as msks
+import blixt_geo_py.utils.masks as msks
 from blixt_geo_py import ureg, Q_
 
 # global variables
@@ -876,7 +876,7 @@ class Well(object):
         :param verbose:
         :return:
         """
-        from blixt_geo_py.misc.curve_fitting import calculate_one_block
+        from blixt_geo_py.utils.curve_fitting import calculate_one_block
 
         # Check that the log table contains the necessary log types
         # And that the necessary logs are in the well

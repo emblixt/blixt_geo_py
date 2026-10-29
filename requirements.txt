@@ -10,13 +10,13 @@ xarray
 bokeh
 
 # Geophysics
-segyio          # misc/io.py
+segyio          # io/io.py
 PyWavelets      # imported as pywt in core/wavelets.py
 
 # I/O and web
 openpyxl        # Excel reading in core/core.py
-requests        # misc/io.py
-beautifulsoup4  # imported as bs4 in misc/io.py
+requests        # io/io.py
+beautifulsoup4  # imported as bs4 in io/io.py
 
 # Own library, not on PyPI. Install from a local clone, e.g.:
 #   pip install -e ../blixt_utils

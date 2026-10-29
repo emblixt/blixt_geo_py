@@ -59,7 +59,7 @@ def main(sums, intfs, fbase=None, templates=None, suffix=None,
         if None, no plots are saved
     :param templates:
         dict
-        templates dictionary as returned from utils.io.project_templates()
+        templates dictionary as returned from blixt_geo_py.io.io.project_templates()
     :param suffix:
         str
         Suffix added to output plots (png) to ease separating output from eachother
@@ -165,7 +165,7 @@ def execute_monte_carlo(sums_avg: dict, target_name: str, bg_name: str, n_iter: 
         dict
         dictionary of sums and averages information containing the statistics from different intervals (formations, ...)
         collected over one or more wells.
-        See read_sums_and_averages in blixt_geo_py.misc.io
+        See read_sums_and_averages in blixt_geo_py.io.io
     :param target_name:
         str
         Name that identifies which member of the sums_avg dictionary we should use as target interval
@@ -184,7 +184,7 @@ def execute_monte_carlo(sums_avg: dict, target_name: str, bg_name: str, n_iter: 
             'wavelet': contains the wavelet amplitude
             'time': contains the time data [s]
             'header': a dictionary with info about the wavelet
-        see blixt_geo_py.misc.io.read_petrel_wavelet() for example
+        see blixt_geo_py.io.io.read_petrel_wavelet() for example
         IGNORED when model_type is 'half_space'
     :param extract_at:
         float
@@ -346,7 +346,7 @@ def layered_model(target_thickness, target,  background,
                 'wavelet': contains the wavelet amplitude
                 'time': contains the time data [s]
                 'header': a dictionary with info about the wavelet
-            see blixt_geo_py.misc.io.read_petrel_wavelet() for example
+            see blixt_geo_py.io.io.read_petrel_wavelet() for example
     :param depth_to_target:
         float
         TWT value in seconds to top of target

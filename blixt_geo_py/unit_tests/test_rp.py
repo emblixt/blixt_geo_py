@@ -10,7 +10,7 @@ import numpy as np
 # Add to path to avoid having to install libraries, useful in development
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
 
-import blixt_geo_py.misc.io as uio
+import blixt_geo_py.io.io as uio
 from blixt_geo_py.core.project import Project
 # TODO: Skip the convert_data import and replace it with the Pint function .to()
 from blixt_geo_py.misc.convert_data import convert as cnvrt
