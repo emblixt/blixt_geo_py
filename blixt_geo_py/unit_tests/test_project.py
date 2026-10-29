@@ -141,6 +141,99 @@ class ProjectTestCase(unittest.TestCase):
                 with self.assertRaises(TypeError):
                     wp.load_wells(bad_names)
 
+    def test_results_folder(self):
+        """
+        The results folder defaults to <working_dir>/results_folder. A relative path is taken relative to the working
+        directory, and the folder is created if it does not exist
+        """
+        import os
+        import tempfile
+        from blixt_geo_py.utils.utils import arrange_logging
+
+        # The default results folder, in the default working directory
+        wp = Project(name='MyProject', log_to_stdout=True)
+        self.assertEqual(os.path.join(wp.working_dir, 'results_folder'), wp.results_folder)
+        self.assertTrue(os.path.isdir(wp.results_folder))
+
+        # Use a temporary working directory, so that the created folders are removed afterward.
+        # The default project table is not in the temporary folder, so it must be given with its full path
+        project_table = wp.project_table
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            # A relative results folder is created inside the working directory
+            wp = Project(name='TmpProject', working_dir=tmp_dir, project_table=project_table,
+                         results_folder='my_results', log_to_stdout=True)
+            self.assertEqual(os.path.join(tmp_dir, 'my_results'), wp.results_folder)
+            self.assertTrue(os.path.isdir(wp.results_folder))
+
+            # An absolute results folder is used as it is, and missing parent folders are created too
+            nested_folder = os.path.join(tmp_dir, 'some', 'nested', 'results')
+            wp = Project(name='TmpProject', working_dir=tmp_dir, project_table=project_table,
+                         results_folder=nested_folder, log_to_stdout=True)
+            self.assertEqual(nested_folder, wp.results_folder)
+            self.assertTrue(os.path.isdir(nested_folder))
+
+            # A results folder that already exists is kept, together with its content
+            existing_file = os.path.join(nested_folder, 'old_result.txt')
+            with open(existing_file, 'w') as f:
+                f.write('keep me')
+            Project(name='TmpProject', working_dir=tmp_dir, project_table=project_table,
+                    results_folder=nested_folder, log_to_stdout=True)
+            self.assertTrue(os.path.isfile(existing_file))
+
+            # A results folder that is an existing file is not accepted
+            with self.assertRaises(NotADirectoryError):
+                Project(name='TmpProject', working_dir=tmp_dir, project_table=project_table,
+                        results_folder=existing_file, log_to_stdout=True)
+            # Release any log file in the temporary folder, so that it can be removed
+            arrange_logging(True, None)
+
+    def test_load_from_logfile(self):
+        """
+        A project set up earlier can be restored from its log file, including the results folder
+        """
+        import os
+        import tempfile
+        from blixt_geo_py.utils.utils import arrange_logging
+
+        project_table = Project(name='MyProject', log_to_stdout=True).project_table
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            # Set up a project that logs to the file <tmp_dir>/TmpProject_log.txt
+            wp = Project(name='TmpProject', working_dir=tmp_dir, project_table=project_table,
+                         results_folder='my_results', log_to_stdout=False)
+            self.assertTrue(os.path.isfile(wp.logging_file))
+
+            # Restore the project from its log file, and check that the settings are the same
+            restored = Project(load_from=wp.logging_file)
+            for _key in ('name', 'working_dir', 'project_table', 'results_folder', 'logging_file'):
+                self.assertEqual(getattr(wp, _key), getattr(restored, _key), _key)
+            # Settings that were never set are restored as None, and not as the string 'None'
+            self.assertIsNone(restored.tops_file)
+            self.assertIsNone(restored.tops_type)
+            # The restored project must be usable, e.g. have an empty list of wells
+            self.assertEqual(0, len(restored))
+            # Release the log file in the temporary folder, so that it can be removed
+            arrange_logging(True, None)
+
+    def test_invalid_input(self):
+        """
+        Wrong input to Project raises an error, instead of silently using something else
+        """
+        # Neither a name, nor a project table
+        with self.assertRaises(ValueError):
+            Project(log_to_stdout=True)
+        # A working directory that does not exist. Earlier, the default working directory was silently used
+        with self.assertRaises(NotADirectoryError):
+            Project(name='MyProject', working_dir='C:/no/such/folder', log_to_stdout=True)
+        # A project table that does not exist
+        with self.assertRaises(FileNotFoundError):
+            Project(name='MyProject', project_table='no_such_table.xlsx', log_to_stdout=True)
+        # A log file that does not exist
+        with self.assertRaises(FileNotFoundError):
+            Project(load_from='no_such_log.txt', log_to_stdout=True)
+        # An unknown option for what to do when a well exists from before
+        with self.assertRaises(ValueError):
+            Project(name='MyProject', log_to_stdout=True).add_well(None, if_well_exists='unknown')
+
     def test_load_wells_with_rename(self):
         """
         Set only Well A active in the project table (_new), because it has a rename in it

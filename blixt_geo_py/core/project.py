@@ -6,21 +6,28 @@ import logging
 import os
 from datetime import datetime
 
-import numpy as np
 import pandas as pd
-from matplotlib.font_manager import FontProperties
-from scipy.interpolate import interp1d
-
 
 from blixt_geo_py.core.well import Well
 from blixt_geo_py.core.core import LogTable
 
-from blixt_geo_py.utils.utils import log_table_in_smallcaps as small_log_table
 import blixt_geo_py.misc.io as uio
 from blixt_geo_py.utils.utils import arrange_logging, print_info
-from blixt_geo_py.utils.utils import isnan
 
 logger = logging.getLogger(__name__)
+
+# Project attributes that are written to the log file when they are set, with the text used in the log file.
+# load_logfile() uses the same texts to restore the project settings from the log file
+LOGGED_ATTRIBUTES = {
+    'name': 'Project name',
+    'working_dir': 'Working directory',
+    'project_table': 'Project table',
+    'results_folder': 'Results folder',
+    'tops_file': 'Tops are taken from',
+    'tops_type': 'Tops are of type',
+}
+
+IF_WELL_EXISTS_OPTIONS = ('append', 'overwrite', 'ask', 'ignore')
 
 
 class Project(object):
@@ -30,6 +37,7 @@ class Project(object):
                  wells: list | None = None,
                  working_dir=None,
                  project_table=None,
+                 results_folder=None,
                  log_to_stdout=False,
                  ):
         """
@@ -47,59 +55,65 @@ class Project(object):
             List of Well objects
         :param working_dir:
             str
-            folder name of the project
+            folder name of the project.
+            Default is the folder that contains the blixt_geo_py package
         :param project_table:
             str
-            full pathname of .xlsx file that store information of which wells and logs, ... to use
+            full pathname of .xlsx file that store information of which wells and logs, ... to use.
+            A relative path is taken relative to the working directory.
+            Default is <working_dir>/excels/project_table.xlsx
+        :param results_folder:
+            str
+            folder where the results are saved. It is created if it does not exist.
+            A relative path is taken relative to the working directory.
+            Default is <working_dir>/results_folder
         :param log_to_stdout:
             bool
             If True, the logging information is sent to standard output and not to file
         """
-
-        logging_level = logging.INFO
-
-        if wells is None:
-            wells = []
+        self.wells = [] if wells is None else wells
+        self.templates = None
 
         if load_from is not None:
-            self.load_logfile(load_from)
-        else:
-            if name is None:
-                if project_table is not None:
-                    name = os.path.basename(project_table).split('.')[0]
-                else:
-                    warn_txt = 'Either the name, or the project table, must be provided'
-                    print_info(warn_txt, 'warning', logger)
-                    raise Warning(warn_txt)
+            self.load_logfile(load_from, log_to_stdout=log_to_stdout)
+            return
 
-            if (working_dir is None) or (not os.path.isdir(working_dir)):
-                working_dir = os.path.dirname(os.path.realpath(__file__))
-                dir_list = working_dir.split(os.path.sep)
-                working_dir = os.path.sep.join(dir_list[:-2])
-
-            logging_file = os.path.join(
-                working_dir,
-                '{}_log.txt'.format(name))
-            arrange_logging(log_to_stdout, logging_file, logging_level)
-
-            print_info('Project created / modified on: {}'.format(datetime.now().isoformat()), 'info', logger)
-            self.name = name
-            self.working_dir = working_dir
-            self.logging_file = logging_file
-            self.wells = wells
-            self.templates = None
-
-            if project_table is None:
-                self.project_table = os.path.join(self.working_dir, 'excels', 'project_table.xlsx')
-            elif not os.path.isfile(project_table):
-                self.project_table = os.path.join(self.working_dir, project_table)
+        if name is None:
+            if project_table is not None:
+                name = os.path.splitext(os.path.basename(project_table))[0]
             else:
-                self.project_table = project_table
+                error_txt = 'Either the name, or the project table, must be provided'
+                print_info(error_txt, 'error', logger)
+                raise ValueError(error_txt)
 
-            if not os.path.isfile(self.project_table):
-                warn_txt = 'The provided project table {}, does not exist'.format(self.project_table)
-                print_info(warn_txt, 'warning', logger)
-                raise Warning(warn_txt)
+        if working_dir is None:
+            # The folder that contains the blixt_geo_py package
+            working_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+        elif not os.path.isdir(working_dir):
+            error_txt = 'The provided working directory {}, does not exist'.format(working_dir)
+            print_info(error_txt, 'error', logger)
+            raise NotADirectoryError(error_txt)
+
+        self.logging_file = os.path.join(working_dir, '{}_log.txt'.format(name))
+        arrange_logging(log_to_stdout, self.logging_file, logging.INFO)
+
+        print_info('Project created / modified on: {}'.format(datetime.now().isoformat()), 'info', logger)
+        self.name = name
+        self.working_dir = working_dir
+        self.tops_file = None
+        self.tops_type = None
+
+        if project_table is None:
+            project_table = os.path.join(self.working_dir, 'excels', 'project_table.xlsx')
+        elif not os.path.isfile(project_table):
+            project_table = os.path.join(self.working_dir, project_table)
+        if not os.path.isfile(project_table):
+            error_txt = 'The provided project table {}, does not exist'.format(project_table)
+            print_info(error_txt, 'error', logger)
+            raise FileNotFoundError(error_txt)
+        self.project_table = project_table
+
+        self.set_results_folder(results_folder)
 
     def __setattr__(self, key, value):
         """
@@ -108,35 +122,43 @@ class Project(object):
         :param value:
         :return:
         """
-        this_str = ''
-        if key == 'name':
-            this_str = 'Project name'
-        elif key == 'working_dir':
-            this_str = 'Working directory'
-        elif key == 'project_table':
-            this_str = 'Project table'
-        elif key == 'tops_file':
-            this_str = 'Tops are taken from'
-        elif key == 'tops_type':
-            this_str = 'Tops are of type'
-        else:
-            pass
-
-        if this_str != '':
-            print_info('{}: {}'.format(this_str, value), 'info', logger)
+        if key in LOGGED_ATTRIBUTES:
+            print_info('{}: {}'.format(LOGGED_ATTRIBUTES[key], value), 'info', logger)
 
         super(Project, self).__setattr__(key, value)
 
     def __str__(self):
         keys = list(self.__dict__.keys())
 
-        pattern = "%%%ds: %%s" % len(keys)
+        pattern = "%%%ds: %%s" % max(len(k) for k in keys)
 
         head = [pattern % (k, self.__dict__[k]) for k in keys]
         return "\n".join(head)
 
     def __len__(self):
         return len(self.wells)
+
+    def set_results_folder(self, results_folder: str | None = None):
+        """
+        Sets the folder where the results are saved, and creates it if it does not exist
+
+        :param results_folder:
+            str
+            A relative path is taken relative to the working directory.
+            Default is <working_dir>/results_folder
+        """
+        if results_folder is None:
+            results_folder = os.path.join(self.working_dir, 'results_folder')
+        elif not os.path.isabs(results_folder):
+            results_folder = os.path.join(self.working_dir, results_folder)
+        if os.path.exists(results_folder) and not os.path.isdir(results_folder):
+            error_txt = 'The results folder {}, is a file and not a folder'.format(results_folder)
+            print_info(error_txt, 'error', logger)
+            raise NotADirectoryError(error_txt)
+        if not os.path.isdir(results_folder):
+            os.makedirs(results_folder)
+            print_info('Created the results folder: {}'.format(results_folder), 'info', logger)
+        self.results_folder = results_folder
 
     @property
     def get_well_names(self):
@@ -154,11 +176,12 @@ class Project(object):
         :param well:
         :param if_well_exists:
             str
-            Describes what to do if the well exists from before
-            'append': app
+            Describes what to do if the well exists from before. Well names are compared regardless of upper or
+            lower case
+            'append': Append the logs of the new well to the old well
             'overwrite': Overwrite old well
             'ask': Ask to overwrite or ignore
-            'ignore': new well is ignored if a log of same name exists from before
+            'ignore': new well is ignored if a well of same name exists from before
         :param if_log_exists:
             str
             Describes what to do if the log exists from before
@@ -167,66 +190,82 @@ class Project(object):
             'ignore': new log is ignored if a log of same name exists from before
         :return:
         """
-        well_name_list = self.get_well_names
+        if if_well_exists not in IF_WELL_EXISTS_OPTIONS:
+            raise ValueError("Unknown value ({}) of 'if_well_exists'. Must be one of {}".format(
+                if_well_exists, ', '.join(IF_WELL_EXISTS_OPTIONS)))
         if self.wells is None:
-            self.wells = [well]
-        elif well.name in well_name_list:
-            _index = well_name_list.index(well.name)
-            if if_well_exists == 'append':
-                for _log in well.logs:
-                    self.wells[_index].add_log(_log, if_log_exists=if_log_exists)
-                if well.header.note is not None:
-                    if self.wells[_index].header.note is None:
-                        self.wells[_index].header.note = well.header.note
-                    else:
-                        self.wells[_index].header.note += well.header.note
-                self.wells[_index].header.modification_history += "Appended logs: {}, using '{}'".format(
-                    ', '.join([_l.name for _l in well.logs]), if_log_exists)
-            elif if_well_exists == 'overwrite':
-                self.wells[_index] = well
-            elif if_well_exists == 'ask':
-                response = input('Well ({}) exists! Overwrite? ["No"]:'.format(well.name)) or "No"
-                if response != "No":
-                    self.wells[_index] = well
-            elif if_well_exists == 'ignore':
-                pass
-            else:
-                raise IOError("Unknown value ({}) of 'if_well_exists'".format(if_well_exists))
-        else:
-            self.wells.append(well)
+            self.wells = []
 
-    def load_logfile(self, file_name):
+        well_name_list = [_name.lower() for _name in self.get_well_names]
+        if well.name.lower() not in well_name_list:
+            self.wells.append(well)
+            return
+
+        _index = well_name_list.index(well.name.lower())
+        if if_well_exists == 'append':
+            if well.logs is None:
+                return
+            for _log in well.logs:
+                self.wells[_index].add_log(_log, if_log_exists=if_log_exists)
+            if well.header.note is not None:
+                if self.wells[_index].header.note is None:
+                    self.wells[_index].header.note = well.header.note
+                else:
+                    self.wells[_index].header.note += well.header.note
+            self.wells[_index].header.modification_history += "\nAppended logs: {}, using '{}'".format(
+                ', '.join([_l.name for _l in well.logs]), if_log_exists)
+        elif if_well_exists == 'overwrite':
+            self.wells[_index] = well
+        elif if_well_exists == 'ask':
+            response = input('Well ({}) exists! Overwrite? ["No"]:'.format(well.name)) or "No"
+            if response != "No":
+                self.wells[_index] = well
+
+    def load_logfile(self, file_name, log_to_stdout: bool = False):
+        """
+        Restores the project settings from the log file of a previously set up project.
+        When the same setting is found several times in the log file, the last one is used
+
+        :param file_name:
+            str
+            full pathname of the log file
+        :param log_to_stdout:
+            bool
+            If True, the logging information is sent to standard output and not to the log file
+        """
         if not os.path.isfile(file_name):
-            warn_txt = 'The provided log file {}, does not exist'.format(file_name)
-            print_info(warn_txt, 'warning', logger)
-            raise IOError(warn_txt)
-        self.logging_file = file_name
+            error_txt = 'The provided log file {}, does not exist'.format(file_name)
+            print_info(error_txt, 'error', logger)
+            raise FileNotFoundError(error_txt)
 
         with open(file_name, 'r') as f:
             lines = f.readlines()
 
-        name = working_dir = project_table = tops_file = tops_type = None
+        settings = {_key: None for _key in LOGGED_ATTRIBUTES}
         for line in lines:
-            if 'Project name' in line:
-                name = line.split(': ')[-1].strip()
-            elif 'Working directory:' in line:
-                working_dir = line.split(': ')[-1].strip()
-            elif 'Project table:' in line:
-                project_table = line.split(': ')[-1].strip()
-            elif 'Tops are taken from:' in line:
-                tops_file = line.split(': ')[-1].strip()
-            elif 'Tops are of type:' in line:
-                tops_type = line.split(': ')[-1].strip()
-            else:
-                continue
+            for _key, _text in LOGGED_ATTRIBUTES.items():
+                if '{}: '.format(_text) in line:
+                    _value = line.split('{}: '.format(_text), 1)[1].strip()
+                    settings[_key] = None if _value == 'None' else _value  # unset values are logged as 'None'
 
-        self.name = name
-        self.working_dir = working_dir
-        self.project_table = project_table
-        self.tops_file = tops_file
-        self.tops_type = tops_type
+        for _key in ('name', 'working_dir', 'project_table'):
+            if settings[_key] is None:
+                error_txt = "The log file {} does not contain the '{}' of the project".format(
+                    file_name, LOGGED_ATTRIBUTES[_key])
+                print_info(error_txt, 'error', logger)
+                raise ValueError(error_txt)
 
-        arrange_logging(False, file_name, logging.INFO)
+        # Continue logging to the same log file, so that the restored settings are logged to it
+        self.logging_file = file_name
+        arrange_logging(log_to_stdout, file_name, logging.INFO)
+
+        self.name = settings['name']
+        self.working_dir = settings['working_dir']
+        self.project_table = settings['project_table']
+        self.tops_file = settings['tops_file']
+        self.tops_type = settings['tops_type']
+        # Log files from before the results folder was introduced get the default results folder
+        self.set_results_folder(settings['results_folder'])
 
         print_info('Loaded project settings from: {}'.format(file_name), 'info', logger)
 
@@ -270,10 +309,10 @@ class Project(object):
         :param if_well_exists:
             str
             Describes what to do if the well exists from before
-            'append': app
+            'append': Append the logs of the new well to the old well
             'overwrite': Overwrite old well
             'ask': Ask to overwrite or ignore
-            'ignore': new well is ignored if a log of same name exists from before
+            'ignore': new well is ignored if a well of same name exists from before
         :param if_log_exists:
             str
             Describes what to do if the log exists from before
@@ -284,19 +323,19 @@ class Project(object):
             LogTable
             If provided only the logs in LogTable will be loaded
         :param verbose:
+            bool
+            If True, the files that are read are printed to standard output. They are always logged
         :return:
         """
-        from blixt_geo_py.core.core import LogTable
-
         result = uio.project_wells_new(self.project_table, self.working_dir, do_rename=True,
                                        selected_wells=well_names)
 
         for _key in list(result.keys()):  # _key is the name of the file to read
-            print('Reading from file ', _key)
+            print_info('Reading from file {}'.format(_key), 'info', logger, verbose=verbose)
             translate_dict = None
             if 'Translate log names' in list(result[_key].keys()) and result[_key]['Translate log names'] is not None:
                 translate_dict = uio.interpret_rename_string(result[_key]['Translate log names'])
-                print(translate_dict)
+                print_info('Translating log names: {}'.format(translate_dict), 'info', logger, verbose=verbose)
             w = Well()
             if uio.filetype(_key) == 'las':
                 if log_table is None:
@@ -310,8 +349,8 @@ class Project(object):
                 w.name = result[_key]['Given well name']
                 w.header.name = result[_key]['Given well name']
 
-                w.read_las(_key, log_table=_log_table, template_file=self.project_table, rename_logs=translate_dict, verbose=verbose)
-
+                w.read_las(_key, log_table=_log_table, template_file=self.project_table, rename_logs=translate_dict,
+                           verbose=verbose)
 
             elif uio.filetype(_key) in ['txt', 'dat', 'ascii', 'asc', 'dev', 'cs']:
                 var_names = list(result[_key]['logs'].keys())
@@ -343,18 +382,16 @@ class Project(object):
 
     def load_all_templates(self):
         from blixt_geo_py.core.core import Template, templates_from_table
+        if self.project_table is None:
+            return
         _templates = {}
-        if self.project_table is not None:
-            table = pd.read_excel(self.project_table, header=1, sheet_name='Templates', engine='openpyxl')
-            template_dict = templates_from_table(table)
-            for i, _key in enumerate(list(template_dict.keys())):
+        with pd.ExcelFile(self.project_table) as xl:
+            for sheet_name, well_style in (('Templates', False), ('Well settings', True)):
+                table = pd.read_excel(xl, sheet_name=sheet_name, header=1)
+                template_dict = templates_from_table(table, well_style=well_style)
+                for _key in list(template_dict.keys()):
                     _templates[_key] = Template(template_dict[_key])
-
-            table = pd.read_excel(self.project_table, header=1, sheet_name='Well settings', engine='openpyxl')
-            template_dict = templates_from_table(table, well_style=True)
-            for i, _key in enumerate(list(template_dict.keys())):
-                _templates[_key] = Template(template_dict[_key])
-            self.templates = _templates
+        self.templates = _templates
 
     def load_all_wis(self):
         from blixt_geo_py.core.core import Intervals
@@ -385,4 +422,4 @@ class Project(object):
 
         :return:
         """
-        pass
+        raise NotImplementedError('Project.dict() is not implemented yet')

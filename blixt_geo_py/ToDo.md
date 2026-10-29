@@ -59,4 +59,4 @@ pint units into use.
 - Figure out how to use the de_trend functionality in calc_stats_class, and apply it 
 - Remove the dependency of the old "convert_data" function, and put pint into proper use.
 - In rp_core.py and rp_wrapper.py clarify which type of pressure the functions depend on, effective or pore pressure. And CORRECT any mistakes
-- Let Claude have a look at project.py, fix weak code and suggest that Project also should set up a results folder ("results_folder")
+- ~~Let Claude have a look at project.py, fix weak code and suggest that Project also should set up a results folder ("results_folder")~~
