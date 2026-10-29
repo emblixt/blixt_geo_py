@@ -225,12 +225,77 @@ class LogTableTests(unittest.TestCase):
         print(lt.dict)
 
     def test_mixing(self):
-        lt1 = LogTable( log_table)
-        lt2 = LogTable( log_table_multi)
-        # lt1['Should fail'] = [1,2,3]
-        lt2['Should fail'] = 'Vp'
-        # This shouldn't be allowed, but we're not catching this now
-        print(lt2)
+        # A table that mixes single log names and lists is a multi log table, where all values are lists. Both
+        # orders must give the same result, as multi_log does not depend on which log type comes first
+        for _table in ({'Density': 'RHOB', 'Resistivity': ['rdep', 'RMED']},
+                       {'Resistivity': ['rdep', 'RMED'], 'Density': 'RHOB'}):
+            lt = LogTable(_table)
+            with self.subTest(first=list(_table.keys())[0]):
+                self.assertTrue(lt.multi_log)
+                self.assertEqual(['rhob'], lt['Density'])
+                self.assertEqual(['rdep', 'rmed'], lt['Resistivity'])
+                self.assertEqual(sorted(['rhob', 'rdep', 'rmed']), sorted(lt.log_names))
+                self.assertEqual({'rhob': 'Density', 'rdep': 'Resistivity', 'rmed': 'Resistivity'}, lt.invert)
+
+    def test_single_log_name_into_multi(self):
+        # A single log name added to a multi log table is stored as a list with one log name
+        lt = LogTable(log_table_multi)
+        lt['Porosity'] = 'PHIE'
+        self.assertTrue(lt.multi_log)
+        self.assertEqual(['phie'], lt['Porosity'])
+        self.assertEqual('Porosity', lt.invert['phie'])
+
+    def test_list_into_single(self):
+        # A list of log names added to a normal table turns it into a multi log table, where the existing log names
+        # are turned into lists
+        lt = LogTable(log_table)
+        self.assertFalse(lt.multi_log)
+        lt['Resistivity'] = ['RDEP', 'rmed']
+        self.assertTrue(lt.multi_log)
+        self.assertEqual(['rdep', 'rmed'], lt['Resistivity'])
+        for _key, _value in log_table.items():
+            self.assertEqual([_value], lt[_key], _key)
+
+    def test_lowercase(self):
+        # Log names are stored in lowercase letters, also when added after the table is created
+        lt = LogTable({'P velocity': 'VP'})
+        lt['S velocity'] = 'VS'
+        lt.update({'Density': 'RHOB'})
+        lt.setdefault('Porosity', 'PHIE')
+        self.assertEqual({'P velocity': 'vp', 'S velocity': 'vs', 'Density': 'rhob', 'Porosity': 'phie'}, dict(lt))
+
+    def test_input_not_modified(self):
+        # The dictionary used to create the table is left untouched
+        _table = {'P velocity': 'VP', 'Resistivity': ['RDEP']}
+        LogTable(_table)
+        self.assertEqual({'P velocity': 'VP', 'Resistivity': ['RDEP']}, _table)
+
+    def test_invalid_log_name(self):
+        with self.assertRaises(TypeError):
+            LogTable({'P velocity': 1})
+        with self.assertRaises(TypeError):
+            LogTable({'P velocity': ['vp', None]})
+
+    def test_copies(self):
+        # Copies are LogTables with the same content, multi_log and name
+        import copy
+        import pickle
+        for _table in (log_table, log_table_multi):
+            lt = LogTable(_table, name='My table')
+            for _how, _copy in (('copy', lt.copy()), ('deepcopy', copy.deepcopy(lt)),
+                                ('pickle', pickle.loads(pickle.dumps(lt)))):
+                with self.subTest(how=_how, multi_log=lt.multi_log):
+                    self.assertIsInstance(_copy, LogTable)
+                    self.assertEqual(dict(lt), dict(_copy))
+                    self.assertEqual(lt.multi_log, _copy.multi_log)
+                    self.assertEqual('My table', _copy.name)
+
+    def test_from_invert_into_existing(self):
+        # from_invert() on a table with single log names turns all values into lists
+        lt = LogTable({'Porosity': 'phie'})
+        lt.from_invert({'vp_dry': 'P velocity', 'vp_gas': 'P velocity'})
+        self.assertTrue(lt.multi_log)
+        self.assertEqual({'Porosity': ['phie'], 'P velocity': ['vp_dry', 'vp_gas']}, dict(lt))
 
     # def test_un_translate(self):
     #     lt1 = LogTable(log_table)

@@ -64,6 +64,16 @@ class LasTestCase(unittest.TestCase):
         with self.subTest('attribute access'):
             self.assertEqual(w.header['well_info']['well']['value'], w.header.well_info.well.value)
 
+    def test_read_las_multi_log_table(self):
+        """
+        read_las() reads all the logs in a LogTable that mixes single log names and lists of log names
+        """
+        w = Well()
+        w.read_las(os.path.join(test_data_dir, 'Well D.las'),
+                   log_table=LogTable({'Density': 'den', 'Resistivity': ['rdep', 'rmed', 'rsha']}))
+        self.assertEqual(['den', 'rdep', 'rmed', 'rsha'], sorted(w.get_log_names))
+        self.assertEqual(['rdep', 'rmed', 'rsha'], sorted(_l.name for _l in w.get_logs_of_type('Resistivity')))
+
     def test_null_value(self):
         """
         When reading in a las file, any 'null values' should be replaced with np.nan

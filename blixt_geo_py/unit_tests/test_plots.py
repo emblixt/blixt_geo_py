@@ -17,14 +17,14 @@ from blixt_geo_py.core.well import Well
 
 
 class PlotTestCase(unittest.TestCase):
-    # Logs to read from Well D, as log type: log name. read_las() does not support several logs per log type
+    # Logs to read from Well D, as log type: log name(s)
     log_table = LogTable({
         'Sonic': 'ac',
         'Shear sonic': 'acs',
         'Caliper': 'cali',
         'Density': 'den',
         'Gamma ray': 'gr',
-        'Resistivity': 'rdep',
+        'Resistivity': ['rdep', 'rmed', 'rsha'],
         'Neutron density': 'neu'})
 
     # Working intervals, as top and base in meters MD
@@ -82,7 +82,7 @@ class PlotTestCase(unittest.TestCase):
 
     def test_plot_logs(self):
         # One column of log names for each column in the plot
-        plotter = plot_logs(PlotTestCase.w, [['ac', 'acs'], ['den', 'neu'], ['rdep']],
+        plotter = plot_logs(PlotTestCase.w, [['ac', 'acs'], ['den', 'neu'], ['rdep', 'rmed', 'rsha']],
                             PlotTestCase.wis, ['SAND E'], buffer=50.)
         with self.subTest():
             self.assertIsInstance(plotter, LogPlotter)

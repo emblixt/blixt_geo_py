@@ -33,7 +33,15 @@ logger = logging.getLogger(__name__)
 class LogTable(dict):
     """
     Creates the mapping between a log type (e.g. 'P velocity') and a specific log (e.g. 'vp_oil')
+
+    The log names are always stored in lowercase letters.
+    A LogTable is a "multi log" LogTable (multi_log is True) as soon as one log type has a list of log names. Then all
+    log types have a list of log names, also those with only one log, so that all values are of the same type.
     """
+    # Class level defaults, so that they exist before __init__() has run, e.g. while unpickling
+    multi_log = False
+    name = None
+
     def __init__(self,
                  log_table: dict | None = None,
                  name: str | None = None
@@ -51,34 +59,59 @@ class LogTable(dict):
                    'P velocity': ['vp_virg', 'vp_brine', 'vp_oil', 'vp_gas'],
                    'S velocity': ['vs_virg', 'vs_brine', 'vs_oil', 'vs_gas'],
                    'Density': ['rhob_virg', 'rhob_brine', 'rhob_oil', 'rhob_gas']}
+        Single log names and lists can be mixed, which gives a multi log LogTable, e.g.
+                LogTable({'Density': 'rhob', 'Resistivity': ['rdep', 'rmed']})
+            gives
+                {'Density': ['rhob'], 'Resistivity': ['rdep', 'rmed']}
 
         :param name:
         :param log_table:
             dict
+            Is not modified
         """
+        super().__init__()
         self.multi_log = False
         self.name = name
-        if log_table is not None and len(log_table) > 0:
-            # Make sure log names are in lowercase letters
-            for _key, _val in log_table.items():
-                if isinstance(_val, list):
-                    log_table[_key] = [_x.lower() for _x in _val]
-                else:
-                    log_table[_key] = _val.lower()
+        if log_table is not None:
+            self.update(log_table)
 
-            super().__init__(log_table)
-            if isinstance(list(log_table.values())[0], list):
+    def __setitem__(self, key, value):
+        """
+        Stores the log name(s) in lowercase letters, and keeps all the values of the same type:
+        - Adding a list of log names to a normal LogTable turns it into a multi log LogTable, where the existing log
+          names are turned into lists
+        - Adding a single log name to a multi log LogTable stores it as a list with one log name
+        """
+        if isinstance(value, (list, tuple)):
+            value = [self._log_name(_x) for _x in value]
+            if not self.multi_log:
                 self.multi_log = True
+                for _key, _value in list(self.items()):
+                    super().__setitem__(_key, [_value])
+        else:
+            value = self._log_name(value)
+            if self.multi_log:
+                value = [value]
+        super().__setitem__(key, value)
 
-    # def __setitem__(self, key, value):
-    #     print('YOU ARE HERE')
-    #     if isinstance(value, list) and not self.multi_log:
-    #         print_info('Not allowed to a add a list of log names to a normal LogTable', 'error', logger, 'ioerror')
-    #     elif isinstance(value, str) and self.multi_log:
-    #         print_info('Not allowed to a add a single string (log name) to a multi_log LogTable', 'error', logger, 'ioerror')
-    #     else:
-    #         self.__dict__[key] = value
-    #         # setattr(self, key, value)
+    @staticmethod
+    def _log_name(log_name) -> str:
+        if not isinstance(log_name, str):
+            raise TypeError('Log names in a LogTable must be strings, not {}'.format(type(log_name)))
+        return log_name.lower()
+
+    def update(self, *args, **kwargs):
+        # dict.update() does not use __setitem__, so do it item by item
+        for _key, _value in dict(*args, **kwargs).items():
+            self[_key] = _value
+
+    def setdefault(self, key, default=None):
+        if key not in self:
+            self[key] = default
+        return self[key]
+
+    def copy(self) -> 'LogTable':
+        return LogTable(self, name=self.name)
 
     @property
     def invert(self) -> dict:
@@ -92,7 +125,9 @@ class LogTable(dict):
         return {v: k for k, v in self.items()}
 
     def from_invert(self, inv_dict):
-        self.multi_log = True
+        """
+        Adds the log names of an inverted log table, log name: log type, which gives a multi log LogTable
+        """
         tmp = {}
         for v in inv_dict.values():
             tmp[v] = []
@@ -211,7 +246,7 @@ class LogTable(dict):
             for _key in list(self.keys()):
                 if self[_key] in logs_to_keep:
                     _dict[_key] = self[_key]
-        return LogTable(_dict)
+        return LogTable(_dict, name=self.name)
 
 
 class CutoffRule:
