@@ -11,27 +11,21 @@ import numpy as np
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
 
 import blixt_geo_py.io.io as uio
-from blixt_geo_py import Q_
+from blixt_geo_py.core.core import LogTable
 from blixt_geo_py.core.project import Project
+from blixt_geo_py.core.well import Well
 import blixt_geo_py.rp.rp_core as rp
-
-
-def velocity_from_sonic(sonic_values, sonic_unit='us/ft'):
-    """
-    Returns the velocity in m/s, without units, from sonic (slowness) values. The velocity is the reciprocal of the
-    slowness
-    """
-    return (1. / Q_(sonic_values, sonic_unit)).to('m/s').magnitude
 
 
 def return_well_table():
     return uio.project_wells_new(TestData.wp.project_table, TestData.wp.working_dir)
 
-def return_template():
-    return TestData.wp.load_all_templates()
-
 def return_wells():
-    return TestData.wp.load_all_wells(unit_convert_using_template=True)
+    """
+    Loads the wells selected in the project table, and returns them as {well name: Well}
+    """
+    TestData.wp.load_all_wells()
+    return {_w.name.lower(): _w for _w in TestData.wp.wells}
 
 def return_wis():
     return TestData.wp.load_all_wis()
@@ -45,46 +39,37 @@ class TestData(unittest.TestCase):
         print(TestData.wp.project_table)
 
     def test_wells(self):
-        print(return_wells())
+        wells = return_wells()
+        print(list(wells.keys()))
+        for _well in wells.values():
+            self.assertIsInstance(_well, Well)
 
 
 class RpTestCase(unittest.TestCase):
-    # wp = Project()
-    # well_table = {os.path.join(wp.working_dir, 'test_data/Well D.las'):
-    #                   {'Given well name': 'WELL_D',
-    #                    'logs': {
-    #                        'ac': 'Sonic',
-    #                        'acs': 'Shear sonic',
-    #                        'cali': 'Caliper',
-    #                        'den': 'Density',
-    #                        'gr': 'Gamma ray',
-    #                        'rdep': 'Resistivity',
-    #                        'rmed': 'Resistivity',
-    #                        'rsha': 'Resistivity',
-    #                        'neu': 'Neutron density'},
-    #                    'Note': 'Some notes for well A'}}
-    # wis = {'WELL_D': {
-    #     'SAND C': [1585.0, 1826.0],
-    #     'SHALE C': [1585.0, 1826.0],
-    #     'SAND D': [1826.0, 1878.0],
-    #     'SAND E': [1878.0, 1984.0],
-    #     'SAND F': [1984.0, 2158.0],
-    #     'SHALE G': [2158.0, 2211.0],
-    #     'SAND H': [2211.0, 2365.0]
-    # }}
+    @classmethod
+    def setUpClass(cls):
+        # Well D has sonic, shear sonic and density logs
+        cls.w = Well()
+        cls.w.read_las(os.path.join(TestData.wp.working_dir, 'test_data', 'Well D.las'),
+                       log_table=LogTable({'Sonic': 'ac', 'Shear sonic': 'acs', 'Density': 'den'}))
 
-    # w = Well()
-    # w.read_well_table(
-    #     well_table,
-    #     0,
-    #     block_name='Logs')
+    def elastics(self):
+        """
+        Returns vp [m/s], vs [m/s] and rho [g/cm3] of Well D as arrays without units, with the velocities
+        calculated from the sonic logs
+        """
+        vp = self.w.get_log_curve('ac').velocity_from_sonic().data.to('m/s').magnitude
+        vs = self.w.get_log_curve('acs').velocity_from_sonic().data.to('m/s').magnitude
+        rho = self.w.get_log_curve('den').data.to('g/cm^3').magnitude
+        return vp, vs, rho
 
     def test_mixes(self):
         import blixt_geo_py.core.fluids as flds
 
-        fluid_mix = flds.FluidMix()
-        fluid_mix.read_excel(TestData.wp.project_table)
-        fluid_mix.calc_elastics(return_wells(), return_wis(), return_template(), debug=True)
+        # FluidMix needs a name, which is used to name its intervals
+        fluid_mix = flds.FluidMix(name='Fluids')
+        fluid_mix.read_excel(TestData.wp.project_table, return_wis())
+        fluid_mix.calc_elastics(return_wells(), debug=True)
         print(fluid_mix.print_all_fluids())
 
         # mineral_mix = mnrls.MineralMix()
@@ -121,17 +106,18 @@ class RpTestCase(unittest.TestCase):
         x2 = np.linspace(2, 11, 10)
         x3 = np.linspace(3, 12, 10)
         x4 = np.linspace(4, 13, 10)
-        incept1 = float(rp.intercept(x1, x2, x3, x4))
+        # Arrays of layer 1 and layer 2 properties give one intercept per sample
+        incept1 = rp.intercept(x1, x2, x3, x4)
         print(dict(data=incept1))
-        self.assertTrue(True)
+        self.assertIsInstance(incept1, np.ndarray)
+        self.assertEqual(x1.shape, incept1.shape)
 
     def test_intercept(self):
         """
         Should test if the intercept calculation returns the same result when using 'along_wiggle' as for single layer
         :return:
         """
-        rho = RpTestCase.w.block['Logs'].logs['den'].values
-        vp = velocity_from_sonic(RpTestCase.w.block['Logs'].logs['ac'].values)
+        vp, _, rho = self.elastics()
         incept2 = rp.intercept(vp, None, rho, None, along_wiggle=True)
         i = np.nanargmax(incept2)
         incept1 = rp.intercept(vp[i], vp[i+1], rho[i], rho[i+1])
@@ -148,9 +134,7 @@ class RpTestCase(unittest.TestCase):
         Should test if the gradient calculation returns the same result when using 'along_wiggle' as for single layer
         :return:
         """
-        rho = RpTestCase.w.block['Logs'].logs['den'].values
-        vp = velocity_from_sonic(RpTestCase.w.block['Logs'].logs['ac'].values)
-        vs = velocity_from_sonic(RpTestCase.w.block['Logs'].logs['acs'].values)
+        vp, vs, rho = self.elastics()
         grad2 = rp.gradient(vp, None, vs, None, rho, None, along_wiggle=True)
         i = 10637
         grad1 = rp.gradient(vp[i], vp[i+1], vs[i], vs[i+1], rho[i], rho[i+1])
@@ -169,9 +153,7 @@ class RpTestCase(unittest.TestCase):
         """
         i = 10637
         theta = 10.  # degrees
-        rho = RpTestCase.w.block['Logs'].logs['den'].values
-        vp = velocity_from_sonic(RpTestCase.w.block['Logs'].logs['ac'].values)
-        vs = velocity_from_sonic(RpTestCase.w.block['Logs'].logs['acs'].values)
+        vp, vs, rho = self.elastics()
 
         func1 = rp.reflectivity(vp[i], vp[i+1], vs[i], vs[i+1], rho[i], rho[i+1])
         func1_2 = rp.reflectivity(vp[i+1], vp[i+2], vs[i+1], vs[i+2], rho[i+1], rho[i+2])
@@ -182,6 +164,37 @@ class RpTestCase(unittest.TestCase):
             print('Layer based refl. coeff. at i {} at {} deg.: {}'.format(i+1, theta,  func1_2(theta)))
             print('Wiggle based refl. coeff. at i {} at {} deg.: {}'.format(i, theta, func2(theta)[i:i+2]))
             self.assertTrue(True)
+
+    def test_plot_rp(self):
+        """
+        Plot AI versus Vp/Vs of Well D, where the velocities are calculated from the sonic logs, and check that the
+        plotted points are the samples within the working interval
+        """
+        from blixt_geo_py import Q_
+        from blixt_geo_py.core.core import Interval, Intervals, StratUnit
+        from blixt_geo_py.plotting.plot_rp import plot_rp
+
+        top, base = Q_(1800., 'm'), Q_(2000., 'm')
+        wis = Intervals(intervals=[Interval('WELL_D', top, base, StratUnit('Test interval', 1))])
+        log_table = {'Sonic': 'ac', 'Shear sonic': 'acs', 'Density': 'den'}
+
+        fig, ax = plt.subplots()
+        cbar, legend = plot_rp([self.w], log_table, wis, 'Test interval', plot_type='AI-VpVs', ax=ax)
+        plotted = np.concatenate([_c.get_offsets() for _c in ax.collections])
+        self.assertEqual(['WELL_D'], [_t.get_text() for _t in legend.get_texts()])
+
+        # The expected AI and Vp/Vs of the samples within the interval, calculated from the logs directly
+        vp, vs, rho = self.elastics()
+        md = self.w.get_md_log().data.to('m').magnitude
+        inside = (md > top.magnitude) & (md < base.magnitude)
+        self.assertEqual(np.sum(inside), len(plotted))
+        np.testing.assert_allclose(plotted[:, 0], (vp * rho)[inside])
+        np.testing.assert_allclose(plotted[:, 1], (vp / vs)[inside])
+
+        # The intercept and gradient need reference values of each well
+        with self.assertRaises(ValueError):
+            plot_rp([self.w], log_table, wis, 'Test interval', plot_type='I-G', ax=ax)
+        show_or_close()
 
     def test_greenberg_castagna(self):
         """

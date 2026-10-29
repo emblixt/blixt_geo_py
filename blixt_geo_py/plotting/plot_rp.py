@@ -4,14 +4,13 @@ from copy import deepcopy
 import blixt_geo_py.rp.anisotropy as bra
 import matplotlib.pyplot as plt
 import numpy as np
-from blixt_geo_py import Q_
 from blixt_geo_py.plotting import crossplot as xp
-from blixt_geo_py.utils.utils import log_table_in_smallcaps as small_log_table
 from blixt_geo_py.utils.utils import print_info
+from matplotlib.colors import to_hex
 from matplotlib.font_manager import FontProperties
 from matplotlib.lines import Line2D
 
-import blixt_geo_py.core.well as cw
+from blixt_geo_py.core.core import CutoffRule, Cutoffs, LogTable
 import blixt_geo_py.rp.rp_core as rp
 
 logger = logging.getLogger(__name__)
@@ -19,20 +18,44 @@ opt1 = {'bbox': {'facecolor': '0.9', 'alpha': 0.5, 'edgecolor': 'none'}}
 opt2 = {'ha': 'right', 'bbox': {'facecolor': '0.9', 'alpha': 0.5, 'edgecolor': 'none'}}
 
 
-def plot_rp(wells, log_table, wis, wi_name, cutoffs=None, templates=None, legend_items=None,
-            plot_type=None, ref_val=None, ax=None, block_name=None, color_by=None, size_by=None, savefig=None,
+def _ref_val_of(ref_val: dict | None, well_name: str):
+    """
+    Returns the reference Vp, Vs and rho of the given well from ref_val, matching the well name regardless of upper or
+    lower case
+    """
+    if ref_val is None:
+        raise ValueError('Reference values for each well is needed for plot type I-G, Phi-%AI, Phi-I and Phi-G')
+    for _name, _val in ref_val.items():
+        if _name.lower() == well_name.lower():
+            return _val
+    raise ValueError('Reference values of Vp, Vs and rho are lacking for well {}'.format(well_name))
+
+
+def _template_of(well, log_name: str, units) -> dict:
+    """
+    Returns the style of the given log as a template dictionary that crossplot.plot() understands
+    """
+    template = dict(well.get_log_curve(log_name).style.__dict__)
+    template['full_name'] = template.get('full_name') or log_name
+    template['units'] = '{:~P}'.format(units)
+    return template
+
+
+def plot_rp(wells, log_table, wis, wi_name, cutoffs=None, legend_items=None,
+            plot_type=None, ref_val=None, ax=None, color_by=None, size_by=None, savefig=None,
             backus=False, **kwargs):
 
     """
     Plots some standard rock physics crossplots for the given wells
 
     :param wells:
-        dict
-        dictionary with well names as keys, and core.well.Well object as values
-        As returned from core.well.Project.load_all_wells()
+        list or dict
+        core.well.Well objects, e.g. wp.wells after
+            wp = Project(...)
+            wp.load_all_wells()
     :param log_table:
-        dict
-        Dictionary of log type: log name key: value pairs which decides which log, under each log type, to plot
+        LogTable or dict
+        Log type: log name key: value pairs which decides which log, under each log type, to plot
         E.G.
             log_table = {
                'P velocity': 'vp',
@@ -40,23 +63,16 @@ def plot_rp(wells, log_table, wis, wi_name, cutoffs=None, templates=None, legend
                'Density': 'rhob',
                'Porosity': 'phie',
                'Volume': 'vcl'}
+        If 'P velocity' is not given, the velocities are calculated from the 'Sonic' and 'Shear sonic' logs
     :param wis:
-        dict
-        working intervals, as defined in the "Working intervals" sheet of the project table, and
-        loaded through:
-        wp = Project()
-        wis = blixt_geo_py.io.io.project_working_intervals(wp.project_table)
+        Intervals
+        working intervals, e.g. from wp.load_all_wis()
     :param wi_name:
         str
         name of working interval to plot
     :param cutoffs:
-        dict
-        Dictionary with log types as keys, and list with mask definition as value
-        E.G.
-            {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}
-    :param templates:
-        dict
-        templates dictionary as returned from blixt_geo_py.io.io.project_templates()
+        Cutoffs, str (e.g. "Volume<0.5[], Porosity>0.1[]"), dict (e.g. {'Volume': ['<', 0.5]}) or None
+        Rules may refer to log types (e.g. 'Volume') or log names (e.g. 'vcl')
     :param legend_items:
         list
         list of Line2D objects that are used in the legends.
@@ -67,21 +83,19 @@ def plot_rp(wells, log_table, wis, wi_name, cutoffs=None, templates=None, legend
             'AI-VpVs': AI versus Vp/Vs plot
             'Phi-Vp': Porosity versus Vp plot
             'I-G': Intercept versus Gradient plot
+            'Phi-%AI', 'Phi-I', 'Phi-G': Porosity versus relative AI, Intercept or Gradient
+            'Vp-tvd', 'VpVs-tvd', 'AI-tvd', 'Rho-tvd': versus TVD
+            'Vp-bd', 'VpVs-bd', 'AI-bd', 'Rho-bd': versus burial depth (TVD below the sea floor)
     :param ref_val:
         dict
-        dictionary with wellnames as keys. Each value is a list of reference
+        dictionary with well names as keys. Each value is a list of reference
         Vp [m/s], Vs [m/s], and rho [g/cm3] that are used
         when calculating the Intercept and gradient
-
     :param ax:
-
-    :param block_name:
-        str
-        Name of the log block from where the logs are picked
     :param color_by:
         str
-        If None, data are colored according to each individual wells template, else set it to
-        a log type, and it tries to color the points based on that data
+        If None, data are colored according to each individual wells style, else set it to
+        a log type in the log table, and it tries to color the points based on that data
     :param size_by:
         str
         If None, data are sized the same ("pointsize"), else, this log type determines the size
@@ -96,24 +110,39 @@ def plot_rp(wells, log_table, wis, wi_name, cutoffs=None, templates=None, legend
     :return:
         colorbar, legend
     """
+    from blixt_geo_py.analysis.calc_stat_class import to_cutoffs
+
     #
     # some initial setups
-    backus_length = 5.
+    backus_length = 5.  # m
     if ref_val is not None:
         if not isinstance(ref_val, dict):
             raise ValueError('ref_val must be a dictionary with reference Vp, Vs and rho for each well')
-    log_table = small_log_table(log_table)
-    if block_name is None:
-        block_name = cw.def_lb_name
+    if isinstance(wells, dict):
+        wells = list(wells.values())
+    if not isinstance(log_table, LogTable):
+        log_table = LogTable(dict(log_table))
+    cutoffs = to_cutoffs(cutoffs)
 
-    _savefig = False
     if plot_type is None:
         plot_type = 'AI-VpVs'
     elif plot_type == 'I-G' and ref_val is None:
         raise ValueError('Reference values for each well is needed for creating Intercept vs. Gradient plot')
-    logs = [n.lower() for n in list(log_table.values())]
-    if savefig is not None:
-        _savefig = True
+
+    # The velocities are taken from the sonic logs when the velocity logs are not given
+    use_sonic = 'P velocity' not in list(log_table.keys())
+    needed_types = ['Density'] + (['Sonic', 'Shear sonic'] if use_sonic else ['P velocity', 'S velocity'])
+    if plot_type.startswith('Phi-'):
+        needed_types.append('Porosity')
+    for _type in [color_by, size_by]:
+        if isinstance(_type, str):
+            needed_types.append(_type)
+    missing_types = [_type for _type in needed_types if _type not in list(log_table.keys())]
+    if len(missing_types) > 0:
+        raise ValueError('The log table lacks the log types: {}'.format(', '.join(missing_types)))
+    logs = [log_table[_type] for _type in needed_types]
+    # Convert rules on log types (e.g. 'Volume') to rules on log names (e.g. 'vcl')
+    rules = cutoffs.use_log_table(log_table).cutoffs
 
     #
     # set up plotting environment
@@ -122,67 +151,74 @@ def plot_rp(wells, log_table, wis, wi_name, cutoffs=None, templates=None, legend
     else:
         fig = ax.get_figure()
 
-    # load
-    well_names = []
-    desc = ''
-    n_wells = len(wells)
-    counter = 0
+    well_styles = []  # (well name, color, marker) of the plotted wells, used in the legend
     cbar = None
-    for wname, _well in wells.items():
-        counter += 1
-        print('Plotting well {}'.format(wname))
+    for counter, _well in enumerate(wells):
+        print_info('Plotting well {}'.format(_well.name), 'info', logger)
         # create a deep copy of the well so that the original is not altered
         well = deepcopy(_well)
-        these_wis = wis[wname]
-        if wi_name.upper() not in [_x.upper() for _x in list(these_wis.keys())]:
-            warn_txt = 'Working interval {} does not exist in well {}'.format(wi_name, wname)
+        # Don't use Intervals.get_cutoff_rule(), which falls back to the whole well when the interval is missing
+        interval = wis.get_interval(wi_name, well.name)
+        if interval is None:
+            warn_txt = 'Working interval {} does not exist in well {}'.format(wi_name, well.name)
             print_info(warn_txt, 'warning', logger)
             continue  # this working interval does not exist in current well
         # test if necessary logs are in the well
-        skip = False
-        for _log in logs:
-            if _log not in list(well.block[block_name].logs.keys()):
-                warn_txt = '{} log is lacking in {}'.format(_log, wname)
-                print_info(warn_txt, 'warning', logger)
-                skip = True
-        if skip:
+        missing = [_log for _log in logs if _log not in well.get_log_names]
+        if len(missing) > 0:
+            print_info('{} log(s) lacking in {}'.format(', '.join(missing), well.name), 'warning', logger)
             continue
-        # create mask based on working interval
-        well.calc_mask({}, name='XXX', wis=wis, wi_name=wi_name)
-        # apply mask (which also deletes the mask itself)
-        well.apply_mask('XXX')
-        # create mask based on cutoffs
-        if cutoffs is not None:
-            well.calc_mask(cutoffs, name='cmask', log_type_input=True, log_table=log_table)
-            mask = well.block[block_name].masks['cmask'].values
-            desc = well.block[block_name].masks['cmask'].header.desc
-        else:
-            mask = None
 
-        # Collect data for plot, start with Vp, Vs and Rho
-        # TODO check the units, and convert if necessary
-        rho = well.block[block_name].logs[log_table['Density'].lower()].values
-        rho_unit = well.block[block_name].logs[log_table['Density'].lower()].header.unit
-        if 'P velocity' in list(log_table.keys()):
-            vp = well.block[block_name].logs[log_table['P velocity'].lower()].values
-            vp_unit = well.block[block_name].logs[log_table['P velocity'].lower()].header.unit
-            vs = well.block[block_name].logs[log_table['S velocity'].lower()].values
-            vs_unit = well.block[block_name].logs[log_table['S velocity'].lower()].header.unit
-        else:  # Assume we can use the sonic logs instead.
+        # The depth is needed for the interval, and the depth plots need the TVD, or the burial depth
+        if 'md' not in well.get_log_names:
+            well.create_md_log()
+        depth_name = None
+        if plot_type.endswith('-tvd'):
+            _tvd_logs = [_l.name for _l in well.get_logs_of_type('TVD') if _l.name != 'tvd_ml']
+            if len(_tvd_logs) == 0:
+                print_info('TVD log lacking in {}'.format(well.name), 'warning', logger)
+                continue
+            depth_name = _tvd_logs[0]
+        elif plot_type.endswith('-bd'):
+            if 'tvd_ml' not in well.get_log_names:
+                well.create_tvd_ml_log()
+            if 'tvd_ml' not in well.get_log_names:
+                continue  # create_tvd_ml_log() has warned about what is lacking
+            depth_name = 'tvd_ml'
+
+        # Build new Cutoffs for each well, so the interval rule is not added to the users cutoffs.
+        # Keep all samples, and the mask, so that the Backus averaging is done on evenly sampled logs
+        well_cutoffs = Cutoffs(cutoffs=deepcopy(rules) +
+                               [CutoffRule('md', '><', [interval.top, interval.base])])
+        data = well.dict(cutoffs=well_cutoffs, use_cutoffs=False)
+        mask = data['mask']
+
+        # Collect data for plot, start with Vp, Vs and Rho, in the units used by the rock physics functions
+        rho = data[log_table['Density']].to('g/cm^3').magnitude
+        rho_unit = 'g/cm3'
+        vp_unit = vs_unit = 'm/s'
+        if use_sonic:
             # The sonic logs are slowness, so the velocity is the reciprocal
-            sonic = well.block[block_name].logs[log_table['Sonic'].lower()]
-            vp_unit = 'm/s'
-            vp = (1. / Q_(sonic.values, sonic.header.unit)).to(vp_unit).magnitude
-            shear_sonic = well.block[block_name].logs[log_table['Shear sonic'].lower()]
-            vs_unit = 'm/s'
-            vs = (1. / Q_(shear_sonic.values, shear_sonic.header.unit)).to(vs_unit).magnitude
+            vp = (1. / data[log_table['Sonic']]).to(vp_unit).magnitude
+            vs = (1. / data[log_table['Shear sonic']]).to(vs_unit).magnitude
+        else:
+            vp = data[log_table['P velocity']].to(vp_unit).magnitude
+            vs = data[log_table['S velocity']].to(vs_unit).magnitude
 
         # Apply Backus average if requested
         if backus is True:
-            ba = bra.backus(vp, vs, rho, backus_length, well.block[block_name].step.value)
-            vp = ba[0]
-            vs = ba[1]
-            rho = ba[2]
+            dz = np.nanmedian(np.diff(data['md'].to('m').magnitude))
+            vp, vs, rho = bra.backus(vp, vs, rho, backus_length, dz)[:3]
+
+        y_depth = None
+        if depth_name is not None:
+            y_depth = data[depth_name].to('m').magnitude
+            # E.g. the burial depth is NaN when the kelly bushing or water depth is lacking in the project table
+            if not np.any(np.isfinite(y_depth[mask])):
+                print_info('No valid {} values in {} of {}. Skipped'.format(depth_name, wi_name, well.name),
+                           'warning', logger)
+                continue
+            ytempl = {'full_name': 'Burial depth' if depth_name == 'tvd_ml' else 'TVD', 'unit': 'm'}
 
         if plot_type == 'AI-VpVs':
             # Calculating Vp / Vs using vp and vs
@@ -193,120 +229,82 @@ def plot_rp(wells, log_table, wis, wi_name, cutoffs=None, templates=None, legend
             xtempl = {'full_name': 'AI', 'unit': x_unit}
             ytempl = {'full_name': 'Vp/Vs', 'unit': y_unit}
 
-        elif (plot_type == 'Vp-bd') or (plot_type == 'Vp-tvd'):
+        elif plot_type in ['Vp-bd', 'Vp-tvd']:
             x_data = vp
-            x_unit = vp_unit
-            xtempl = {'full_name': log_table['P velocity'], 'unit': x_unit}
-            if plot_type == 'Vp-bd':
-                y_data = well.get_burial_depth(templates, block_name)
-                ytempl = {'full_name': 'Burial depth', 'unit': 'm'}
-            else:
-                y_data = well.block[block_name].get_tvd()
-                ytempl = {'full_name': 'TVD', 'unit': 'm'}
+            xtempl = {'full_name': log_table['P velocity'] if not use_sonic else 'Vp', 'unit': vp_unit}
+            y_data = y_depth
 
-        elif (plot_type == 'VpVs-bd') or (plot_type == 'VpVs-tvd'):
+        elif plot_type in ['VpVs-bd', 'VpVs-tvd']:
             x_data = vp / vs
             xtempl = {'full_name': 'Vp/Vs', 'unit': '-'}
-            if plot_type == 'VpVs-bd':
-                y_data = well.get_burial_depth(templates, block_name)
-                ytempl = {'full_name': 'Burial depth', 'unit': 'm'}
-            else:
-                y_data = well.block[block_name].get_tvd()
-                ytempl = {'full_name': 'TVD', 'unit': 'm'}
+            y_data = y_depth
 
-        elif (plot_type == 'AI-bd') or (plot_type == 'AI-tvd'):
+        elif plot_type in ['AI-bd', 'AI-tvd']:
             x_data = vp * rho
-            x_unit = '{} {}'.format(vp_unit, rho_unit)
-            xtempl = {'full_name': 'AI', 'unit': x_unit}
-            if plot_type == 'AI-bd':
-                y_data = well.get_burial_depth(templates, block_name)
-                ytempl = {'full_name': 'Burial depth', 'unit': 'm'}
-            else:
-                y_data = well.block[block_name].get_tvd()
-                ytempl = {'full_name': 'TVD', 'unit': 'm'}
+            xtempl = {'full_name': 'AI', 'unit': '{} {}'.format(vp_unit, rho_unit)}
+            y_data = y_depth
 
-        elif (plot_type == 'Rho-bd') or (plot_type == 'Rho-tvd'):
+        elif plot_type in ['Rho-bd', 'Rho-tvd']:
             x_data = rho
-            x_unit = '{}'.format(rho_unit)
-            xtempl = {'full_name': log_table['Density'], 'unit': x_unit}
-            if plot_type == 'Rho-bd':
-                y_data = well.get_burial_depth(templates, block_name)
-                ytempl = {'full_name': 'Burial depth', 'unit': 'm'}
-            else:
-                y_data = well.block[block_name].get_tvd()
-                ytempl = {'full_name': 'TVD', 'unit': 'm'}
+            xtempl = {'full_name': log_table['Density'], 'unit': rho_unit}
+            y_data = y_depth
 
         elif plot_type == 'Phi-Vp':
-            x_data = well.block[block_name].logs[log_table['Porosity'].lower()].values
-            x_unit = '{}'.format(well.block[block_name].logs[log_table['Porosity'].lower()].header.unit)
+            x_data = data[log_table['Porosity']].magnitude
+            x_unit = '{:~P}'.format(data[log_table['Porosity']].units)
             y_data = vp
             y_unit = '{}'.format(vp_unit)
             xtempl = {'full_name': 'Porosity', 'unit': x_unit}
             ytempl = {'full_name': 'Vp', 'unit': y_unit}
         elif plot_type in ['Phi-%AI', 'Phi-I', 'Phi-G']:
-            if ref_val is None:
-                raise ValueError('Reference values for each well is needed')
-            x_data = well.block[block_name].logs[log_table['Porosity'].lower()].values
-            x_unit = '{}'.format(well.block[block_name].logs[log_table['Porosity'].lower()].header.unit)
+            _ref = _ref_val_of(ref_val, well.name)
+            x_data = data[log_table['Porosity']].magnitude
+            x_unit = '{:~P}'.format(data[log_table['Porosity']].units)
             xtempl = {'full_name': 'Porosity', 'unit': x_unit}
             if plot_type == 'Phi-%AI':
                 y2_data = vp * rho
-                y1_data = ref_val[wname][0] * ref_val[wname][2]
+                y1_data = _ref[0] * _ref[2]
                 y_data = 100 * (y2_data - y1_data) / y1_data
                 y_unit = '%'
                 ytempl = {'full_name': 'rel. AI', 'unit': y_unit}
             elif plot_type == 'Phi-I':
-                y_data = rp.intercept(ref_val[wname][0], vp, ref_val[wname][2], rho)
+                y_data = rp.intercept(_ref[0], vp, _ref[2], rho)
                 y_unit = '-'
                 ytempl = {'full_name': 'Intercept', 'unit': y_unit}
             else:
-                y_data = rp.gradient(ref_val[wname][0], vp, ref_val[wname][1], vs, ref_val[wname][2], rho)
+                y_data = rp.gradient(_ref[0], vp, _ref[1], vs, _ref[2], rho)
                 y_unit = '-'
                 ytempl = {'full_name': 'Gradient', 'unit': y_unit}
         elif plot_type == 'I-G':
-            x_data = rp.intercept(ref_val[wname][0], vp,
-                                  ref_val[wname][2], rho)
+            _ref = _ref_val_of(ref_val, well.name)
+            x_data = rp.intercept(_ref[0], vp, _ref[2], rho)
             x_unit = '-'
-            y_data = rp.gradient(ref_val[wname][0], vp, ref_val[wname][1], vs, ref_val[wname][2], rho)
+            y_data = rp.gradient(_ref[0], vp, _ref[1], vs, _ref[2], rho)
             y_unit = '-'
             xtempl = {'full_name': 'Intercept', 'unit': x_unit}
             ytempl = {'full_name': 'Gradient', 'unit': y_unit}
         else:
-            raise IOError('No known plot type selected')
+            raise ValueError('No known plot type selected: {}'.format(plot_type))
 
-        well_names.append(wname)
-        
-        # arrange coloring
-        this_color = templates[wname]['color']
+        # arrange coloring, from the style of the well when set, else from the default cycles
+        # crossplot.plot() takes a color which is not a string as data to color by, so use the hex string
+        this_color = well.style.fill_color or well.style.line_color or \
+            to_hex(xp.cnames[counter % len(xp.cnames)])
+        this_marker = well.style.marker or xp.msymbols[counter % len(xp.msymbols)]
+        well_styles.append((well.name, this_color, this_marker))
         draw_color_bar = False
         ctempl = None
         if isinstance(color_by, str):
-            if color_by not in list(log_table.keys()):
-                raise IOError('The desired log type {} is not listed in the log table'.format(color_by))
-            else:
-                _color_logs = well.block[block_name].get_logs_of_name(log_table[color_by])
-                if len(_color_logs) < 1:
-                    raise IOError('The desired log {} does not exist in this well {}'.format(
-                        log_table[color_by], wname))
-                else:
-                    this_color = _color_logs[0].values
-                    # only draw colorbar for last well
-                    ctempl = templates[color_by]
-                    if counter == n_wells:
-                        draw_color_bar = None
+            this_color = data[log_table[color_by]].magnitude
+            ctempl = _template_of(well, log_table[color_by], data[log_table[color_by]].units)
+            # only draw colorbar for last well
+            if counter == len(wells) - 1:
+                draw_color_bar = None
         p_data = None
         ptempl = None
         if isinstance(size_by, str):
-            if size_by not in list(log_table.keys()):
-                raise IOError('The desired log type {} is not listed in the log table'.format(size_by))
-            else:
-                _size_logs = well.block[block_name].get_logs_of_name(log_table[size_by])
-                if len(_size_logs) < 1:
-                    raise IOError('The desired log {} does not exist in this well {}'.format(
-                        log_table[size_by], wname))
-                else:
-                    p_data = _size_logs[0].values
-                    ptempl = templates[size_by]
+            p_data = data[log_table[size_by]].magnitude
+            ptempl = _template_of(well, log_table[size_by], data[log_table[size_by]].units)
 
         # start plotting
 
@@ -315,7 +313,7 @@ def plot_rp(wells, log_table, wis, wi_name, cutoffs=None, templates=None, legend
             y_data,
             cdata=this_color,
             cbar=draw_color_bar,
-            mdata=templates[wname]['symbol'],
+            mdata=this_marker,
             pdata=p_data,
             xtempl=xtempl,
             ytempl=ytempl,
@@ -328,15 +326,15 @@ def plot_rp(wells, log_table, wis, wi_name, cutoffs=None, templates=None, legend
     ax.autoscale(True, axis='both')
     if ('tvd' in plot_type) or ('bd' in plot_type):
         ax.set_ylim(ax.get_ylim()[::-1])
-    ax.set_title('{}, {}'.format(wi_name, desc))
+    ax.set_title('{}, {}'.format(wi_name, cutoffs))
     #
     if legend_items is None:
         legend_items = []
-        for wname in well_names:
+        for wname, color, marker in well_styles:
             legend_items.append(
                 Line2D([0], [0],
-                       color=templates[wname]['color'],
-                       lw=0, marker=templates[wname]['symbol'],
+                       color=color,
+                       lw=0, marker=marker,
                        label=wname))
 
     legend_names = [x._label for x in legend_items]
@@ -348,7 +346,7 @@ def plot_rp(wells, log_table, wis, wi_name, cutoffs=None, templates=None, legend
         markerscale=2,
         loc=1)
 
-    if _savefig:
+    if savefig is not None:
         fig.savefig(savefig)
 
     return cbar, this_legend
@@ -586,48 +584,26 @@ def return_rpt_keywords(prev_rpt_kwargs=None, modify_keys=None, verbose=False):
 
 
 def test():
-    from blixt_geo_py.core.well import Project
-    import blixt_geo_py.io.io as uio
-    from blixt_geo_py.core.minerals import MineralMix
-    wi_name = 'SAND E'
+    from blixt_geo_py.core.project import Project
+    wi_name = 'Sand E'
 
     plot_type = 'AI-VpVs'
     ref_val = [2695., 1340., 2.35]  # Kvitnos shale
 
     fig, ax = plt.subplots()
 
-    # Only Well_F should be active in well
-    wp = Project(project_table=__file__.replace('blixt_geo_py\\plotting\\plot_rp.py', 'excels\\project_table.xlsx'))
+    wp = Project(name='MyProject')
     log_table = {'P velocity': 'vp_dry', 'S velocity': 'vs_dry', 'Density': 'rho_dry', 'Porosity': 'phie',
-                    'Volume': 'vcl'}
-    wis = uio.project_working_intervals(wp.project_table)
-    templates = uio.project_templates(wp.project_table)
+                 'Volume': 'vcl'}
     cutoffs = {'Volume': ['<', 0.4], 'Porosity': ['>', 0.1]}
-    wells = wp.load_all_wells()
+    wp.load_all_wells()
+    wis = wp.load_all_wis()
 
     # plot the well data in the desired cross plot
-    plot_rp(wells, log_table, wis, wi_name, cutoffs, templates,
-            plot_type=plot_type, ref_val={'Well_A': ref_val, 'Well_B': ref_val, 'Well_C': ref_val}, fig=fig, ax=ax)
+    plot_rp(wp.wells, log_table, wis, wi_name, cutoffs,
+            plot_type=plot_type, ref_val={_w.name: ref_val for _w in wp.wells}, ax=ax)
 
-    # Calculate average properties of mineral mix in desired working interval
-    mm = MineralMix()
-    mm.read_excel(wp.project_table)
-    _rho_min = np.ones(0)  # zero length empty array
-    _k_min = np.ones(0)
-    _mu_min = np.ones(0)
-    for well in wells.values():
-        # calculate the mask for the given cut-offs, and for the given working interval
-        well.calc_mask(cutoffs, wis=wis, wi_name=wi_name, name='this_mask', log_table=log_table)
-        mask = well.block['Logs'].masks['this_mask'].values
-
-        _rho_min = np.append(_rho_min, well.calc_vrh_bounds(mm, param='rho', wis=wis, method='Voigt')[wi_name][mask])
-        _k_min = np.append(_k_min, well.calc_vrh_bounds(mm, param='k', wis=wis, method='Voigt-Reuss-Hill')[wi_name][mask])
-        _mu_min = np.append(_mu_min, well.calc_vrh_bounds(mm, param='mu', wis=wis, method='Voigt-Reuss-Hill')[wi_name][mask])
-
-    rho_min = np.nanmean(_rho_min)
-    k_min = np.nanmean(_k_min)
-    mu_min = np.nanmean(_mu_min)
-
+    # The rock physics template uses the default mineral properties of return_rpt_keywords()
     phi = np.linspace(0.05, 0.3, 6)
     sw = np.array([0.8, 0.95, 1.])
     sizes = np.empty((sw.size, phi.size))
@@ -638,8 +614,7 @@ def test():
 
     xx, yy = plot_rpt(phi, rpt_phi_sw, sw,
                       return_rpt_keywords(
-                          modify_keys={'plot_type': plot_type, 'ref_value': ref_val, 'model': 'stiff',
-                                       'rho_min': rho_min, 'k_min': k_min, 'mu_min': mu_min}),
+                          modify_keys={'plot_type': plot_type, 'ref_value': ref_val, 'model': 'stiff'}),
                       sizes, colors, ax=ax)
 
     # Annotate rpt
