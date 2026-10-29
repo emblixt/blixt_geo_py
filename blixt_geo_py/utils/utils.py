@@ -94,6 +94,7 @@ def arrange_logging(log_to_stdout, log_to_this_file, level=logging.INFO):
     """
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
+        handler.close()  # close the log file of a FileHandler, which otherwise is left open
 
     frmt = '%(asctime)s | %(filename)s - %(funcName)s: %(levelname)s:%(message)s'
     if log_to_stdout:
