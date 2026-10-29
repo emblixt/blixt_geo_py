@@ -41,16 +41,15 @@ def create_mask(data, operator, limits):
     # TODO Force data and limits to be pint Quantities
     from blixt_geo_py.core.log_curve import Depth
     from blixt_geo_py.utils.utils import print_info
-    # limits is either a single value, or a list of two values for the '><' operator
-    _limits = limits if isinstance(limits, list) else [limits]
-    if isinstance(data, pint.Quantity) and not all(isinstance(_l, pint.Quantity) for _l in _limits):
-        print_info('Preferably, both data and limits should be given as pint.Quantity', 'warning', logger)
+    # convert limits to a list of limits, as limits is either a single value, or a list of two values for the '><'
+    # operator
+    if not isinstance(limits, list):
+        limits = [limits]
+    if isinstance(data, pint.Quantity) and not all(isinstance(_l, pint.Quantity) for _l in limits):
+        print_info('Preferably, both data and limits should be given as pint.Quantity. Limits without units are '
+                   'assumed to be in the units of the data ({})'.format(data.units), 'warning', logger)
     if  not (isinstance(data, np.ndarray) or isinstance(data, pint.Quantity) or isinstance(data, Depth)):
         print_info('Only numpy ndarray, or pint quantities are allowed as data input, not {}'.format(type(data)),'error', logger, raiser='IOError')
-
-    # convert limits to a list of limits
-    if not isinstance(limits, list) or isinstance(limits, pint.Quantity):
-        limits = [limits]
 
     if isinstance(data, pint.Quantity) or isinstance(data, Depth):
         # If data is a pint.Quantity, the limits must also be pint.Quantities
@@ -58,11 +57,12 @@ def create_mask(data, operator, limits):
         # converted data without units
         data_unit = data.units
         data = data.magnitude
+        # Limits without units are assumed to be in the units of the data, and are used as they are
         if data_unit == 'fract':
             # TODO This is a work around, which I hopefully can avoid in the future
-            limits = [_x.magnitude for _x in limits]
+            limits = [_x.magnitude if isinstance(_x, pint.Quantity) else _x for _x in limits]
         else:
-            limits = [_x.to(data_unit).magnitude for _x in limits]
+            limits = [_x.to(data_unit).magnitude if isinstance(_x, pint.Quantity) else _x for _x in limits]
     else:
         # But what if the data is not a pint.Quantity? How do we deal with that?
         # TODO Need to strengthen this. Maybe require that both data and limits are pint.Quantities?
