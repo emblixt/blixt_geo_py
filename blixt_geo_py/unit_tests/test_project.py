@@ -39,6 +39,46 @@ class ProjectTestCase(unittest.TestCase):
                 #            _l.units, _l.depth_units, _l.is_evenly_spaced, len(_l), style_txt ))
             self.assertTrue(True)
 
+    def test_selected_wells_are_loaded(self):
+        """
+        Read the project table directly, independently of the project code, to find which wells should be loaded,
+        and compare that with the wells actually loaded by load_all_wells().
+        A well should be loaded if it is set to "Use" == "Yes" in the 'Well settings' sheet, AND at least one of its
+        files is set to "Use this file" == "Yes" in the 'Well logs' or 'Well data' sheets
+        """
+        import pandas as pd
+
+        def _is_yes(_val):
+            return isinstance(_val, str) and _val.strip().lower() == 'yes'
+
+        def _clean(_name):
+            return _name.replace('/', '_').replace('-', '_').replace(' ', '').upper()
+
+        wp = Project(name='MyProject', log_to_stdout=False)
+        sheets = pd.read_excel(wp.project_table, header=1, sheet_name=None, engine='openpyxl')
+
+        selected_wells = {_clean(_name) for _name, _use in
+                          zip(sheets['Well settings']['Given well name'], sheets['Well settings']['Use'])
+                          if isinstance(_name, str) and _is_yes(_use)}
+        wells_with_files = set()
+        for sheet_name in ('Well logs', 'Well data'):
+            if sheet_name not in sheets:
+                continue
+            table = sheets[sheet_name]
+            wells_with_files.update(_clean(_name) for _name, _use in
+                                    zip(table['Given well name'], table['Use this file'])
+                                    if isinstance(_name, str) and _is_yes(_use))
+        expected_wells = selected_wells & wells_with_files
+        print('Wells selected in "Well settings":', sorted(selected_wells))
+        print('Wells with files in use:', sorted(wells_with_files))
+        print('Wells expected to be loaded:', sorted(expected_wells))
+
+        wp.load_all_wells()
+        loaded_wells = {_clean(_w.name) for _w in wp.wells} if wp.wells is not None else set()
+        print('Wells loaded:', sorted(loaded_wells))
+
+        self.assertSetEqual(expected_wells, loaded_wells)
+
     def test_load_wells_with_rename(self):
         """
         Set only Well A active in the project table (_new), because it has a rename in it

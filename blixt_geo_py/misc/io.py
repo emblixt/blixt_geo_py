@@ -780,9 +780,9 @@ def get_selected_wells(filename):
         if not isinstance(ans, str):
             continue
         if ans.lower() == 'yes':
-            this_well = table['Given well name'][i]
+            this_well = fix_well_name(table['Given well name'][i])
             if this_well not in selected_wells:
-                selected_wells.append(fix_well_name(this_well))
+                selected_wells.append(this_well)
     return selected_wells
 
 
@@ -1043,7 +1043,7 @@ def write_sums_and_averages(filename, line_of_data):
 
     ws = wb.active
     if newfile:
-        ws.append(['Averages Set output from blixt_rp python library on {}'.format(
+        ws.append(['Averages Set output from blixt_geo_py python library on {}'.format(
             datetime.now().isoformat())])
         ws.append(['Template Version: 1'])
         ws.append(['Depth units:             m'])
