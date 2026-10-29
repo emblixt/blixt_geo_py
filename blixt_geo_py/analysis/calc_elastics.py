@@ -2,7 +2,6 @@
 Functionality designed to plot and calculate the elastic rock properties around a given depth (top) with the goal to
 show how the rock properties changes across this depth and how that can affect the seismic signature
 """
-import os
 
 import blixt_geo_py.core.wavelets as bumw
 import matplotlib.pyplot as plt
@@ -14,7 +13,6 @@ from blixt_geo_py.plotting.helpers import axis_plot, annotate_plot, header_plot,
 import blixt_geo_py.plotting.plot_logs as rpp
 import blixt_geo_py.rp.rp_core as rp
 from blixt_geo_py.core.models import Model, Layer
-from blixt_geo_py.core.project import Project
 from blixt_geo_py.core.log_curve import LogCurve
 
 h_above = 50.
@@ -350,42 +348,3 @@ def calc_ai_around_top(
         cid = fig.canvas.mpl_connect('button_press_event', on_press)
     plt.show()
     return h_above, h_below, results, soft_below
-
-
-def test_calc_elastics():
-    """
-    OLD Well API: Uses Project.load_all_wells(unit_convert_using_template=True), Well.add_twt(), Well.get_logs_of_name()
-    and the wells as a dictionary, which no longer exist, and fails. Kept as an example of how calc_ai_around_top() is
-    used
-    """
-    dir_path = os.path.dirname(os.path.realpath(__file__)).replace('\\blixt_geo_py\\rp_utils', '')
-    project_table = os.path.join(dir_path, 'excels', 'project_table.xlsx')
-    wp = Project(project_table=project_table)
-    wells = wp.load_all_wells(unit_convert_using_template=True)
-    templates = wp.load_all_templates()
-    wis = wp.load_all_wis()
-    this_well = wells[list(wells.keys())[0]]
-    this_well.add_twt(wp.project_table, verbose=False)
-    depth = this_well.get_logs_of_name('depth')[0]
-    vp = this_well.get_logs_of_type('P velocity')[0]
-    rho = this_well.get_logs_of_type('Density')[0]
-    twt = this_well.get_logs_of_type('Two-way time')[0]
-    poro = this_well.get_logs_of_type('Porosity')[0]
-    sw = this_well.get_logs_of_type('Saturation')[0]
-
-    intervals = []
-    interval_names = []
-    for key in list(wis[this_well.well].keys()):
-        interval_names.append(key)
-        intervals.append(wis[this_well.well][key])
-
-    calc_ai_around_top(vp, rho, depth, twt,
-                       top=1826.,
-                       h_above=50., h_below=50.,
-                       intervals=intervals, interval_names=interval_names,
-                       templates=templates,
-                       ref_logs=[sw, poro])
-
-
-if __name__ == '__main__':
-    test_calc_elastics()

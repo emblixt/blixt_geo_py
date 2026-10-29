@@ -1116,23 +1116,6 @@ def test():
     w.read_las(las_file)
     return w
 
-# OLD Well API: The commented out code below uses Well.block, calc_mask(), apply_mask() and depth_plot(), which no
-# longer exist. Kept for reference only
-#    w.read_las(las_file, only_these_logs=well_table[las_file]['logs'])
-#
-#    w.calc_mask({'test': ['>', 10], 'phie': ['><', [0.05, 0.15]]}, name=ud.def_msk_name)
-#    msk = w.block[ud.def_lb_name].masks[ud.def_msk_name].data
-#    fig1, fig2 = plt.figure(1), plt.figure(2)
-#    w.depth_plot('P velocity', fig=fig1, mask=msk, show_masked=True)
-#    print('Before mask: {}'.format(len(w.block[ud.def_lb_name].logs['phie'].data)))
-#    print('Masks: {}'.format(', '.join(list(w.block[ud.def_lb_name].masks.keys()))))
-#    w.apply_mask(ud.def_msk_name)
-#    print('After mask: {}'.format(len(w.block[ud.def_lb_name].logs['phie'].data)))
-#    print('Masks: {}'.format(', '.join(list(w.block[ud.def_lb_name].masks.keys()))))
-#    w.depth_plot('P velocity', fig=fig2)
-#    plt.show()
-#    print(w.block[ud.def_lb_name].logs['phie'].header)
-
 
 if __name__ == '__main__':
     test()

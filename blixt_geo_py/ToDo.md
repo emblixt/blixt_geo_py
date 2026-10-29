@@ -76,8 +76,8 @@ pint units into use.
 - ~~Fix the creation_date and modification_date of Header~~ (part of replacing AttribDict)
 - ~~Port, or mark as old, the code that uses the old Well API (Well.block)~~ (test_io, test_plots and 
   helpers.plot_one_column() are ported)
-  - Delete, or port, the code that is marked "OLD Well API": io.write_las(), calc_elastics.test_calc_elastics(), and
-    the commented out code in well.py
+  - ~~Delete, or port, the code that is marked "OLD Well API": io.write_las(), calc_elastics.test_calc_elastics(), and
+    the commented out code in well.py~~ (deleted)
 - ~~Let LogTable handle mixed single log names and lists of log names, so that read_las() can read them~~
 - Cutoffs.use_log_table() does not support multi log LogTables
 - test_well and test_plot_logs read las files from T:\ and OneDrive, and one test waits for input()
