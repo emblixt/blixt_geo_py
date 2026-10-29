@@ -8,6 +8,7 @@ from datetime import datetime
 from openpyxl import load_workbook, Workbook
 from copy import deepcopy
 import getpass
+import warnings
 import socket
 import logging
 from scipy.interpolate import interp1d
@@ -561,9 +562,15 @@ def project_wells_new(filename, working_dir, sheet_name=None, do_rename=False):
     selected_wells = get_selected_wells(filename)
     if sheet_name is None:
         sheet_name = 'Well logs'
-    # table = pd.read_excel(filename, header=1, sheet_name=sheet_name, engine='openpyxl')
-    xl = pd.ExcelFile(filename)
-    table = xl.parse(sheet_name, header=1)
+    # Read the sheets within a context manager, so that the excel file is closed afterward
+    with pd.ExcelFile(filename) as xl:
+        table = pd.read_excel(xl, sheet_name=sheet_name, header=1)
+        if 'Well data' in xl.sheet_names:
+            data_table = pd.read_excel(xl, sheet_name='Well data', header=1)
+        else:
+            data_table = None
+    # Selected wells which have at least one las file in use. Only these wells are read
+    wells_in_use = []
     if 'translate log names' in [xx.lower() for xx in list(table.keys())]:
         error_txt = \
             "Project table contain specific column for log name translation (Translate log name)." + \
@@ -578,6 +585,8 @@ def project_wells_new(filename, working_dir, sheet_name=None, do_rename=False):
         if table['Use this file'][i].lower() == 'no':
             continue
         if fix_well_name(ans) in selected_wells:
+            if fix_well_name(ans) not in wells_in_use:
+                wells_in_use.append(fix_well_name(ans))
             temp_dict = {}
             log_dict = {}
             translate_to_string = ''
@@ -630,9 +639,17 @@ def project_wells_new(filename, working_dir, sheet_name=None, do_rename=False):
                 print_info(warn_txt, 'warning', logger)
                 raise Warning(warn_txt)
             result[test_file_path(table['las file'][i], working_dir)] = temp_dict
-        # Test if the sheet 'Well data' exists in the project table, and then add the data files listed there
-    if 'Well data' in xl.sheet_names:
-        table = xl.parse('Well data', header=1)
+
+    for _well in selected_wells:
+        if _well not in wells_in_use:
+            warn_txt = "Well {} is selected in 'Well settings', but none of its files in '{}' are in use. " \
+                       "Nothing is read for this well".format(_well, sheet_name)
+            print_info(warn_txt, 'warning', logger)
+            warnings.warn(warn_txt, UserWarning, stacklevel=2)
+
+    # Test if the sheet 'Well data' exists in the project table, and then add the data files listed there
+    if data_table is not None:
+        table = data_table
         for i, ans in enumerate(table['Given well name']):
             # skip empty rows
             if not isinstance(ans, str):
@@ -640,7 +657,7 @@ def project_wells_new(filename, working_dir, sheet_name=None, do_rename=False):
             # skip files we have chosen to ignore
             if table['Use this file'][i].lower() == 'no':
                 continue
-            if fix_well_name(ans) in selected_wells:
+            if fix_well_name(ans) in wells_in_use:
                 temp_dict = {'logs': {}, 'columns': {}, 'units': {}}
                 log_dict = {}
                 for key in list(table.keys()):
