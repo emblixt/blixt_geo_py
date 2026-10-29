@@ -61,3 +61,12 @@ pint units into use.
 - Put pint into proper use throughout the code
 - In rp_core.py and rp_wrapper.py clarify which type of pressure the functions depend on, effective or pore pressure. And CORRECT any mistakes
 - ~~Let Claude have a look at project.py, fix weak code and suggest that Project also should set up a results folder ("results_folder")~~
+- ~~Port plot_rp and test_rp to the current Well API~~
+- ~~Move handle_template, default_templates and get_from_template into the Template class~~ (Template.from_dict(), 
+  Template.plot_settings() and Template.default_templates())
+- ~~Fix the "Models must be owned by only a single document" error when making several bokeh plots~~ (default_tools())
+- ~~Remove fluids.py, minerals.py and rp_core.run_fluid_sub()~~ (replaced by fluids_and_minerals.py and 
+  fluid_substitution.py)
+- calc_elastics.calc_ai_around_top() fails without templates, as the default templates lack 'Impedance', 
+  'P velocity' and 'Density'
+- StatsCalculation.well_style() reads line_color, but the well colour from the project table is in fill_color
