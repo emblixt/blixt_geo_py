@@ -2117,10 +2117,14 @@ class LithoFluid:
             xtempl=xtempl,
             ytempl=ytempl,
             edge_color=False,
-            ax=ax
+            ax=ax,
+            label=label
         )
         uhelp.confidence_ellipse(x_data, y_data, ax, n_std=1.0, edgecolor='k')
         uhelp.confidence_ellipse(x_data, y_data, ax, n_std=2.0, edgecolor='k', linestyle='--')
+        # Includes the labels of any litho fluids already plotted in this ax. A litho fluid may have no name
+        if label:
+            ax.legend()
 
     def to_model_layer(self,
                        name: str | None = None,
@@ -2501,6 +2505,7 @@ class LithoFluidsTable:
             cds.data = new_data
 
         def save_function():
+            from blixt_geo_py.io.io import write_sums_and_averages
 
             file_name = save_file()
             # print(list(cds.data.keys()))

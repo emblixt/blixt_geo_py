@@ -302,8 +302,11 @@ def plot(
 
     ax.grid(grid)
 
-    ax.set_xlim(*xlim)
-    ax.set_ylim(*ylim)
+    # set_xlim() and set_ylim() turn off autoscaling, even without limits, which clips later plots in this ax
+    if xlim[0] is not None or xlim[1] is not None:
+        ax.set_xlim(*xlim)
+    if ylim[0] is not None or ylim[1] is not None:
+        ax.set_ylim(*ylim)
     if title is not None:
         ax.set_title(title)
 

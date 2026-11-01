@@ -632,6 +632,72 @@ class LithoFluidTests(unittest.TestCase):
         self.assertEqual('AI [g/cc m/s]', ax.get_xlabel())
         show_or_close()
 
+    def test_plot_label(self):
+        from blixt_geo_py.core.core import LithoFluid
+        fig, ax = plt.subplots()
+        # The name is the default label
+        LithoFluid(default='shale').plot(ax=ax)
+        LithoFluid(default='brine_sst').plot(ax=ax, label='Brine sand', color='r')
+        self.assertEqual(['shale', 'Brine sand'], [_t.get_text() for _t in ax.get_legend().get_texts()])
+        show_or_close()
+
+    def test_plot_shared_axes(self):
+        """
+        All litho fluids plotted in the same axes must be within the limits, not only the first
+        """
+        from blixt_geo_py.core.core import LithoFluid
+        fig, ax = plt.subplots()
+        LithoFluid(default='shale').plot(ax=ax)
+        LithoFluid(default='gas_sst').plot(ax=ax, color='r')
+        fig.canvas.draw()
+        for _points in ax.collections:
+            x, y = _points.get_offsets().T
+            self.assertLessEqual(ax.get_xlim()[0], np.min(x))
+            self.assertGreaterEqual(ax.get_xlim()[1], np.max(x))
+            self.assertLessEqual(ax.get_ylim()[0], np.min(y))
+            self.assertGreaterEqual(ax.get_ylim()[1], np.max(y))
+        show_or_close()
+
+    def test_crossplot_limits(self):
+        """
+        Limits in the templates must be used, also when another plot is added to the same axes
+        """
+        from blixt_geo_py.plotting import crossplot as xp
+        fig, ax = plt.subplots()
+        xp.plot(np.array([1., 2.]), np.array([1., 2.]), cdata='b', cbar=False, ax=ax,
+                xtempl={'min': 0., 'max': 5.}, ytempl={'min': -1., 'max': 3.})
+        xp.plot(np.array([10., 20.]), np.array([10., 20.]), cdata='r', cbar=False, ax=ax,
+                xtempl={'min': 0., 'max': 5.}, ytempl={'min': -1., 'max': 3.})
+        self.assertEqual((0., 5.), ax.get_xlim())
+        self.assertEqual((-1., 3.), ax.get_ylim())
+        show_or_close()
+
+    def test_table_save(self):
+        """
+        Click the Save button of the table, with the file dialog replaced by the name of a temporary file
+        """
+        import tempfile
+        from unittest import mock
+        from blixt_geo_py.core.core import LithoFluid, LithoFluids, LithoFluidsTable
+        from blixt_geo_py.io.io import read_sums_and_averages
+
+        lfs = LithoFluids(litho_fluids=[LithoFluid(default='shale'), LithoFluid(default='brine_sst')])
+        lft = LithoFluidsTable(lfs)
+        _, lf_controls = lft.draw(lft.cds)
+        save = [_b for _b in lf_controls.children if _b.label == 'Save'][0]
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_name = os.path.join(tmp_dir, 'SumsAndAverages.xlsx')
+            with mock.patch('blixt_geo_py.core.core.save_file', return_value=file_name):
+                for _callback in save._event_callbacks['button_click']:
+                    _callback()
+            data = read_sums_and_averages(file_name)
+
+        self.assertEqual({'shale', 'brine_sst'}, set(data.keys()))
+        self.assertEqual(3445, data['shale']['VpMean'])
+        self.assertEqual(260, data['brine_sst']['VpStdDev'])
+        self.assertEqual(0.92, data['brine_sst']['VpVsCorrCoef'])
+
     def test_table(self, unit_test=True):
         from bokeh.io import output_file
         from bokeh.plotting import show, row, column
