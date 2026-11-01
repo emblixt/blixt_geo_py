@@ -110,7 +110,7 @@ def plot_rp(wells, log_table, wis, wi_name, cutoffs=None, legend_items=None,
     :return:
         colorbar, legend
     """
-    from blixt_geo_py.analysis.calc_stat_class import to_cutoffs
+    from blixt_geo_py.analysis.calc_statistics import to_cutoffs
 
     #
     # some initial setups

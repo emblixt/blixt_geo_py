@@ -56,7 +56,7 @@ pint units into use.
 - ~~Make Project to ignore the "Use well" (Yes/No) column in the project_table.xlsx, and instead specify in the call which wells to use~~ (Project.load_wells())
   - ~~Make this optional, so that the old method still works~~
 - ~~Take use of the new environmental variable "show_plots" in all unit tests that creates plots~~ (unit_tests/plot_settings.py)
-- Figure out how to use the de_trend functionality in calc_stats_class, and apply it 
+- Figure out how to use the de_trend functionality in calc_statistics, and apply it 
 - ~~Remove the dependency of the old "convert_data" function~~ (replaced by pint)
 - Put pint into proper use throughout the code
 - In rp_core.py and rp_wrapper.py clarify which type of pressure the functions depend on, effective or pore pressure. And CORRECT any mistakes
