@@ -1115,7 +1115,8 @@ def write_sums_and_averages(filename, line_of_data):
                 'LogsUsed', 'DateAdded'
             ]
         )
-    ws.append(line_of_data)
+    # openpyxl writes NaN as an empty cell, use the same null value as for the unused columns
+    ws.append([-999.25 if isinstance(_v, float) and np.isnan(_v) else _v for _v in line_of_data])
     wb.save(filename)
     wb.close()
 

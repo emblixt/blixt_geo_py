@@ -14,6 +14,7 @@ Usage:
                              log_table={'P velocity': 'vp_dry', 'Porosity': 'phie', 'Volume': 'vcl'})
     results = stats.run()
     print(results['Sand E'].summary())
+    stats.save_summary(results, 'summary.xlsx')
     stats.plot_logs_vs_depth(results)
     stats.plot_averages(results)
 """
@@ -346,6 +347,20 @@ class StatsCalculation:
             label += ' [{}]'.format(units)
         ax.set_xlabel(label)
 
+    def save_summary(self, results: dict, file_name: str):
+        """
+        Writes the statistics from summary() to an excel file. An existing file is overwritten.
+        Statistics of intervals without samples are left empty
+
+        :param results:
+            dict
+            {working interval name: IntervalStats}, as returned by run()
+        :param file_name:
+            str
+            full pathname of the excel file
+        """
+        self.summary(results).to_excel(file_name, index=False)
+
     def plot_logs_vs_depth(self, results: dict, file_name: str | None = 'logs_vs_depth.png'):
         """
         Plots the selected data of each log versus depth from the top of the interval, one row per interval
@@ -423,7 +438,7 @@ class StatsCalculation:
     def save_rokdoc_output(self, results: dict, file_name: str):
         """
         Writes the averages of each interval, for all wells and for each well, to a RokDoc compatible
-        Sums and Averages excel file
+        Sums and Averages excel file. Averages of intervals without samples are written as -999.25
         """
         for stats in results.values():
             missing = [_lt for _lt in rokdoc_log_types if _lt not in stats.log_table]

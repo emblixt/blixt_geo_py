@@ -1,10 +1,13 @@
 import os
+import tempfile
 import unittest
 
 # Imported before any plots are made. Set BLIXT_SHOW_PLOTS=1 to view the plots, see plot_settings.py
 from blixt_geo_py.unit_tests.plot_settings import show_plots, show_or_close
 import matplotlib.pyplot as plt
 import numpy as np
+from openpyxl import load_workbook
+import pandas as pd
 
 from blixt_geo_py import Q_
 from blixt_geo_py.core.core import Cutoffs, CutoffRule, LogTable
@@ -26,6 +29,19 @@ def make_project():
     wp.load_all_wells()
     assert wp.wells is not None, 'No wells loaded from {}'.format(project_table)
     return wp, wp.wells, wp.load_all_wis()
+
+
+def read_rokdoc_lines(file_name):
+    """
+    Returns the data lines of a RokDoc Sums and Averages file as a list of {column name: value}
+    """
+    wb = load_workbook(file_name)
+    rows = [_r for _r in wb.active.iter_rows(values_only=True)]
+    wb.close()
+    # The data lines follow the line with the column names
+    header_index = [_r[0] for _r in rows].index('Name')
+    columns = rows[header_index]
+    return [dict(zip(columns, _r)) for _r in rows[header_index + 1:]]
 
 
 class TestCases(unittest.TestCase):
@@ -140,8 +156,6 @@ class TestCases(unittest.TestCase):
         """
         Write the averages of synthetic data to a RokDoc Sums and Averages file, and read them back
         """
-        import tempfile
-        from openpyxl import load_workbook
         from blixt_geo_py.analysis.calc_statistics import write_rokdoc_sums_and_averages
 
         _log_table = LogTable(log_table)
@@ -158,14 +172,8 @@ class TestCases(unittest.TestCase):
             write_rokdoc_sums_and_averages(file_name, results, 'Sand F', _log_table, 'vcl<0.5', '_test',
                                            well_name='WELL_A')
 
-            wb = load_workbook(file_name)
-            rows = [_r for _r in wb.active.iter_rows(values_only=True)]
-            wb.close()
+            lines = read_rokdoc_lines(file_name)
 
-        # The data lines follow the line with the column names
-        header_index = [_r[0] for _r in rows].index('Name')
-        columns = rows[header_index]
-        lines = [dict(zip(columns, _r)) for _r in rows[header_index + 1:]]
         self.assertEqual(2, len(lines))
 
         # The line without a well name holds the averages of all wells
@@ -176,6 +184,69 @@ class TestCases(unittest.TestCase):
             self.assertAlmostEqual(np.median(results['vs_dry']), line['VsMedian'])
             self.assertAlmostEqual(np.std(results['rho_dry']), line['RhoStdDev'])
             self.assertAlmostEqual(np.mean(results['phie']), line['PorosityMean'])
+
+    def test_save_rokdoc_output(self):
+        """
+        Write the averages of the test wells to a RokDoc Sums and Averages file, and read them back.
+        The cutoffs leave no samples of Sand D in WELL_B
+        """
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand D'],
+                                 {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}, log_table)
+        results = stats.run()
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_name = os.path.join(tmp_dir, 'SumsAndAverages.xlsx')
+            stats.save_rokdoc_output(results, file_name)
+            lines = {_l['Name']: _l for _l in read_rokdoc_lines(file_name)}
+
+        # One line for all wells together, and one for each well, of each interval
+        self.assertEqual(sum(1 + len(_r.per_well) for _r in results.values()), len(lines))
+        combined = results['Sand F'].combined()
+        self.assertAlmostEqual(np.nanmean(combined['vp_dry'].magnitude), lines['Sand F']['VpMean'])
+        self.assertEqual('NONE', lines['Sand F']['Well'])
+        well_a = results['Sand F'].per_well['WELL_A']
+        self.assertAlmostEqual(np.nanmean(well_a['vp_dry'].magnitude), lines['WELL_A Sand F']['VpMean'])
+
+        # An interval without samples holds the null value, and no empty cells
+        empty = lines['WELL_B Sand D']
+        for _key in ['VpMean', 'VsMedian', 'RhoStdDev', 'PorosityMean', 'ShaleVolumeMean', 'VpVsCorrCoef']:
+            self.assertEqual(-999.25, empty[_key])
+
+    def test_save_rokdoc_output_lacking_logs(self):
+        """
+        An interval lacking some of the logs RokDoc needs is skipped, so no file is created here
+        """
+        _log_table = {_k: _v for _k, _v in log_table.items() if _k != 'Density'}
+        stats = StatsCalculation(self.wells, self.wis, 'Sand F', {'Volume': ['<', 0.5]}, _log_table)
+        results = stats.run()
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_name = os.path.join(tmp_dir, 'SumsAndAverages.xlsx')
+            stats.save_rokdoc_output(results, file_name)
+            self.assertFalse(os.path.isfile(file_name))
+
+    def test_save_summary(self):
+        """
+        Write the statistics to an excel file and read them back. Writing twice must not add any lines
+        """
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand D'],
+                                 {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}, log_table)
+        results = stats.run()
+        summary = stats.summary(results)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_name = os.path.join(tmp_dir, 'summary.xlsx')
+            stats.save_summary(results, file_name)
+            stats.save_summary(results, file_name)
+            saved = pd.read_excel(file_name)
+
+        self.assertEqual(list(summary.columns), list(saved.columns))
+        self.assertEqual(len(summary), len(saved))
+        np.testing.assert_allclose(summary['mean'], saved['mean'])
+        # An interval without samples has no statistics
+        empty = saved[(saved['interval'] == 'Sand D') & (saved['well'] == 'WELL_B')]
+        self.assertTrue((empty['n'] == 0).all())
+        self.assertTrue(empty['mean'].isna().all())
 
 
 if __name__ == '__main__':
