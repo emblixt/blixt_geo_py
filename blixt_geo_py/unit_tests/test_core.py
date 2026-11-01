@@ -481,7 +481,7 @@ class IntervalTests(unittest.TestCase):
 
 
     def test_append(self):
-        append_file = os.path.join(project_dir, 'test.xlsx')
+        append_file = os.path.join(project_dir, 'blixt_geo_py\\results_folder\\test.xlsx')
         wis = Intervals(name='TEST', intervals=[interval1, interval2])
         wis.add_interval(interval3)
 
@@ -702,7 +702,7 @@ class LithoFluidTests(unittest.TestCase):
         from bokeh.io import output_file
         from bokeh.plotting import show, row, column
         from blixt_geo_py.core.core import LithoFluid, LithoFluids, LithoFluidsTable
-        output_file('C:\\Users\\marten.blixt\\Downloads\\plot.html')
+        output_file(os.path.join(project_dir, 'blixt_geo_py\\results_table\\plot.html'))
 
         lfs = LithoFluids(litho_fluids=[LithoFluid(default='shale'), LithoFluid(default='brine_sst')])
         lfs.__add__(LithoFluid(name='Test_None', vp=None))
@@ -726,7 +726,7 @@ class LithoFluidTests(unittest.TestCase):
         from bokeh.io import output_file
         from bokeh.plotting import show, row, column
         from blixt_geo_py.core.core import LithoFluid, LithoFluids, LithoFluidsTable
-        output_file('C:\\Users\\marten.blixt\\Downloads\\plot.html')
+        output_file(os.path.join(project_dir, 'blixt_geo_py\\results_table\\plot.html'))
 
         def vp(_i):
             return Q_(3000. +  5. * _i, 'm/s')
