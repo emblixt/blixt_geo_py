@@ -2088,8 +2088,8 @@ class LithoFluid:
         """
         import matplotlib.pyplot as plt
         import blixt_geo_py.analysis.avo_monte_carlo as havo
-        # from blixt_geo_py.plotting import helpers as uhelp
-        # from blixt_geo_py.plotting import crossplot as xp
+        from blixt_geo_py.plotting import helpers as uhelp
+        from blixt_geo_py.plotting import crossplot as xp
         if label is None:
             label = self.name
         if color is None:

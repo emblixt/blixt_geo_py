@@ -622,10 +622,15 @@ class LithoFluidTests(unittest.TestCase):
 
     def test_plot(self):
         from blixt_geo_py.core.core import LithoFluid
+        from matplotlib.patches import Ellipse
         lf = LithoFluid()
-        lf.plot()
+        fig, ax = plt.subplots()
+        lf.plot(ax=ax)
+        # The data points, and the ellipses of one and two standard deviations
+        self.assertEqual(1, len(ax.collections))
+        self.assertEqual(2, len([_p for _p in ax.patches if isinstance(_p, Ellipse)]))
+        self.assertEqual('AI [g/cc m/s]', ax.get_xlabel())
         show_or_close()
-        self.assertTrue(True)
 
     def test_table(self, unit_test=True):
         from bokeh.io import output_file
