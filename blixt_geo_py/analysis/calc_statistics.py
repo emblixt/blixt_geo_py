@@ -17,6 +17,7 @@ Usage:
     stats.save_summary(results, 'summary.xlsx')
     stats.plot_logs_vs_depth(results)
     stats.plot_averages(results)
+    stats.plot_logs_vs_burial_depth(results)
 """
 import logging
 import os
@@ -127,6 +128,40 @@ def isolated_samples(values: np.ndarray, depth: np.ndarray) -> np.ndarray:
     return valid & ~has_previous & ~has_next
 
 
+def linear_depth_trend(values: np.ndarray, depth: np.ndarray) -> dict | None:
+    """
+    Fits a straight line through the values as a function of depth, by least squares through all valid samples
+
+    :param values:
+        np.ndarray
+    :param depth:
+        np.ndarray of the same length as values
+    :return:
+        dict or None
+        {'slope': change of the values per unit of depth,
+         'intercept': the value at depth = 0,
+         'r2': the fraction of the variance of the values that the trend explains,
+         'std': standard deviation of the values,
+         'std_detrended': standard deviation of the values around the trend,
+         'n': number of valid samples}
+        None if there are less than three valid samples, or if they are all at the same depth
+    """
+    valid = np.isfinite(values) & np.isfinite(depth)
+    if np.sum(valid) < 3 or np.ptp(depth[valid]) == 0.:
+        return None
+    _values, _depth = values[valid], depth[valid]
+    slope, intercept = np.polyfit(_depth, _values, 1)
+    std = np.std(_values)
+    std_detrended = np.std(_values - (slope * _depth + intercept))
+    return {'slope': slope, 'intercept': intercept,
+            'r2': 1. - (std_detrended / std) ** 2 if std > 0. else 0.,
+            'std': std, 'std_detrended': std_detrended, 'n': int(np.sum(valid))}
+
+
+def _log_in_well(data: dict, log_name: str) -> bool:
+    return log_name in data and len(data[log_name]) > 0
+
+
 @dataclass
 class IntervalStats:
     """
@@ -138,6 +173,7 @@ class IntervalStats:
     suffix: str = ''
     per_well: dict = field(default_factory=dict)  # well name -> {log name: pint.Quantity}
     depth_from_top: dict = field(default_factory=dict)  # well name -> pint.Quantity
+    burial_depth: dict = field(default_factory=dict)  # well name -> pint.Quantity in meter, for wells where it's known
 
     @property
     def label(self) -> str:
@@ -159,6 +195,23 @@ class IntervalStats:
             _units = _parts[0].units
             _combined[_log] = Q_(np.concatenate([_p.to(_units).magnitude for _p in _parts]), _units)
         return _combined
+
+    def samples_with_burial_depth(self, log_name: str) -> tuple:
+        """
+        Returns the data of the given log, and the burial depth in meter, concatenated over the wells where the
+        burial depth is known. The data is converted to the units of the first of these wells
+
+        :return:
+            pint.Quantity, np.ndarray
+            or None, None if no well has both the log and the burial depth
+        """
+        _wells = [_w for _w, _data in self.per_well.items()
+                  if _log_in_well(_data, log_name) and _w in self.burial_depth]
+        if len(_wells) == 0:
+            return None, None
+        _units = self.per_well[_wells[0]][log_name].units
+        return (Q_(np.concatenate([self.per_well[_w][log_name].to(_units).magnitude for _w in _wells]), _units),
+                np.concatenate([self.burial_depth[_w].to('m').magnitude for _w in _wells]))
 
     def summary(self) -> pd.DataFrame:
         """
@@ -228,6 +281,9 @@ def collect_interval_stats(wells: list,
         # The depth is needed both for the interval rule and the depth from top
         if 'md' not in well.get_log_names:
             well.create_md_log()
+        # Wells without a TVD log can't have a burial depth, plot_logs_vs_burial_depth() reports those
+        if 'tvd_ml' not in well.get_log_names and len(well.get_logs_of_type('TVD')) > 0:
+            well.create_tvd_ml_log()
 
         # Build a new Cutoffs for each well, so the interval rule is not added to the users cutoffs
         well_cutoffs = Cutoffs(cutoffs=deepcopy(rules) +
@@ -236,6 +292,10 @@ def collect_interval_stats(wells: list,
 
         stats.per_well[well.name] = {_log: _data[_log] for _log in log_table.log_names if _log in _data}
         stats.depth_from_top[well.name] = interval.distance_to_top(_data['md'])
+        # The burial depth is NaN when the kelly bushing or water depth is lacking in the project table.
+        # An interval without samples says nothing about that
+        if 'tvd_ml' in _data and (len(_data['tvd_ml']) == 0 or np.any(np.isfinite(_data['tvd_ml'].magnitude))):
+            stats.burial_depth[well.name] = _data['tvd_ml'].to('m')
         print_info('Interval {} in well {}: {} samples within {:.1f} - {:.1f}'.format(
             wi_name, well.name, len(_data['md']), interval.top, interval.base), 'info', logger)
 
@@ -434,6 +494,85 @@ class StatsCalculation:
             self._save(fig, '{}.png'.format(log_type))
             figs[log_type] = fig
         return figs
+
+    def plot_logs_vs_burial_depth(self, results: dict, file_name: str | None = 'logs_vs_burial_depth.png'):
+        """
+        QC plot of how much the statistics of each interval are affected by its burial depth varying between the
+        wells. Plots each log versus burial depth (TVD below the sea floor), one row per interval, with:
+            - the selected samples, the mean and the standard deviation of each well, colored by well
+            - the mean of all wells together
+            - a linear trend through the samples of all wells, its slope and its R2
+            - the standard deviation of all wells together, with and without the trend. When these differ, part of
+              the spread of the combined statistics follows depth
+            - the number of wells behind the trend. With one well it says nothing about the differences between wells
+
+        The burial depth needs a TVD log, and the kelly bushing and water depth from the project table. Wells lacking
+        any of these can't be included, they are listed in the title of the figure
+        :return:
+            Figure
+        """
+        log_names = self.log_tables[0].log_names
+        fig, axes = plt.subplots(nrows=len(results), ncols=len(log_names), squeeze=False, sharey='row',
+                                 figsize=(3 * len(log_names), 3.5 * len(results) + 0.5), layout='constrained')
+        all_wells = [_w.name for _w in self.wells]
+        legend_items = {}
+        for j, stats in enumerate(results.values()):
+            for i, log_name in enumerate(stats.log_table.log_names):
+                ax = axes[j][i]
+                units = None
+                for well_name, data in stats.per_well.items():
+                    if well_name not in stats.burial_depth or not _log_in_well(data, log_name):
+                        continue
+                    units = str(data[log_name].units)
+                    x, y = data[log_name].magnitude, stats.burial_depth[well_name].magnitude
+                    valid = np.isfinite(x) & np.isfinite(y)
+                    if not np.any(valid):
+                        continue
+                    color, marker = self.well_style(well_name, all_wells.index(well_name))
+                    ax.scatter(x[valid], y[valid], s=4, alpha=0.3, color=color, edgecolors='none', rasterized=True)
+                    legend_items[well_name] = ax.errorbar(
+                        np.mean(x[valid]), np.mean(y[valid]), xerr=np.std(x[valid]), marker=marker, ms=8, color=color,
+                        mec='k', ecolor=color, capsize=4, ls='none', zorder=4)
+
+                values, depth = stats.samples_with_burial_depth(log_name)
+                if values is not None:
+                    x = values.magnitude
+                    valid = np.isfinite(x) & np.isfinite(depth)
+                    if np.any(valid):
+                        legend_items['All wells with burial depth'] = ax.scatter(
+                            np.mean(x[valid]), np.mean(depth[valid]), marker='*', s=220, c='pink', edgecolors='k',
+                            zorder=5)
+                    trend = linear_depth_trend(x, depth)
+                    if trend is not None:
+                        y = np.array([np.min(depth[valid]), np.max(depth[valid])])
+                        legend_items['Linear trend'] = ax.plot(trend['slope'] * y + trend['intercept'], y, 'k-', lw=1.5,
+                                                               zorder=3)[0]
+                        # With one well, the trend only shows the variation within that well
+                        n_wells = len([_w for _w, _d in stats.per_well.items()
+                                       if _w in stats.burial_depth and _log_in_well(_d, log_name)])
+                        ax.set_title(
+                            '{} well{}, {:+.3g} {} per 100 m, R2 = {:.2f}\nStd {:.3g}, without trend {:.3g}'.format(
+                                n_wells, '' if n_wells == 1 else 's', 100. * trend['slope'], units, trend['r2'],
+                                trend['std'], trend['std_detrended']),
+                            fontsize=7, loc='left')
+                self._set_xaxis(ax, log_name, units)
+                ax.grid(True)
+            axes[j][0].set_ylabel('Burial depth of {} [m]'.format(stats.label))
+            # The y-axes of a row are shared, so this applies to all of them
+            axes[j][0].invert_yaxis()
+
+        if len(legend_items) > 0:
+            fig.legend(list(legend_items.values()), list(legend_items.keys()), loc='outside lower center',
+                       ncols=len(legend_items), prop={'size': 9})
+        lacking = [_w for _w in all_wells
+                   if any(_w in _r.per_well and _w not in _r.burial_depth for _r in results.values())]
+        if len(lacking) > 0:
+            print_info('Wells lacking a TVD log, kelly bushing or water depth are not included in the plot versus '
+                       'burial depth: {}'.format(', '.join(lacking)), 'warning', logger)
+            fig.suptitle('Not included, lacking a TVD log, kelly bushing or water depth: {}'.format(
+                ', '.join(lacking)), fontsize=10)
+        self._save(fig, file_name)
+        return fig
 
     def save_rokdoc_output(self, results: dict, file_name: str):
         """

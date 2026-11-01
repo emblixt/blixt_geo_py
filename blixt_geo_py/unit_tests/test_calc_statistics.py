@@ -13,7 +13,8 @@ from blixt_geo_py import Q_
 from blixt_geo_py.core.core import Cutoffs, CutoffRule, LithoFluid, LithoFluids, LogTable
 from blixt_geo_py.core.project import Project
 from blixt_geo_py.analysis.calc_statistics import (IntervalStats, StatsCalculation, break_at_gaps,
-                                                collect_interval_stats, isolated_samples, to_cutoffs)
+                                                collect_interval_stats, isolated_samples, linear_depth_trend,
+                                                to_cutoffs)
 
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
 project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx')
@@ -184,6 +185,122 @@ class TestCases(unittest.TestCase):
             self.assertAlmostEqual(np.median(results['vs_dry']), line['VsMedian'])
             self.assertAlmostEqual(np.std(results['rho_dry']), line['RhoStdDev'])
             self.assertAlmostEqual(np.mean(results['phie']), line['PorosityMean'])
+
+    def test_linear_depth_trend(self):
+        rng = np.random.default_rng(0)
+        tvd = np.linspace(1000., 3000., 500)
+        values = 1500. + 0.8 * tvd + rng.normal(0., 50., len(tvd))
+        # NaN in either array must be ignored
+        values[10] = np.nan
+        tvd_with_nan = tvd.copy()
+        tvd_with_nan[20] = np.nan
+        trend = linear_depth_trend(values, tvd_with_nan)
+        self.assertEqual(498, trend['n'])
+        self.assertAlmostEqual(0.8, trend['slope'], delta=0.02)
+        self.assertAlmostEqual(1500., trend['intercept'], delta=50.)
+        self.assertGreater(trend['r2'], 0.95)
+        self.assertAlmostEqual(50., trend['std_detrended'], delta=5.)
+        self.assertGreater(trend['std'], 400.)
+
+        # No trend
+        trend = linear_depth_trend(rng.normal(0., 50., len(tvd)), tvd)
+        self.assertLess(trend['r2'], 0.05)
+        self.assertAlmostEqual(trend['std'], trend['std_detrended'], delta=1.)
+        self.assertEqual(0., linear_depth_trend(np.ones(10), np.arange(10.))['r2'])
+
+        # A trend can't be calculated
+        self.assertIsNone(linear_depth_trend(np.array([1., 2.]), np.array([1., 2.])))
+        self.assertIsNone(linear_depth_trend(np.array([1., 2., 3.]), np.array([5., 5., 5.])))
+        self.assertIsNone(linear_depth_trend(np.array([np.nan] * 4), np.arange(4.)))
+
+    def test_samples_with_burial_depth(self):
+        stats = IntervalStats('Sand', LogTable({'P velocity': 'vp'}), Cutoffs([]))
+        self.assertEqual((None, None), stats.samples_with_burial_depth('vp'))
+        stats.per_well = {'A': {'vp': Q_(np.array([3000., 3100.]), 'm/s')},
+                          'B': {'vp': Q_(np.array([3.2]), 'km/s')},
+                          'No burial depth': {'vp': Q_(np.array([9999.]), 'm/s')},
+                          'No samples': {'vp': Q_(np.array([]), 'm/s')}}
+        stats.burial_depth = {'A': Q_(np.array([1000., 1001.]), 'm'), 'B': Q_(np.array([2.]), 'km'),
+                              'No samples': Q_(np.array([]), 'm')}
+        values, depth = stats.samples_with_burial_depth('vp')
+        np.testing.assert_allclose([3000., 3100., 3200.], values.to('m/s').magnitude)
+        np.testing.assert_allclose([1000., 1001., 2000.], depth)
+
+    def test_plot_logs_vs_burial_depth(self):
+        """
+        WELL_A has no TVD log, and the kelly bushing and water depth of WELL_B are blank in the project table, so
+        here they are set in a separately loaded copy of the wells
+        """
+        _, wells, wis = make_project()
+        wells_by_name = {_w.name: _w for _w in (wells.values() if isinstance(wells, dict) else wells)}
+        wells_by_name['WELL_B'].header['kb'] = Q_(30., 'm')
+        wells_by_name['WELL_B'].header['water_depth'] = Q_(300., 'm')
+
+        stats = StatsCalculation(wells, wis, ['Sand F', 'Sand D'],
+                                 {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}, log_table)
+        results = stats.run()
+        sand_f = results['Sand F']
+        self.assertEqual({'WELL_B', 'WELL_F'}, set(sand_f.burial_depth.keys()))
+        self.assertEqual(len(sand_f.per_well['WELL_B']['vp_dry']), len(sand_f.burial_depth['WELL_B']))
+
+        # The burial depth is the TVD below the kelly bushing, minus the kelly bushing and the water depth
+        for _name, _kb_and_water_depth in [('WELL_B', 330.), ('WELL_F', 125.)]:
+            _data = wells_by_name[_name].dict()
+            np.testing.assert_allclose(_data['tvd'].to('m').magnitude - _kb_and_water_depth,
+                                       _data['tvd_ml'].to('m').magnitude, atol=1e-6)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            stats.working_dir = tmp_dir
+            fig = stats.plot_logs_vs_burial_depth(results, file_name='logs_vs_burial_depth.png')
+            self.assertTrue(os.path.isfile(os.path.join(tmp_dir, 'logs_vs_burial_depth.png')))
+
+        self.assertEqual(2 * len(log_table), len(fig.axes))
+        self.assertIn('WELL_A', fig._suptitle.get_text())
+        self.assertNotIn('WELL_B', fig._suptitle.get_text())
+        ax = fig.axes[0]
+        self.assertIn('Burial depth', ax.get_ylabel())
+        # Depth increases downwards
+        self.assertGreater(ax.get_ylim()[0], ax.get_ylim()[1])
+        # The trend line is calculated from the wells with burial depth, and is not drawn outside of their depth range
+        values, depth = sand_f.samples_with_burial_depth('vp_dry')
+        trend = linear_depth_trend(values.magnitude, depth)
+        x, y = ax.get_lines()[-1].get_data()
+        self.assertAlmostEqual(trend['slope'], (x[1] - x[0]) / (y[1] - y[0]))
+        self.assertAlmostEqual(np.nanmax(depth), y[1])
+        self.assertIn('2 wells', ax.get_title(loc='left'))
+        self.assertIn('R2 = {:.2f}'.format(trend['r2']), ax.get_title(loc='left'))
+        # WELL_B has no samples in Sand D, so that trend is only based on one well
+        self.assertIn('1 well,', fig.axes[len(log_table)].get_title(loc='left'))
+        show_or_close()
+
+    def test_burial_depth_lacking_kb_and_water_depth(self):
+        """
+        With the kelly bushing and water depth of WELL_B blank in the project table, its burial depth is all NaN.
+        It must be reported as lacking, as WELL_A without a TVD log, instead of disappearing from the plot unnoticed
+        """
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand D'],
+                                 {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}, log_table)
+        results = stats.run()
+        self.assertEqual({'WELL_F'}, set(results['Sand F'].burial_depth.keys()))
+        fig = stats.plot_logs_vs_burial_depth(results, file_name=None)
+        self.assertIn('WELL_A', fig._suptitle.get_text())
+        self.assertIn('WELL_B', fig._suptitle.get_text())
+        self.assertNotIn('WELL_F', fig._suptitle.get_text())
+        self.assertIn('1 well,', fig.axes[0].get_title(loc='left'))
+        show_or_close()
+
+    def test_plot_logs_vs_burial_depth_without_any(self):
+        """
+        Without the burial depth in any well the plot is empty, but must not fail
+        """
+        stats = StatsCalculation(self.wells, self.wis, 'Sand F', {'Volume': ['<', 0.5]}, log_table)
+        results = stats.run()
+        results['Sand F'].burial_depth = {}
+        fig = stats.plot_logs_vs_burial_depth(results, file_name=None)
+        self.assertEqual(0, len(fig.axes[0].collections))
+        for _well in ['WELL_A', 'WELL_B', 'WELL_F']:
+            self.assertIn(_well, fig._suptitle.get_text())
+        show_or_close()
 
     def test_save_rokdoc_output(self):
         """
