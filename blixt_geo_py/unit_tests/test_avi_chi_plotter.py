@@ -13,6 +13,7 @@ from bokeh.plotting import figure, show
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
 
 import blixt_geo_py.plotting.avo_chi_plotter as brap
+from blixt_geo_py.core.core import LithoFluid
 
 output_file(os.path.join(project_dir, 'blixt_geo_py\\test_data\\plot.html'))
 excel_file = "C:\\Users\\emb\\OneDrive - Petrolia NOCO AS\\Technical work\PL1221\\SumsAndAverages.xlsx"
@@ -21,7 +22,7 @@ class SomeTests(unittest.TestCase):
     def test_litho_fluid_table(self):
         litho_fluids_list = []
         for _name in ['shale', 'brine_sst', 'oil_sst']:
-            rt = brrp.LithoFluid(default=_name)
+            rt = LithoFluid(default=_name)
             litho_fluids_list.append(rt)
         # print(rock_types_list)
         litho_table = brap.create_litho_fluids_table(litho_fluids_list, 800)
@@ -33,7 +34,7 @@ class SomeTests(unittest.TestCase):
     def test_get_litho_fluid(self):
         litho_fluids_list = []
         for _name in ['shale', 'brine_sst', 'oil_sst']:
-            rt = brrp.LithoFluid(default=_name)
+            rt = LithoFluid(default=_name)
             litho_fluids_list.append(rt)
         litho_table = brap.create_litho_fluids_table(litho_fluids_list, 800)
         result = brap.get_litho_fluid_from_table('shale', litho_table)
@@ -43,7 +44,7 @@ class SomeTests(unittest.TestCase):
     def test_interface_table(self):
         litho_fluids_list = []
         for _name in ['shale', 'brine_sst', 'oil_sst']:
-            rt = brrp.LithoFluid(default=_name)
+            rt = LithoFluid(default=_name)
             litho_fluids_list.append(rt)
         lf_table = brap.create_litho_fluids_table(litho_fluids_list, 800)
         data_table = brap.create_interface_table(lf_table, 600)
@@ -57,7 +58,7 @@ class SomeTests(unittest.TestCase):
         console.log('Vp: ' + data['vp'][0])
         """
         for _name in ['shale', 'brine_sst', 'oil_sst']:
-            rt = brrp.LithoFluid(default=_name)
+            rt = LithoFluid(default=_name)
             litho_fluids_list.append(rt)
         lf_table = brap.create_litho_fluids_table(litho_fluids_list, 800)
         interface_table = brap.create_interface_table(lf_table, 600)
@@ -73,7 +74,7 @@ class SomeTests(unittest.TestCase):
     def test_active_litho_fluids(self):
         litho_fluids_list = []
         for _name in ['shale', 'brine_sst', 'oil_sst']:
-            rt = brrp.LithoFluid(default=_name)
+            rt = LithoFluid(default=_name)
             litho_fluids_list.append(rt)
         lf_table = brap.create_litho_fluids_table(litho_fluids_list, 800)
         interface_table = brap.create_interface_table(lf_table, 600)
@@ -88,7 +89,7 @@ class SomeTests(unittest.TestCase):
         import blixt_geo_py.plotting.avo_chi_plotter as brap
         litho_fluids_list = []
         for _name in ['shale', 'brine_sst', 'oil_sst']:
-            rt = brrp.LithoFluid(default=_name)
+            rt = LithoFluid(default=_name)
             litho_fluids_list.append(rt)
         lf_table = brap.create_litho_fluids_table(litho_fluids_list, 800)
         interface_table = brap.create_interface_table(lf_table, 600)
