@@ -1033,7 +1033,8 @@ def collect_project_wells(well_table, target_dir):
 
 
 def read_sums_and_averages(filename, header=20):
-    table = pd.read_excel(filename, header=header, engine='openpyxl')
+    # -999.25 is the null value of these files, it must not be read as e.g. a velocity
+    table = pd.read_excel(filename, header=header, engine='openpyxl', na_values=[-999.25])
     unique_layers = unique_names(table, 'Name', well_names=False)
     answer = {}
     for layer in unique_layers:

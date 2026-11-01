@@ -1,5 +1,8 @@
 import os
+import tempfile
 import unittest
+
+from openpyxl import load_workbook
 
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
 
@@ -138,6 +141,33 @@ class UtilsTestCase(unittest.TestCase):
 class OthersTestCase(unittest.TestCase):
     mask_str = 'VCL>0.8, PHIE>0.1'
     print(uio.interpret_cutoffs_string(mask_str))
+
+class SumsAndAveragesTestCase(unittest.TestCase):
+    def test_null_value(self):
+        """
+        NaN is written as the null value -999.25, which must be read back as NaN and not as e.g. a velocity
+        """
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_name = os.path.join(tmp_dir, 'SumsAndAverages.xlsx')
+            uio.write_sums_and_averages(file_name, ['With data', 'WELL_A', 'MD', -999.25, -999.25, -999.25,
+                                                    3000., 1500., 2.3])
+            uio.write_sums_and_averages(file_name, ['No data', 'WELL_B', 'MD', -999.25, -999.25, -999.25,
+                                                    np.nan, np.nan, np.nan])
+
+            wb = load_workbook(file_name)
+            rows = list(wb.active.iter_rows(values_only=True))
+            wb.close()
+            data = uio.read_sums_and_averages(file_name)
+
+        written = dict(zip(rows[20], rows[22]))
+        self.assertEqual(-999.25, written['VpMean'])
+        self.assertEqual('WELL_B', data['No data']['Well'])
+        self.assertEqual(3000., data['With data']['VpMean'])
+        self.assertEqual(2.3, data['With data']['RhoMean'])
+        for _name in ['VpMean', 'VsMean', 'RhoMean']:
+            self.assertTrue(np.isnan(data['No data'][_name]), _name)
+        self.assertTrue(np.isnan(data['With data']['TopDepth']))
+
 
 class PetrelPointsTestCase(unittest.TestCase):
     def test_read_points(self):

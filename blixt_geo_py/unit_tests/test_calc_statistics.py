@@ -10,7 +10,7 @@ from openpyxl import load_workbook
 import pandas as pd
 
 from blixt_geo_py import Q_
-from blixt_geo_py.core.core import Cutoffs, CutoffRule, LogTable
+from blixt_geo_py.core.core import Cutoffs, CutoffRule, LithoFluid, LithoFluids, LogTable
 from blixt_geo_py.core.project import Project
 from blixt_geo_py.analysis.calc_statistics import (IntervalStats, StatsCalculation, break_at_gaps,
                                                 collect_interval_stats, isolated_samples, to_cutoffs)
@@ -198,6 +198,18 @@ class TestCases(unittest.TestCase):
             file_name = os.path.join(tmp_dir, 'SumsAndAverages.xlsx')
             stats.save_rokdoc_output(results, file_name)
             lines = {_l['Name']: _l for _l in read_rokdoc_lines(file_name)}
+            # The file is read back as litho fluids, where a lack of samples must not give a velocity of -999.25
+            lf_data = LithoFluid()
+            lf_data.from_excel(file_name, 'WELL_A Sand F')
+            lf_empty = LithoFluid()
+            lf_empty.from_excel(file_name, 'WELL_B Sand D')
+            lfs = LithoFluids()
+            lfs.from_excel(file_name)
+
+        self.assertEqual(len(lines), len(lfs.litho_fluids))
+        self.assertAlmostEqual(lines['WELL_A Sand F']['VpMean'], lf_data.vp.magnitude)
+        for _q in [lf_empty.vp, lf_empty.vs, lf_empty.rho, lf_empty.vp_std_dev, lf_empty.vp_vs_cc]:
+            self.assertTrue(np.isnan(_q.magnitude))
 
         # One line for all wells together, and one for each well, of each interval
         self.assertEqual(sum(1 + len(_r.per_well) for _r in results.values()), len(lines))
