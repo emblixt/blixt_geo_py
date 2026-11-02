@@ -546,8 +546,7 @@ def data_source_moduli(data_source: DataSource, log_table:LogTable, verbose = Fa
     from blixt_geo_py.core.core import Template
     from numpy import nanmin, nanmax
 
-    if log_table.multi_log:
-        raise NotImplementedError('Currently we are not capable handling multi log LogTables')
+    log_table = log_table.single_log(['P velocity', 'S velocity', 'Density'])
     for log_type in ['P velocity', 'S velocity', 'Density']:
         if log_type not in log_table.log_types:
             raise IOError('{} is missing in LogTable {}'.format(log_type, log_table.name))
@@ -610,5 +609,5 @@ def data_source_moduli(data_source: DataSource, log_table:LogTable, verbose = Fa
         print(nanmin(data_source.data[_key]), nanmax(data_source.data[_key]), data_source.templates[_key])
 
     # Try to modify name of DataSource if it doesn't contain the name of the LogTable used
-    if log_table.name not in data_source.name:
+    if log_table.name is not None and log_table.name not in data_source.name:
         data_source.name = '{} {}'.format(data_source.name, log_table.name)

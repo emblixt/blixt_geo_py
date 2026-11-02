@@ -41,6 +41,7 @@ class LogTable(dict):
     # Class level defaults, so that they exist before __init__() has run, e.g. while unpickling
     multi_log = False
     name = None
+    _selected_logs = None
 
     def __init__(self,
                  log_table: dict | None = None,
@@ -247,6 +248,73 @@ class LogTable(dict):
                 if self[_key] in logs_to_keep:
                     _dict[_key] = self[_key]
         return LogTable(_dict, name=self.name)
+
+    def select_log(self, log_type: str) -> str:
+        """
+        Returns the one log name to use for the given log type, for code that can only use one log per log type.
+
+        When a multi log LogTable has several logs for the log type, the user is shown the list of logs and asked for
+        the index of the log to use. This LogTable remembers the answer, so the question is not repeated when it is
+        used for several wells or intervals. copy() gives a LogTable that asks again.
+
+        :param log_type:
+            str
+            e.g. 'P velocity'
+        :return:
+            str
+            The log name
+        """
+        if not self.multi_log:
+            return self[log_type]
+        log_names = self[log_type]
+        if len(log_names) == 0:
+            raise ValueError('There are no logs for log type {} in the LogTable'.format(log_type))
+        if len(log_names) == 1:
+            return log_names[0]
+        if self._selected_logs is None:
+            self._selected_logs = {}
+        if self._selected_logs.get(log_type) not in log_names:
+            self._selected_logs[log_type] = self._ask_for_log(log_type, log_names)
+        return self._selected_logs[log_type]
+
+    def _ask_for_log(self, log_type: str, log_names: list) -> str:
+        _table = '' if self.name is None else ' in LogTable {}'.format(self.name)
+        print('Only one log can be used here, but log type {}{} has several:'.format(log_type, _table))
+        for _i, _log_name in enumerate(log_names):
+            print('  {}: {}'.format(_i, _log_name))
+        while True:
+            try:
+                answer = input('Index of the {} log to use [0-{}]: '.format(log_type, len(log_names) - 1))
+            except EOFError:
+                err_txt = 'Can not ask which {} log to use, as there is no user input. Use a LogTable with one of ' \
+                          'these logs: {}'.format(log_type, ', '.join(log_names))
+                print_info(err_txt, 'error', logger, raiser='IOError')
+            try:
+                index = int(answer)
+            except ValueError:
+                index = -1
+            if 0 <= index < len(log_names):
+                return log_names[index]
+            print('{} is not an index between 0 and {}'.format(answer, len(log_names) - 1))
+
+    def single_log(self, log_types: list | None = None) -> 'LogTable':
+        """
+        Returns a LogTable with one log per log type, for code that does not support multi log LogTables.
+        See select_log() for how the logs are selected. A LogTable that isn't multi log is returned as it is.
+
+        :param log_types:
+            list
+            The log types that are needed. The other log types are left out, so that the user isn't asked about logs
+            that aren't used. Those not in this LogTable are ignored, so that the caller can report them.
+            If None, all the log types are used
+        :return:
+            LogTable
+        """
+        if not self.multi_log:
+            return self
+        if log_types is None:
+            log_types = list(self.keys())
+        return LogTable({_type: self.select_log(_type) for _type in log_types if _type in self}, name=self.name)
 
 
 class CutoffRule:
@@ -803,14 +871,13 @@ class Cutoffs:
          to 'log names' (e.g. 'vp_brine')
 
         :param log_table:
+            In a multi log LogTable, the user is asked which log to use if a rule's log type has several logs
         :return:
         """
-        if log_table.multi_log:
-            raise NotImplementedError('Multi log LogTables are not supported (Yet)')
         new_rules = deepcopy(self.cutoffs)
         for _rule in new_rules:
             try:
-                _rule.param = log_table[_rule.param]
+                _rule.param = log_table.select_log(_rule.param)
             except KeyError:
                 # warn_txt = 'Log type {} is not found in log_table: {}'.format(
                 #     _rule.param, ', '.join(list(log_table.keys())))

@@ -1193,10 +1193,14 @@ def write_pcube_lfc(working_dir, results, wi_name, log_table, cutoffs_str, suffi
     """
     from blixt_geo_py.utils.utils import nan_corrcoef
     from blixt_geo_py.utils.utils import print_info
+    from blixt_geo_py.core.core import LogTable
     if well_name is not None:
         name = '{} {}{}'.format(well_name, wi_name, suffix)
     else:
         name = '{}{}'.format(wi_name, suffix)
+    if not isinstance(log_table, LogTable):
+        log_table = LogTable(log_table)
+    log_table = log_table.single_log()
     log_table_str = ''
     for key in log_table:
         log_table_str += '{}: {}, '.format(key, log_table[key])

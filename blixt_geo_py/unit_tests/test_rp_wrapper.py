@@ -1,5 +1,6 @@
 import os
 import unittest
+from unittest.mock import patch
 
 # Imported before any plots are made. Set BLIXT_SHOW_PLOTS=1 to view the plots, see plot_settings.py
 import blixt_geo_py.unit_tests.plot_settings  # noqa: F401
@@ -50,6 +51,23 @@ class TestCases(unittest.TestCase):
         for _key in list(wds1.templates.keys()):
             print(_key)
 
+    def test_data_source_moduli_multi_log(self):
+        from blixt_geo_py.core.well import Well
+        from blixt_geo_py.core.core import LogTable
+        w = Well()
+        w.read_las(las_fileA, True)
+        logs = {'P velocity': 'vp_ptb5', 'S velocity': 'vs_ptb5', 'Density': 'rho_ptb5'}
+        expected = w.data_source(log_table=LogTable(logs))
+        data_source_moduli(expected, LogTable(logs))
+
+        # A LogTable without a name, where the user selects the logs. Volume is not used, so it isn't asked about
+        multi_log = LogTable({'P velocity': ['vp_so08', 'vp_ptb5'], 'S velocity': ['vs_ptb5'],
+                              'Density': ['rho_so08', 'rho_ptb5'], 'Volume': ['vcl', 'vsh']})
+        wds = w.data_source(log_table=LogTable(logs))
+        with patch('builtins.input', side_effect=['1', '1']) as mock_input:
+            data_source_moduli(wds, multi_log)
+        self.assertEqual(2, mock_input.call_count)
+        np.testing.assert_array_equal(expected.data['ai'].magnitude, wds.data['ai'].magnitude)
 
     def test_rpt_to_moduli(self):
         from bokeh.plotting import figure, show

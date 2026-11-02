@@ -397,6 +397,7 @@ def collect_interval_stats(wells: list,
     :return:
         IntervalStats
     """
+    log_table = log_table.single_log()
     # Convert rules on log types (e.g. 'Volume') to rules on log names (e.g. 'vcl')
     rules = cutoffs.use_log_table(log_table).cutoffs
     stats = IntervalStats(wi_name=wi_name, log_table=log_table, cutoffs=cutoffs, suffix=suffix)
@@ -464,6 +465,7 @@ class StatsCalculation:
         :param log_table:
             LogTable or dict of {log type: log name}, or a list of these, one per working interval
             The P velocity, S velocity, Density, Porosity and Volume logs are needed for the RokDoc output
+            If a log type has several logs (multi log LogTable), the user is asked which log to use
         :param cutoffs:
             Cutoffs, str (e.g. "Volume<0.5[], Porosity>0.1[]"), dict (e.g. {'Volume': ['<', 0.5]}) or None
             None uses all samples of the working interval, regardless of lithology
@@ -494,7 +496,10 @@ class StatsCalculation:
         self.intervals = intervals
         self.wi_names = wi_names
         self.cutoffs = [to_cutoffs(_c) for _c in _per_interval(cutoffs, n, 'cutoffs', (Cutoffs, str, dict))]
-        self.log_tables = [_lt if isinstance(_lt, LogTable) else LogTable(dict(_lt))
+        # A single dict becomes one LogTable, so that a multi log LogTable only asks once, not once per interval
+        if isinstance(log_table, dict) and not isinstance(log_table, LogTable):
+            log_table = LogTable(log_table)
+        self.log_tables = [(_lt if isinstance(_lt, LogTable) else LogTable(dict(_lt))).single_log()
                            for _lt in _per_interval(log_table, n, 'log_tables', (LogTable, dict))]
         self.suffixes = [_s or '' for _s in _per_interval(suffix, n, 'suffixes', (str,))]
         # The results, and the lines in the RokDoc output, of these could not be told apart
@@ -886,6 +891,9 @@ def write_rokdoc_sums_and_averages(rokdoc_output, results, wi_name, log_table, c
     else:
         well_name = 'NONE'
         name = '{}{}'.format(wi_name, suffix)
+    if not isinstance(log_table, LogTable):
+        log_table = LogTable(log_table)
+    log_table = log_table.single_log()
     log_table_str = ''
     for key in log_table:
         log_table_str += '{}: {}, '.format(key, log_table[key])

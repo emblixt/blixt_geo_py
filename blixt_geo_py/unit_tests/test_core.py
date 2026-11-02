@@ -1,5 +1,7 @@
 import os
 import unittest
+from copy import deepcopy
+from unittest.mock import patch
 
 # Imported before any plots are made. Set BLIXT_SHOW_PLOTS=1 to view the plots, see plot_settings.py
 from blixt_geo_py.unit_tests.plot_settings import show_or_close
@@ -173,8 +175,73 @@ class CutoffTests(unittest.TestCase):
         new_cutoffs = cutoffs.use_log_table(LogTable(log_table))
         print(new_cutoffs.cutoff_params)
 
-        # Raise an NotImplementedError because we don't support multi log LogTables yet
-        self.assertRaises(NotImplementedError, cutoffs.use_log_table, LogTable(log_table_multi))
+        # With a multi log LogTable the user is asked about the log types of the rules, and of no others
+        with patch('builtins.input', side_effect=['1', '2']) as mock_input:
+            new_cutoffs = cutoffs.use_log_table(LogTable(log_table_multi))
+        self.assertEqual(['name5', 'vp_brine', 'rhob_oil'], new_cutoffs.cutoff_params)
+        self.assertEqual(2, mock_input.call_count)
+
+    def test_select_log(self):
+        lt = LogTable(log_table_multi, name='My table')
+        with patch('builtins.input', side_effect=['2']) as mock_input, patch('builtins.print') as mock_print:
+            self.assertEqual('vp_oil', lt.select_log('P velocity'))
+            # The answer is remembered
+            self.assertEqual('vp_oil', lt.select_log('P velocity'))
+        self.assertEqual(1, mock_input.call_count)
+        # The user is shown the list of logs to choose from
+        printed = [_call.args[0] for _call in mock_print.call_args_list]
+        self.assertIn('P velocity in LogTable My table', printed[0])
+        self.assertEqual(['  0: vp_virg', '  1: vp_brine', '  2: vp_oil', '  3: vp_gas'], printed[1:5])
+
+        # A copy asks again
+        with patch('builtins.input', side_effect=['0']):
+            self.assertEqual('vp_virg', lt.copy().select_log('P velocity'))
+
+        # Asks again until the answer is a valid index
+        with patch('builtins.input', side_effect=['', 'vp_oil', '-1', '4', '1.5', ' 3 ']) as mock_input:
+            self.assertEqual('rhob_gas', LogTable(log_table_multi).select_log('Density'))
+        self.assertEqual(6, mock_input.call_count)
+
+        # There is nothing to ask when there is only one log
+        with patch('builtins.input') as mock_input:
+            lt = LogTable({'Density': 'rhob', 'Resistivity': ['rdep', 'rmed']})
+            self.assertEqual('rhob', lt.select_log('Density'))
+            self.assertEqual('vp', LogTable(log_table).select_log('P velocity'))
+        mock_input.assert_not_called()
+
+        self.assertRaises(KeyError, LogTable(log_table_multi).select_log, 'Volume')
+        self.assertRaises(ValueError, LogTable({'Density': []}).select_log, 'Density')
+
+        # Without user input, e.g. when run as a batch job, it fails with an explanation
+        with patch('builtins.input', side_effect=EOFError):
+            with self.assertRaisesRegex(IOError, 'vp_virg, vp_brine, vp_oil, vp_gas'):
+                LogTable(log_table_multi).select_log('P velocity')
+
+    def test_single_log(self):
+        lt = LogTable(log_table)
+        self.assertIs(lt, lt.single_log())
+
+        lt = LogTable(log_table_multi, name='My table')
+        with patch('builtins.input', side_effect=['3', '0']) as mock_input:
+            single = lt.single_log(['P velocity', 'Density', 'Volume'])
+        self.assertEqual({'P velocity': 'vp_gas', 'Density': 'rhob_virg'}, single.dict)
+        self.assertFalse(single.multi_log)
+        self.assertEqual('My table', single.name)
+        self.assertEqual(2, mock_input.call_count)
+        # The original is unchanged
+        self.assertEqual(log_table_multi['Density'], lt['Density'])
+
+        # Asks only about the log type that hasn't been answered, and gives the same answers as the cutoffs get
+        with patch('builtins.input', side_effect=['1']) as mock_input:
+            single = lt.single_log()
+        self.assertEqual({'P velocity': 'vp_gas', 'S velocity': 'vs_brine', 'Density': 'rhob_virg'}, single.dict)
+        self.assertEqual(1, mock_input.call_count)
+        self.assertEqual(['vp_gas'], Cutoffs(cutoffs=[rule6]).use_log_table(lt).cutoff_params)
+
+        # A deepcopy keeps the answers
+        with patch('builtins.input') as mock_input:
+            self.assertEqual('vp_gas', deepcopy(lt).select_log('P velocity'))
+        mock_input.assert_not_called()
 
     def test_create_mask_from_cutoff_rule(self):
         data = {'name2': np.linspace(5., 20, 10)}

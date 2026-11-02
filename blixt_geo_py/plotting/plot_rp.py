@@ -140,9 +140,10 @@ def plot_rp(wells, log_table, wis, wi_name, cutoffs=None, legend_items=None,
     missing_types = [_type for _type in needed_types if _type not in list(log_table.keys())]
     if len(missing_types) > 0:
         raise ValueError('The log table lacks the log types: {}'.format(', '.join(missing_types)))
-    logs = [log_table[_type] for _type in needed_types]
     # Convert rules on log types (e.g. 'Volume') to rules on log names (e.g. 'vcl')
     rules = cutoffs.use_log_table(log_table).cutoffs
+    log_table = log_table.single_log(needed_types)
+    logs = [log_table[_type] for _type in needed_types]
 
     #
     # set up plotting environment

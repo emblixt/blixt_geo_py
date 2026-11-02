@@ -881,6 +881,7 @@ class Well(object):
         # Check that the log table contains the necessary log types
         # And that the necessary logs are in the well
         necessary_log_types = ['P velocity', 'S velocity', 'Density']
+        log_table = log_table.single_log(necessary_log_types)
         for nlt in necessary_log_types:
             if nlt not in log_table.log_types:
                 print_info('Log type {} is missing'.format(nlt), 'error', logger, raiser='IOError')

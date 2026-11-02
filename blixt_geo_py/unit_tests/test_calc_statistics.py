@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+from unittest.mock import patch
 
 # Imported before any plots are made. Set BLIXT_SHOW_PLOTS=1 to view the plots, see plot_settings.py
 from blixt_geo_py.unit_tests.plot_settings import show_plots, show_or_close
@@ -78,6 +79,24 @@ class TestCases(unittest.TestCase):
         np.testing.assert_array_equal(
             isolated_samples(values, depth),
             [True, False, False, False, False, True, False, True, False, True])
+
+    def test_multi_log_table(self):
+        # Asks once, not once per interval, and gives the same results as a table with the selected logs
+        multi_log_table = dict(log_table, **{'Volume': ['vsh_not_used', 'vcl']})
+        names, cutoffs = ['Sand F', 'Sand E'], 'Volume<0.5[], Porosity>0.1[]'
+        with patch('builtins.input', side_effect=['1']) as mock_input:
+            stats = StatsCalculation(self.wells, self.wis, names, multi_log_table, cutoffs)
+            results = stats.run()
+        self.assertEqual(1, mock_input.call_count)
+        expected = StatsCalculation(self.wells, self.wis, names, log_table, cutoffs).run()
+        pd.testing.assert_frame_equal(stats.summary(expected), stats.summary(results))
+
+        # The same LogTable given to a function on its own
+        with patch('builtins.input', side_effect=['1']) as mock_input:
+            one_interval = collect_interval_stats(self.wells, self.wis, 'Sand F', LogTable(multi_log_table),
+                                                  to_cutoffs(cutoffs))
+        self.assertEqual(1, mock_input.call_count)
+        self.assertEqual('vcl', one_interval.log_table['Volume'])
 
     def test_collect_interval_stats(self):
         cutoffs = Cutoffs([CutoffRule('Volume', '<', Q_(0.5, '')), CutoffRule('Porosity', '>', Q_(0.1, ''))])

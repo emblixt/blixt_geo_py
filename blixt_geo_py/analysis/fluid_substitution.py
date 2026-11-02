@@ -132,6 +132,7 @@ def run_fluid_substitution(
     :param verbose:
     :return:
     """
+    log_table = log_table.single_log(['P velocity', 'S velocity', 'Density', 'Porosity'])
 
     # Load all fluid substitution cases:
     fluid_subst_cases = load_substitution_cases(project_table)

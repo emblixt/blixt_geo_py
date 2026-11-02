@@ -187,6 +187,9 @@ def plot_chi_rotation(well: cw.Well,
         print_info(err_txt, 'error', logger, raiser='IOError')
 
 
+    brine_log_table = brine_log_table.single_log(['P velocity', 'S velocity', 'Density'])
+    hc_log_table = hc_log_table.single_log(['P velocity', 'S velocity', 'Density'])
+
     # Create a combined log table
     _dict = {'P velocity': [], 'S velocity': [], 'Density': []}
     for _key in list(_dict.keys()):
@@ -664,6 +667,8 @@ def compare_synth_with_seismic(
     else:
         err_txt = 'No TWT data exists in well {}'.format(well.name)
         print_info(err_txt, 'error', logger, raiser='IOError')
+
+    vp_vs_rho_table = vp_vs_rho_table.single_log(['P velocity', 'S velocity', 'Density'])
 
     # Check that the required logs exists in the well
     for _log in (ref_log_table.log_names + vp_vs_rho_table.log_names):
@@ -1313,12 +1318,10 @@ def plot_trends(x_name: str, wells: list, log_table: LogTable, wis:Intervals, wi
 
     # Start looping over the different log types
     print_info('START ANALYZING DEPTH TRENDS:', '', None, verbose, False)
-    for log_type in log_table.log_types:
+    for log_type in log_table.keys():
         if log_type in skip:
             continue
-        if log_table.multi_log:
-            raise NotImplementedError('This only supports log_tables with one log per log_type, should be extended')
-        log_name = log_table[log_type]
+        log_name = log_table.select_log(log_type)
         print_info('Working on log type: {}, on log: {}'.format(log_type, log_name), ' -', None, verbose, False)
         if verbose:
             fig, ax = plt.subplots(figsize=(10, 10))
@@ -1344,7 +1347,6 @@ def plot_trends(x_name: str, wells: list, log_table: LogTable, wis:Intervals, wi
             print_info('Well: {}'.format(well.name), '  *', None, verbose, False)
 
             # Take into account the log_table when using the cutoffs
-            #TODO  Note that this won't work for multilog log_tables
             _cutoffs = cutoffs.use_log_table(log_table=log_table)
 
             # Take into account the requested working interval
