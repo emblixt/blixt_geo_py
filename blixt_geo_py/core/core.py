@@ -2508,6 +2508,7 @@ class LithoFluidsTable:
     def draw(self,
              cds: ColumnDataSource):
         from bokeh.models import DataTable, Button, Div
+        from blixt_geo_py.analysis.fluid_substitution import InteractiveFluidSub
 
         def add_row_function():
             if len(cds.selected.indices) > 0:
@@ -2544,7 +2545,7 @@ class LithoFluidsTable:
                 # print(' - Iteration: {} of {}'.format( _i, len(new_data['name'])))
                 _dict = {}
                 if self.advanced:
-                    keys = ['vp', 'vs', 'rho', 'vp_std_dev', 'vs_std_dev', 'rho_std_dev', 'vp_vs_cc', 'vs_rho_cc']
+                    keys = ['vp', 'vs', 'rho', 'vp_std_dev', 'vs_std_dev', 'rho_std_dev', 'vp_vs_cc', 'vp_rho_cc', 'vs_rho_cc']
                     units = ['m/s', 'm/s', 'gram/cm^3', 'm/s', 'm/s', 'gram/cm^3', '', '', '']
                 else:
                     keys = ['vp', 'vs', 'rho']
@@ -2643,7 +2644,11 @@ class LithoFluidsTable:
         save = Button(label='Save', button_type='success')
         save.on_click(save_function)
 
-        return column(title, dt, sizing_mode='stretch_width'), row(add_row, delete_row, update_table, save)
+        fluid_sub, fluid_sub_dialog = InteractiveFluidSub(cds, self.litho_fluids, update_table_function).draw()
+
+        controls = row(add_row, delete_row, update_table, save, fluid_sub)
+        controls.elements = [fluid_sub_dialog]
+        return column(title, dt, sizing_mode='stretch_width'), controls
         # return column(title, dt, sizing_mode='stretch_width'), add_row, delete_row, update_table
 
 

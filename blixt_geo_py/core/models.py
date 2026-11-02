@@ -1634,6 +1634,23 @@ class ModelTable:
             )
             cds.data = new_data
 
+        # The layers find their litho fluid by name, so they must follow when a litho fluid changes name. A change of
+        # the number of litho fluids is an added or deleted row, where the rows can't be compared
+        lf_names = list(litho_fluids_cds.data['name'])
+
+        def follow_renamed_litho_fluids(attr, old, new):
+            nonlocal lf_names
+            new_names = list(litho_fluids_cds.data['name'])
+            if len(new_names) == len(lf_names):
+                renamed = {str(_old).lower(): _new for _old, _new in zip(lf_names, new_names) if _old != _new}
+                if len(renamed) > 0:
+                    new_data = dict(cds.data)
+                    new_data['litho_fluid'] = [renamed.get(str(_x).lower(), _x) for _x in cds.data['litho_fluid']]
+                    cds.data = new_data
+            lf_names = new_names
+
+        litho_fluids_cds.on_change('data', follow_renamed_litho_fluids)
+
         def save_function():
             file_name = save_file()
             n_layers = len(self.model.layers)

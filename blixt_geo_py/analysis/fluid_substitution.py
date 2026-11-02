@@ -10,21 +10,23 @@ Outline:
         OR, at least use them as inspiration
 
     2. One 'naiv' method that is interactive and uses bokeh as front-end
-           Use test_fluidsub() in core/fluids.py (removed, see commit 35b133f or earlier) as inspiration
-           There is one problem with using the CrossPlotter for visualizing the results, as the parameters both
-           before and after fluid substitution need to have the same name for them to be plotted simultaneously.
-           So we need a new 'Well' (or DataSource) to store the substituted results.
+           InteractiveFluidSub, which works on the selected LithoFluid in a LithoFluidsTable
 """
 import logging
 import os
+from collections.abc import Callable
 from copy import deepcopy
+from math import isfinite
 from pathlib import Path
 
+from bokeh.models import Button, ColumnDataSource, Dialog, Div, Spinner
+from bokeh.plotting import column, row
+import pint
 
 from blixt_geo_py import Q_
 from blixt_geo_py.core.well import Well
 from blixt_geo_py.utils.utils import isnan, print_info
-from blixt_geo_py.core.core import Intervals, LogTable, Cutoffs
+from blixt_geo_py.core.core import Intervals, LithoFluid, LithoFluids, LogTable, Cutoffs
 from blixt_geo_py.rp.rp_core import gassmann_vel
 from blixt_geo_py.core.fluids_and_minerals import load_substitution_cases
 
@@ -322,27 +324,144 @@ def run_fluid_substitution(
         last_well.header.modification_history += last_mod_history
         last_well.write_las(_file_name)
 
-class   InteractiveFluidSub:
+class InteractiveFluidSub:
+    """
+    A button, and a dialog, for a 'naiv' fluid substitution of the selected LithoFluid in a LithoFluidsTable.
+    The name, Vp, Vs and Rho of the selected row are replaced by the results of LithoFluid.fluid_sub(). The rest of the
+    row, e.g. the standard deviations, is kept.
+    Nothing happens unless exactly one row is selected.
+    """
     def __init__(self,
-                 well: Well,
-                 log_table: LogTable,
-                 cutoffs: Cutoffs,
-                 rpt_keywords: dict | None = None
-                 ):
+                 cds: ColumnDataSource,
+                 litho_fluids: LithoFluids | None = None,
+                 update_table: Callable | None = None):
         """
-        Creates a new well, with fluid substituted vp, vs and rho.
-        The names of the vp, vs and rho logs will have the same name as in the input (as defined by the log_table)
-        to be able to plot it in the same CrossPlotter
-
-        :param well:
-        :param log_table:
-            LogTable that contains the vp, vs and rho logs we want to apply the fluid substitution on, and other
-            logs e.g. vsh and phie which we would like to plot and/or use in the cutoffs.
-
-        :param cutoffs:
-        :param rpt_keywords
-            dict
-            Dictionary which contains values used for e.g. brine and oil density and bulk moduli.
-            See rpt_wrapper_new.py for default values
+        :param cds:
+            ColumnDataSource of the LithoFluidsTable
+        :param litho_fluids:
+            The LithoFluids of the LithoFluidsTable, used for finding the quasi 2D litho fluids, which can't be replaced
+        :param update_table:
+            Called after a row has been replaced
         """
-        pass
+        self.cds = cds
+        self.litho_fluids = litho_fluids
+        self.update_table = update_table
+        # The default values of LithoFluid.fluid_sub()
+        self.s_w1 = Spinner(title='Initial water saturation', value=1., low=0., high=1., step=0.05)
+        self.s_w2 = Spinner(title='Final water saturation', value=0.2, low=0., high=1., step=0.05)
+        self.hc_rho = Spinner(title='Hydrocarbon density [g/cm3]', value=0.8, low=0., step=0.01)
+        self.hc_k = Spinner(title='Hydrocarbon bulk modulus [GPa]', value=1.152, low=0., step=0.01)
+        self.mineral_rho = Spinner(title='Mineral density [g/cm3]', value=2.6, low=0., step=0.01)
+        self.mineral_k = Spinner(title='Mineral bulk modulus [GPa]', value=36.6, low=0., step=0.1)
+        self.selected = Div()
+        self.message = Div(styles={'color': 'red'})
+        self.dialog = None
+
+    @property
+    def selected_row(self) -> int | None:
+        indices = self.cds.selected.indices
+        return indices[0] if len(indices) == 1 else None
+
+    def _is_quasi_2d(self, row: int) -> bool:
+        if self.litho_fluids is None or row >= len(self.litho_fluids):
+            return False
+        _lf = self.litho_fluids.litho_fluids[row]
+        return any(isinstance(_x, Callable) for _x in [_lf.vp, _lf.vs, _lf.rho])
+
+    def substitute(self, s_w1: pint.Quantity, s_w2: pint.Quantity, hc: dict, mineral: dict) -> str | None:
+        """
+        Replaces the selected row with the results of the fluid substitution.
+        The table is left as it is if it fails
+
+        :param s_w1:
+        :param s_w2:
+        :param hc:
+        :param mineral:
+            See LithoFluid.fluid_sub()
+        :return:
+            None, or a description of why it failed
+        """
+        row = self.selected_row
+        if row is None:
+            return 'Select one litho fluid in the table'
+        if self._is_quasi_2d(row):
+            return 'Litho fluid {} is quasi 2D, and can not be fluid substituted'.format(self.cds.data['name'][row])
+
+        data = self.cds.data
+        litho_fluid = LithoFluid(name=data['name'][row], vp=Q_(data['vp'][row], 'm/s'), vs=Q_(data['vs'][row], 'm/s'),
+                                 rho=Q_(data['rho'][row], 'g/cm**3'))
+        fail_txt = 'The fluid substitution of {} failed, its porosity is zero or undefined. Is its density the same ' \
+                   'as the mineral density?'.format(litho_fluid.name)
+        try:
+            result = litho_fluid.fluid_sub(s_w1, s_w2, hc, mineral)
+        except ZeroDivisionError:
+            return fail_txt
+        values = {'vp': float(result.vp.to('m/s').magnitude), 'vs': float(result.vs.to('m/s').magnitude),
+                  'rho': float(result.rho.to('g/cm**3').magnitude)}
+        if not all(isfinite(_x) for _x in values.values()):
+            return fail_txt
+
+        # The model table finds its litho fluids by name, so the name must be unique
+        other_names = [str(_x).lower() for _i, _x in enumerate(data['name']) if _i != row]
+        if result.name.lower() in other_names:
+            return 'There is already a litho fluid named {}'.format(result.name)
+
+        new_data = dict(data)
+        for _key, _value in dict(values, name=result.name).items():
+            new_data[_key] = list(data[_key])
+            new_data[_key][row] = _value
+        self.cds.data = new_data
+        if self.update_table is not None:
+            self.update_table()
+        return None
+
+    def _show_selected(self):
+        row = self.selected_row
+        self.selected.text = 'Select one litho fluid in the table' if row is None else \
+            'Litho fluid: <b>{}</b>'.format(self.cds.data['name'][row])
+
+    def _open_dialog(self):
+        if self.selected_row is None:
+            print_info('Fluid substitution needs exactly one selected litho fluid', 'warning', logger)
+            return
+        self._show_selected()
+        self.message.text = ''
+        self.dialog.visible = True
+
+    def _apply(self):
+        inputs = [self.s_w1, self.s_w2, self.hc_rho, self.hc_k, self.mineral_rho, self.mineral_k]
+        if any(_x.value is None for _x in inputs):
+            self.message.text = 'All values must be given'
+            return
+        error = self.substitute(
+            Q_(self.s_w1.value, ''),
+            Q_(self.s_w2.value, ''),
+            dict(rho=Q_(self.hc_rho.value, 'g/cm**3'), k=Q_(self.hc_k.value, 'GPa')),
+            dict(rho=Q_(self.mineral_rho.value, 'g/cm**3'), k=Q_(self.mineral_k.value, 'GPa')))
+        self.message.text = '' if error is None else error
+        self.dialog.visible = error is not None
+
+    def _close_dialog(self):
+        self.dialog.visible = False
+
+    def draw(self) -> tuple:
+        """
+        :return:
+            The button that opens the dialog, and the dialog, which must be added to a layout to be available
+        """
+        self.cds.selected.on_change('indices', lambda attr, old, new: self._show_selected())
+
+        apply = Button(label='Apply', button_type='success')
+        apply.on_click(self._apply)
+        cancel = Button(label='Cancel')
+        cancel.on_click(self._close_dialog)
+        self.dialog = Dialog(
+            title='Fluid substitution',
+            content=column(self.selected, row(self.s_w1, self.s_w2), row(self.hc_rho, self.hc_k),
+                           row(self.mineral_rho, self.mineral_k), self.message, row(apply, cancel)),
+            visible=False,
+            close_action='hide')
+
+        button = Button(label='Fluid sub', button_type='success')
+        button.on_click(self._open_dialog)
+        return button, self.dialog

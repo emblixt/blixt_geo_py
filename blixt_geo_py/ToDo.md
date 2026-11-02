@@ -85,8 +85,8 @@ pint units into use.
 - unit_tests/main.py imports test_models, which it can't find
 
 ### 2026-11-02
-- Add a new Bokeh interactive tool that can do a "naiv" fluid substitution  on a selected LithoFLuid in a LithoFluidTable. It is actually initiated in InteractiveFluidSub in fluid_substitution.py
-- Add an option to not display the well synthetics in the compare_synth_with_seismic
+- ~~Add a new Bokeh interactive tool that can do a "naiv" fluid substitution  on a selected LithoFLuid in a LithoFluidTable. It is actually initiated in InteractiveFluidSub in fluid_substitution.py~~ (the "Fluid sub" button of LithoFluidsTable)
+- ~~Add an option to not display the well synthetics in the compare_synth_with_seismic~~ (already there, ignore_well_synth)
 - ~~Allow StatsCalculation to be run without cutoffs, so that it simply calculates the statistics of a whole interval, regardless of lithology~~ (cutoffs is now optional, and comes after log_table)
 - ~~Make a fix so that everywhere a Multi log LogTable is used where it is not supported, we raise a warning and just take the first of the given logs~~ (asks the user for the index of the log to use instead, LogTable.select_log() and LogTable.single_log())
 - ~~If there are more than 5 intervals in plot_logs_vs_burial_depth(), split the plot into one figure per 5 intervals~~ (max_intervals)

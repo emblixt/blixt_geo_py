@@ -765,6 +765,170 @@ class LithoFluidTests(unittest.TestCase):
         self.assertEqual(260, data['brine_sst']['VpStdDev'])
         self.assertEqual(0.92, data['brine_sst']['VpVsCorrCoef'])
 
+    @staticmethod
+    def click(button):
+        for _callback in button._event_callbacks['button_click']:
+            _callback()
+
+    def fluid_sub_table(self, advanced=False):
+        """
+        Returns a table with a brine sand and a shale, its cds, and its button and dialog of the fluid substitution
+        """
+        from blixt_geo_py.core.core import LithoFluid, LithoFluids, LithoFluidsTable
+        lfs = LithoFluids([LithoFluid(default='brine_sst'), LithoFluid(default='shale')])
+        lft = LithoFluidsTable(lfs, advanced=advanced)
+        cds = lft.cds
+        _, controls = lft.draw(cds)
+        return lfs, cds, controls.children[-1], controls.elements[0]
+
+    def apply_button(self, dialog):
+        from bokeh.models import Button
+        return [_b for _b in dialog.select({'type': Button}) if _b.label == 'Apply'][0]
+
+    def test_fluid_sub_replaces_the_selected_row(self):
+        from blixt_geo_py.core.core import LithoFluid
+        lfs, cds, button, dialog = self.fluid_sub_table()
+        expected = LithoFluid(default='brine_sst').fluid_sub()
+        cds.selected.indices = [0]
+
+        self.click(button)
+        self.assertTrue(dialog.visible)
+        self.click(self.apply_button(dialog))
+        self.assertFalse(dialog.visible)
+
+        # The dialog starts with the default values of fluid_sub(). No row is added, and the other row is unchanged
+        self.assertEqual(['brine_sst_hc', 'shale'], cds.data['name'])
+        for _key, _new, _other in (('vp', expected.vp, 3445), ('vs', expected.vs, 1767), ('rho', expected.rho, 2.6)):
+            self.assertAlmostEqual(_new.magnitude, cds.data[_key][0])
+            self.assertEqual(_other, cds.data[_key][1])
+        # The LithoFluids of the table has the new values too
+        self.assertEqual(['brine_sst_hc', 'shale'], [_lf.name for _lf in lfs.litho_fluids])
+        self.assertAlmostEqual(expected.vp.magnitude, lfs['brine_sst_hc'].vp.magnitude)
+
+    def test_fluid_sub_uses_the_inputs(self):
+        from bokeh.models import Spinner
+        from blixt_geo_py.core.core import LithoFluid
+        hc = dict(rho=Q_(0.15, 'G/cc'), k=Q_(0.037, 'GPa'))
+        mineral = dict(rho=Q_(2.71, 'G/cc'), k=Q_(63.7, 'GPa'))
+        expected = LithoFluid(default='brine_sst').fluid_sub(Q_(0.9, ''), Q_(0., ''), hc, mineral)
+
+        _, cds, button, dialog = self.fluid_sub_table()
+        cds.selected.indices = [0]
+        self.click(button)
+        values = {'Initial water saturation': 0.9, 'Final water saturation': 0., 'Hydrocarbon density [g/cm3]': 0.15,
+                  'Hydrocarbon bulk modulus [GPa]': 0.037, 'Mineral density [g/cm3]': 2.71,
+                  'Mineral bulk modulus [GPa]': 63.7}
+        spinners = list(dialog.select({'type': Spinner}))
+        self.assertEqual(set(values), {_s.title for _s in spinners})
+        for _spinner in spinners:
+            _spinner.value = values[_spinner.title]
+        self.click(self.apply_button(dialog))
+        self.assertAlmostEqual(expected.vp.magnitude, cds.data['vp'][0])
+        self.assertAlmostEqual(expected.vs.magnitude, cds.data['vs'][0])
+        self.assertAlmostEqual(expected.rho.magnitude, cds.data['rho'][0])
+
+    def test_fluid_sub_needs_one_selected_row(self):
+        _, cds, button, dialog = self.fluid_sub_table()
+        before = {_k: list(_v) for _k, _v in cds.data.items()}
+        for _indices in ([], [0, 1]):
+            cds.selected.indices = _indices
+            self.click(button)
+            self.assertFalse(dialog.visible, _indices)
+
+        # The selection can change while the dialog is open
+        cds.selected.indices = [0]
+        self.click(button)
+        cds.selected.indices = [0, 1]
+        self.click(self.apply_button(dialog))
+        self.assertTrue(dialog.visible)
+        self.assertEqual(before, {_k: list(_v) for _k, _v in cds.data.items()})
+
+    def test_fluid_sub_keeps_the_rest_of_the_row(self):
+        lfs, cds, button, dialog = self.fluid_sub_table(advanced=True)
+        cds.selected.indices = [0]
+        self.click(button)
+        self.click(self.apply_button(dialog))
+        self.assertEqual('brine_sst_hc', cds.data['name'][0])
+        self.assertEqual(260, cds.data['vp_std_dev'][0])
+        self.assertEqual(0.62, cds.data['vp_rho_cc'][0])
+        self.assertEqual(260, lfs['brine_sst_hc'].vp_std_dev.magnitude)
+        self.assertEqual(0.62, lfs['brine_sst_hc'].vp_rho_cc.magnitude)
+
+    def test_fluid_sub_failures_leave_the_table(self):
+        from bokeh.models import Div
+        from blixt_geo_py.core.core import LithoFluid, LithoFluids, LithoFluidsTable
+
+        def assert_refused(cds, dialog, text):
+            before = {_k: list(_v) for _k, _v in cds.data.items()}
+            self.click(self.apply_button(dialog))
+            self.assertTrue(dialog.visible)
+            self.assertEqual(before, {_k: list(_v) for _k, _v in cds.data.items()})
+            self.assertTrue(any(text in str(_d.text) for _d in dialog.select({'type': Div})), text)
+
+        # The density of the shale is the same as the default density of the mineral, which gives zero porosity
+        _, cds, button, dialog = self.fluid_sub_table()
+        cds.selected.indices = [1]
+        self.click(button)
+        assert_refused(cds, dialog, 'porosity')
+
+        # The name after the substitution is taken
+        lft = LithoFluidsTable(LithoFluids([LithoFluid(default='brine_sst'), LithoFluid(name='BRINE_SST_HC')]),
+                               advanced=False)
+        cds = lft.cds
+        _, controls = lft.draw(cds)
+        cds.selected.indices = [0]
+        self.click(controls.children[-1])
+        assert_refused(cds, controls.elements[0], 'already')
+
+        # A quasi 2D litho fluid
+        lft = LithoFluidsTable(LithoFluids([LithoFluid(name='Quasi 2D', vp=lambda _i: Q_(3000. + _i, 'm/s'))]),
+                               advanced=False)
+        cds = lft.cds
+        _, controls = lft.draw(cds)
+        cds.selected.indices = [0]
+        self.click(controls.children[-1])
+        assert_refused(cds, controls.elements[0], 'quasi 2D')
+
+    def test_renamed_litho_fluid_in_model_table(self):
+        from blixt_geo_py.core.core import LithoFluid, LithoFluids, LithoFluidsTable
+        from blixt_geo_py.core.models import Layer, Model, ModelTable
+        sand, shale = LithoFluid(default='brine_sst'), LithoFluid(default='shale')
+        lft = LithoFluidsTable(LithoFluids([sand, shale]), advanced=False)
+        lf_cds = lft.cds
+        _, controls = lft.draw(lf_cds)
+        model = Model(depth_to_top=Q_(1000., 'm'), layers=[Layer(name='L1', litho_fluid=shale),
+                                                           Layer(name='L2', litho_fluid=sand),
+                                                           Layer(name='L3', litho_fluid=shale)])
+        model_table = ModelTable(model)
+        mod_cds = model_table.cds
+        _, model_controls = model_table.draw(mod_cds, lf_cds)
+        self.assertEqual(['shale', 'brine_sst', 'shale'], mod_cds.data['litho_fluid'])
+
+        # By the fluid substitution
+        lf_cds.selected.indices = [0]
+        self.click(controls.children[-1])
+        self.click(self.apply_button(controls.elements[0]))
+        self.assertEqual(['shale', 'brine_sst_hc', 'shale'], mod_cds.data['litho_fluid'])
+
+        # The model gets the new values, and keeps all its layers
+        update = [_b for _b in model_controls.children if _b.label == 'Update'][0]
+        self.click(update)
+        self.assertEqual(3, len(model_table.model.layers))
+        self.assertEqual('brine_sst_hc', model_table.model.layers[1].litho_fluid.name)
+        self.assertAlmostEqual(lf_cds.data['vp'][0], model_table.model.layers[1].litho_fluid.vp.magnitude)
+
+        # By the user, in the table
+        new_data = dict(lf_cds.data)
+        new_data['name'] = ['brine_sst_hc', 'Draupne']
+        lf_cds.data = new_data
+        self.assertEqual(['Draupne', 'brine_sst_hc', 'Draupne'], mod_cds.data['litho_fluid'])
+
+        # A deleted row is not a new name
+        lf_cds.selected.indices = [0]
+        delete = [_b for _b in controls.children if _b.label == 'Delete selected rows'][0]
+        self.click(delete)
+        self.assertEqual(['Draupne', 'brine_sst_hc', 'Draupne'], mod_cds.data['litho_fluid'])
+
     def test_table(self, unit_test=True):
         from bokeh.io import output_file
         from bokeh.plotting import show, row, column
