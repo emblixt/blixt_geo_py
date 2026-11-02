@@ -18,6 +18,10 @@ Usage:
     stats.plot_logs_vs_depth(results)
     stats.plot_averages(results)
     stats.plot_logs_vs_burial_depth(results)
+    print(stats.gardner(results))
+    stats.save_gardner(results, 'gardner.xlsx')
+    a, b = read_gardner('gardner.xlsx', 'Sand E')
+    stats.plot_gardner(results)
 """
 import logging
 import os
@@ -41,6 +45,10 @@ logger = logging.getLogger(__name__)
 
 # Log types needed for writing a RokDoc compatible Sums and Averages file
 rokdoc_log_types = ['P velocity', 'S velocity', 'Density', 'Porosity', 'Volume']
+
+# The published coefficients of the Gardner equation, for Vp in m/s and density in g/cm3
+gardner_a = 0.31
+gardner_b = 0.25
 
 
 def to_cutoffs(cutoffs: Cutoffs | str | dict | None) -> Cutoffs:
@@ -159,8 +167,81 @@ def linear_depth_trend(values: np.ndarray, depth: np.ndarray) -> dict | None:
     std = np.std(_values)
     std_detrended = np.std(_values - (slope * _depth + intercept))
     return {'slope': slope, 'intercept': intercept,
-            'r2': 1. - (std_detrended / std) ** 2 if std > 0. else 0.,
+            # Not testing std, which rounding can leave slightly above zero for constant values
+            'r2': 1. - (std_detrended / std) ** 2 if np.ptp(_values) > 0. else 0.,
             'std': std, 'std_detrended': std_detrended, 'n': int(np.sum(valid))}
+
+
+def _valid_vp_and_rho(vp: np.ndarray, rho: np.ndarray) -> np.ndarray:
+    return np.isfinite(vp) & np.isfinite(rho) & (vp > 0.) & (rho > 0.)
+
+
+def fit_gardner(vp: np.ndarray, rho: np.ndarray) -> dict | None:
+    """
+    Calibrates the Gardner equation, rho = a * vp ** b, by a linear regression of its natural logarithm:
+        ln(rho) = ln(a) + b * ln(vp)
+    Samples that are not finite, or not positive, are ignored
+
+    :param vp:
+        np.ndarray
+        P velocity. The value of a depends on the units, see gardner_a
+    :param rho:
+        np.ndarray
+        Density, of the same length as vp
+    :return:
+        dict or None
+        {'a': the coefficient,
+         'b': the exponent,
+         'r2': the fraction of the variance of ln(rho) that the fit explains,
+         'n': number of valid samples}
+        None if there are less than three valid samples, or if they all have the same velocity
+    """
+    valid = _valid_vp_and_rho(vp, rho)
+    if np.sum(valid) < 3 or np.ptp(vp[valid]) == 0.:
+        return None
+    ln_vp, ln_rho = np.log(vp[valid]), np.log(rho[valid])
+    b, ln_a = np.polyfit(ln_vp, ln_rho, 1)
+    return {'a': np.exp(ln_a), 'b': b,
+            # Not testing the std, which rounding can leave slightly above zero for a constant density
+            'r2': 1. - (np.std(ln_rho - (b * ln_vp + ln_a)) / np.std(ln_rho)) ** 2 if np.ptp(ln_rho) > 0. else 0.,
+            'n': int(np.sum(valid))}
+
+
+def read_gardner(file_name: str, wi_name: str, suffix: str = '', well: str = 'All') -> tuple:
+    """
+    Reads the coefficients of the Gardner equation, rho = a * vp ** b with vp in m/s and rho in g/cm3, from a file
+    written by StatsCalculation.save_gardner()
+
+    :param file_name:
+        str
+        full pathname of the excel file
+    :param wi_name:
+        str
+        Name of the working interval
+    :param suffix:
+        str
+        The suffix used for the working interval. Leave out if it had none
+    :param well:
+        str
+        Name of the well, or 'All' for all wells together
+    :return:
+        a, b
+        float, float
+    """
+    # Empty text must stay empty, so that an interval without a suffix can be found, and a well named e.g. 'NA' is kept.
+    # Only the coefficients are NaN when they are empty
+    table = pd.read_excel(file_name, keep_default_na=False, na_values={_c: [''] for _c in ['a', 'b', 'r2']})
+    rows = table[(table['interval'] == wi_name) & (table['suffix'] == suffix) & (table['well'] == well)]
+    description = 'interval {}, suffix "{}" and well {}'.format(wi_name, suffix, well)
+    if len(rows) != 1:
+        available = sorted({'{}, suffix "{}"'.format(_i, _s) for _i, _s in zip(table['interval'], table['suffix'])})
+        raise ValueError('Found {} lines for {} in {}, expected one. The file holds: {}'.format(
+            len(rows), description, file_name, '; '.join(available)))
+    a, b = float(rows['a'].iloc[0]), float(rows['b'].iloc[0])
+    if np.isnan(a) or np.isnan(b):
+        raise ValueError('No Gardner coefficients for {} in {}, it has too few samples ({})'.format(
+            description, file_name, rows['n'].iloc[0]))
+    return a, b
 
 
 def _log_in_well(data: dict, log_name: str) -> bool:
@@ -217,6 +298,43 @@ class IntervalStats:
         _units = self.per_well[_wells[0]][log_name].units
         return (Q_(np.concatenate([self.per_well[_w][log_name].to(_units).magnitude for _w in _wells]), _units),
                 np.concatenate([self.burial_depth[_w].to('m').magnitude for _w in _wells]))
+
+    def vp_and_rho(self) -> dict:
+        """
+        Returns the P velocity in m/s and the density in g/cm3, for each well that has both, and for these wells
+        together ('All')
+
+        :return:
+            dict
+            {well name: (np.ndarray, np.ndarray)}
+            Empty if the log table lacks 'P velocity' or 'Density'
+        """
+        if 'P velocity' not in self.log_table or 'Density' not in self.log_table:
+            return {}
+        vp_log, rho_log = self.log_table['P velocity'], self.log_table['Density']
+        # Only wells with both logs, so that the samples of 'All' still belong together
+        samples = {_well: (_data[vp_log].to('m/s').magnitude, _data[rho_log].to('g/cm**3').magnitude)
+                   for _well, _data in self.per_well.items() if vp_log in _data and rho_log in _data}
+        if len(samples) > 0:
+            samples['All'] = (np.concatenate([_vp for _vp, _ in samples.values()]),
+                              np.concatenate([_rho for _, _rho in samples.values()]))
+        return samples
+
+    def gardner(self) -> pd.DataFrame:
+        """
+        Returns the Gardner coefficients, rho = a * vp ** b with vp in m/s and rho in g/cm3, per well and for all
+        wells together ('All'). They are NaN where there are too few samples, see fit_gardner().
+        Note that 'All' mixes wells where the interval may lie at different burial depths
+        """
+        rows = []
+        for _well_name, (_vp, _rho) in self.vp_and_rho().items():
+            _fit = fit_gardner(_vp, _rho) or {'a': np.nan, 'b': np.nan, 'r2': np.nan}
+            rows.append({'interval': self.wi_name, 'suffix': self.suffix, 'cutoffs': str(self.cutoffs),
+                         'well': _well_name, 'n': int(np.sum(_valid_vp_and_rho(_vp, _rho))),
+                         'a': _fit['a'], 'b': _fit['b'], 'r2': _fit['r2'],
+                         'vp units': 'm/s', 'rho units': 'g/cm3'})
+        return pd.DataFrame(rows, columns=['interval', 'suffix', 'cutoffs', 'well', 'n', 'a', 'b', 'r2', 'vp units',
+                                           'rho units'])
 
     def summary(self) -> pd.DataFrame:
         """
@@ -403,6 +521,26 @@ class StatsCalculation:
 
     def summary(self, results: dict) -> pd.DataFrame:
         return pd.concat([_r.summary() for _r in results.values()], ignore_index=True)
+
+    def gardner(self, results: dict) -> pd.DataFrame:
+        """
+        Returns the Gardner coefficients of each interval and cutoff, see IntervalStats.gardner()
+        """
+        return pd.concat([_r.gardner() for _r in results.values()], ignore_index=True)
+
+    def save_gardner(self, results: dict, file_name: str):
+        """
+        Writes the Gardner coefficients from gardner() to an excel file, which read_gardner() can read.
+        An existing file is overwritten
+
+        :param results:
+            dict
+            {working interval name: IntervalStats}, as returned by run()
+        :param file_name:
+            str
+            full pathname of the excel file
+        """
+        self.gardner(results).to_excel(file_name, index=False)
 
     def well_style(self, well_name: str, index: int) -> tuple:
         """
@@ -624,6 +762,69 @@ class StatsCalculation:
         if len(lacking) > 0:
             fig.suptitle('Not included, lacking a TVD log, kelly bushing or water depth: {}'.format(
                 ', '.join(lacking)), fontsize=10)
+        self._save(fig, file_name)
+        return fig
+
+    def plot_gardner(self, results: dict, file_name: str | None = 'gardner.png', n_columns: int = 3):
+        """
+        Plots density versus P velocity, one panel per interval, with the samples and the calibrated Gardner equation
+        of each well and of all wells together, and the published equation (rho = 0.31 * vp ** 0.25) for reference
+
+        :param results:
+            dict
+            {working interval name: IntervalStats}, as returned by run()
+        :param file_name:
+            str
+            Name of the saved file
+        :param n_columns:
+            int
+            The maximum number of panels per row
+        :return:
+            Figure
+        """
+        n_columns = min(n_columns, len(results))
+        n_rows = int(np.ceil(len(results) / n_columns))
+        fig, axes = plt.subplots(nrows=n_rows, ncols=n_columns, squeeze=False, sharex=True, sharey=True,
+                                 figsize=(5 * n_columns, 4 * n_rows + 0.5), layout='constrained')
+        all_wells = [_w.name for _w in self.wells]
+        legend_items = {}
+        for ax, stats in zip(axes.flat, results.values()):
+            samples = stats.vp_and_rho()
+            for well_name, (vp, rho) in samples.items():
+                valid = _valid_vp_and_rho(vp, rho)
+                if not np.any(valid):
+                    continue
+                vp_range = np.linspace(np.min(vp[valid]), np.max(vp[valid]), 50)
+                trend = fit_gardner(vp, rho)
+                if well_name == 'All':
+                    if trend is not None:
+                        legend_items['Calibrated, all wells'] = ax.plot(
+                            vp_range, trend['a'] * vp_range ** trend['b'], 'k-', lw=2, zorder=4)[0]
+                        legend_items['Published, a = {}, b = {}'.format(gardner_a, gardner_b)] = ax.plot(
+                            vp_range, gardner_a * vp_range ** gardner_b, 'k--', lw=1, zorder=3)[0]
+                    continue
+                color, _ = self.well_style(well_name, all_wells.index(well_name))
+                legend_items[well_name] = ax.scatter(vp[valid], rho[valid], s=4, alpha=0.3, color=color,
+                                                     edgecolors='none', rasterized=True)
+                if trend is not None:
+                    ax.plot(vp_range, trend['a'] * vp_range ** trend['b'], '-', c=color, lw=1, zorder=3)
+            trend = fit_gardner(*samples['All']) if 'All' in samples else None
+            ax.set_title('{}\n{}'.format(
+                stats.label, 'No fit' if trend is None else 'All wells: a = {:.3f}, b = {:.3f}, R2 = {:.2f}'.format(
+                    trend['a'], trend['b'], trend['r2'])), fontsize=9, loc='left')
+            ax.grid(True)
+        for ax in axes.flat[len(results):]:
+            ax.set_visible(False)
+        for ax in axes[:, 0]:
+            ax.set_ylabel('Density [g/cm3]')
+        # The lowest panel of each column, which is not in the last row below a hidden panel
+        for ax in axes.flat[len(results) - n_columns:len(results)]:
+            ax.set_xlabel('Vp [m/s]')
+            ax.xaxis.set_tick_params(labelbottom=True)
+        if len(legend_items) > 0:
+            handles = list(legend_items.values())
+            fig.legend(handles, list(legend_items.keys()), loc='outside lower center', ncols=len(handles),
+                       prop={'size': 9}, markerscale=3)
         self._save(fig, file_name)
         return fig
 

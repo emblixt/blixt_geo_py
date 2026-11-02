@@ -13,8 +13,8 @@ from blixt_geo_py import Q_
 from blixt_geo_py.core.core import Cutoffs, CutoffRule, LithoFluid, LithoFluids, LogTable
 from blixt_geo_py.core.project import Project
 from blixt_geo_py.analysis.calc_statistics import (IntervalStats, StatsCalculation, break_at_gaps,
-                                                collect_interval_stats, isolated_samples, linear_depth_trend,
-                                                to_cutoffs)
+                                                collect_interval_stats, fit_gardner, isolated_samples, linear_depth_trend,
+                                                read_gardner, to_cutoffs)
 
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
 project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx')
@@ -282,6 +282,161 @@ class TestCases(unittest.TestCase):
         results = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand E'], log_table, sand, 'same').run()
         self.assertEqual(['Sand F', 'Sand E'], list(results.keys()))
 
+    def test_fit_gardner(self):
+        rng = np.random.default_rng(0)
+        vp = rng.uniform(2000., 5000., 1000)
+
+        # Without noise the coefficients are recovered exactly
+        fit = fit_gardner(vp, 0.31 * vp ** 0.25)
+        self.assertAlmostEqual(0.31, fit['a'])
+        self.assertAlmostEqual(0.25, fit['b'])
+        self.assertAlmostEqual(1., fit['r2'])
+        self.assertEqual(len(vp), fit['n'])
+
+        # With noise they are close, for another set of coefficients
+        fit = fit_gardner(vp, 0.5 * vp ** 0.2 * np.exp(rng.normal(0., 0.01, len(vp))))
+        self.assertAlmostEqual(0.2, fit['b'], delta=0.005)
+        self.assertAlmostEqual(0.5, fit['a'], delta=0.05)
+        self.assertGreater(fit['r2'], 0.5)
+        self.assertLess(fit['r2'], 1.)
+
+        # Samples without a defined logarithm are ignored
+        bad_vp, bad_rho = vp.copy(), 0.31 * vp ** 0.25
+        bad_vp[:4] = [np.nan, 0., -999.25, np.inf]
+        bad_rho[4:7] = [np.nan, 0., -999.25]
+        fit = fit_gardner(bad_vp, bad_rho)
+        self.assertEqual(len(vp) - 7, fit['n'])
+        self.assertAlmostEqual(0.25, fit['b'])
+
+        # A constant density is an exponent of zero
+        fit = fit_gardner(vp, np.full(len(vp), 2.5))
+        self.assertAlmostEqual(0., fit['b'])
+        self.assertAlmostEqual(2.5, fit['a'])
+        self.assertEqual(0., fit['r2'])
+
+        # A fit can't be calculated
+        self.assertIsNone(fit_gardner(np.array([3000., 3100.]), np.array([2.3, 2.4])))
+        self.assertIsNone(fit_gardner(np.full(5, 3000.), np.linspace(2.2, 2.6, 5)))
+        self.assertIsNone(fit_gardner(np.array([np.nan] * 5), np.linspace(2.2, 2.6, 5)))
+
+    def test_gardner_units_and_wells(self):
+        """
+        The coefficients are for m/s and g/cm3 whatever the units of the logs, and 'All' only uses wells with both logs
+        """
+        vp = np.linspace(2000., 5000., 50)
+        rho = 0.31 * vp ** 0.25
+        stats = IntervalStats('Sand', LogTable({'P velocity': 'vp', 'Density': 'rho'}), Cutoffs([]), 'sand')
+        stats.per_well = {'In km/s and kg/m3': {'vp': Q_(vp / 1000., 'km/s'), 'rho': Q_(rho * 1000., 'kg/m**3')},
+                          'No density': {'vp': Q_(np.array([1000.] * 7), 'm/s')},
+                          'No samples': {'vp': Q_(np.array([]), 'm/s'), 'rho': Q_(np.array([]), 'g/cm**3')}}
+        table = stats.gardner().set_index('well')
+        self.assertEqual({'In km/s and kg/m3', 'No samples', 'All'}, set(table.index))
+        self.assertAlmostEqual(0.31, table.loc['In km/s and kg/m3', 'a'])
+        self.assertAlmostEqual(0.25, table.loc['In km/s and kg/m3', 'b'])
+        self.assertEqual(50, table.loc['All', 'n'])
+        self.assertAlmostEqual(0.31, table.loc['All', 'a'])
+        self.assertEqual(0, table.loc['No samples', 'n'])
+        self.assertTrue(np.isnan(table.loc['No samples', 'a']))
+        self.assertEqual('sand', table.loc['All', 'suffix'])
+        self.assertEqual('m/s', table.loc['All', 'vp units'])
+
+        # A log table without the needed logs gives an empty table with the same columns
+        lacking = IntervalStats('Sand', LogTable({'P velocity': 'vp'}), Cutoffs([]))
+        lacking.per_well = {'A': {'vp': Q_(vp, 'm/s')}}
+        self.assertEqual(0, len(lacking.gardner()))
+        self.assertEqual(sorted(table.reset_index().columns), sorted(lacking.gardner().columns))
+
+    def test_gardner_per_interval_and_cutoff(self):
+        sand, shale = {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}, {'Volume': ['>', 0.5]}
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand F', 'Sand D'], log_table, [sand, shale, sand],
+                                 ['sand', 'shale', 'sand'])
+        results = stats.run()
+        table = stats.gardner(results)
+        # One row per well, and for all wells, of each of the three
+        self.assertEqual(3 * 4, len(table))
+        rows = table[(table['interval'] == 'Sand F') & (table['well'] == 'WELL_A')]
+        self.assertEqual(['sand', 'shale'], list(rows['suffix']))
+        self.assertNotEqual(rows['a'].iloc[0], rows['a'].iloc[1])
+
+        # Matches a fit directly on the logs
+        data = results['Sand F, sand'].per_well['WELL_A']
+        fit = fit_gardner(data['vp_dry'].to('m/s').magnitude, data['rho_dry'].to('g/cm**3').magnitude)
+        self.assertAlmostEqual(fit['a'], rows['a'].iloc[0])
+        self.assertAlmostEqual(fit['b'], rows['b'].iloc[0])
+        self.assertEqual(fit['n'], rows['n'].iloc[0])
+
+        # WELL_B has no samples of Sand D with these cutoffs
+        no_samples = table[(table['interval'] == 'Sand D') & (table['well'] == 'WELL_B')].iloc[0]
+        self.assertEqual(0, no_samples['n'])
+        self.assertTrue(np.isnan(no_samples['a']))
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            stats.working_dir = tmp_dir
+            fig = stats.plot_gardner(results)
+            self.assertTrue(os.path.isfile(os.path.join(tmp_dir, 'gardner.png')))
+        visible = [_ax for _ax in fig.axes if _ax.get_visible()]
+        self.assertEqual(3, len(visible))
+        self.assertIn('Sand F, sand', visible[0].get_title(loc='left'))
+        all_row = table[(table['suffix'] == 'sand') & (table['interval'] == 'Sand F') & (table['well'] == 'All')].iloc[0]
+        self.assertIn('a = {:.3f}, b = {:.3f}'.format(all_row['a'], all_row['b']), visible[0].get_title(loc='left'))
+        self.assertEqual('Vp [m/s]', visible[0].get_xlabel())
+        show_or_close()
+
+    def test_save_and_read_gardner(self):
+        sand, shale = {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}, {'Volume': ['>', 0.5]}
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand F', 'Sand D', 'Shale G'], log_table,
+                                 [sand, shale, sand, None], ['sand', 'shale', 'sand', ''])
+        results = stats.run()
+        table = stats.gardner(results)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_name = os.path.join(tmp_dir, 'gardner.xlsx')
+            # Saving twice overwrites the file
+            stats.save_gardner(results, file_name)
+            stats.save_gardner(results, file_name)
+            self.assertEqual(len(table), len(pd.read_excel(file_name)))
+
+            # Every coefficient that can be calculated is read back
+            for _, _row in table.dropna(subset=['a']).iterrows():
+                a, b = read_gardner(file_name, _row['interval'], _row['suffix'], _row['well'])
+                self.assertAlmostEqual(_row['a'], a)
+                self.assertAlmostEqual(_row['b'], b)
+                self.assertIsInstance(a, float)
+
+            # The defaults are all wells, and no suffix
+            row = table[(table['interval'] == 'Shale G') & (table['well'] == 'All')].iloc[0]
+            self.assertEqual('', row['suffix'])
+            self.assertAlmostEqual(row['a'], read_gardner(file_name, 'Shale G')[0])
+
+            # The suffix tells a repeated interval apart
+            self.assertNotEqual(read_gardner(file_name, 'Sand F', 'sand'), read_gardner(file_name, 'Sand F', 'shale'))
+
+            # No match, with the content of the file in the error
+            for _args in [('Abenaki',), ('Sand F',), ('Sand F', 'sand', 'NO_SUCH_WELL')]:
+                with self.subTest(args=_args):
+                    with self.assertRaisesRegex(ValueError, 'Found 0 lines.*Sand F, suffix "shale"'):
+                        read_gardner(file_name, *_args)
+
+            # WELL_B has no samples of Sand D with these cutoffs, which must not give NaN densities later
+            with self.assertRaisesRegex(ValueError, r'too few samples \(0\)'):
+                read_gardner(file_name, 'Sand D', 'sand', 'WELL_B')
+
+    def test_plot_gardner_panels(self):
+        """
+        A panel that is lowest in its column shows the x axis, also when the last row isn't full
+        """
+        stats = StatsCalculation(self.wells, self.wis, wi_sands + wi_shales, log_table, {'Volume': ['<', 0.5]})
+        results = stats.run()
+        fig = stats.plot_gardner(results, file_name=None, n_columns=3)
+        self.assertEqual(6, len(fig.axes))
+        self.assertFalse(fig.axes[5].get_visible())
+        for _i in [2, 3, 4]:
+            self.assertEqual('Vp [m/s]', fig.axes[_i].get_xlabel())
+        # A single interval gives a single panel
+        one = stats.plot_gardner({'Sand F': results['Sand F']}, file_name=None)
+        self.assertEqual(1, len(one.axes))
+        show_or_close()
+
     def test_linear_depth_trend(self):
         rng = np.random.default_rng(0)
         tvd = np.linspace(1000., 3000., 500)
@@ -302,7 +457,8 @@ class TestCases(unittest.TestCase):
         trend = linear_depth_trend(rng.normal(0., 50., len(tvd)), tvd)
         self.assertLess(trend['r2'], 0.05)
         self.assertAlmostEqual(trend['std'], trend['std_detrended'], delta=1.)
-        self.assertEqual(0., linear_depth_trend(np.ones(10), np.arange(10.))['r2'])
+        for _constant in [1., 0.1, 2.5, 3456.7]:
+            self.assertEqual(0., linear_depth_trend(np.full(10, _constant), np.arange(10.))['r2'])
 
         # A trend can't be calculated
         self.assertIsNone(linear_depth_trend(np.array([1., 2.]), np.array([1., 2.])))
