@@ -120,7 +120,7 @@ class TestCases(unittest.TestCase):
         self.assertNotIn('WELL_F', stats.well_names)
 
     def test_summary(self):
-        stats = StatsCalculation(self.wells, self.wis, wi_sands, {'Volume': ['<', 0.5]}, log_table, 'sands')
+        stats = StatsCalculation(self.wells, self.wis, wi_sands, log_table, {'Volume': ['<', 0.5]}, 'sands')
         results = stats.run()
         self.assertEqual(list(results.keys()), wi_sands)
         summary = stats.summary(results)
@@ -133,17 +133,58 @@ class TestCases(unittest.TestCase):
 
     def test_input_checks(self):
         with self.assertRaises(ValueError):
-            StatsCalculation(self.wells, self.wis, wi_sands, [{'Volume': ['<', 0.5]}], log_table)
+            StatsCalculation(self.wells, self.wis, wi_sands, log_table, [{'Volume': ['<', 0.5]}])
         with self.assertRaises(TypeError):
-            StatsCalculation(['WELL_F'], self.wis, wi_sands, None, log_table)
+            StatsCalculation(['WELL_F'], self.wis, wi_sands, log_table)
+        # log_table and cutoffs in the wrong order must give an error that says so
+        for _cutoffs in [{'Volume': ['<', 0.5]}, 'Volume<0.5[]', None]:
+            with self.subTest(cutoffs=_cutoffs):
+                with self.assertRaisesRegex(TypeError, 'log_table comes before cutoffs'):
+                    StatsCalculation(self.wells, self.wis, wi_sands, _cutoffs, log_table)
+
+    def test_no_cutoffs(self):
+        """
+        Without cutoffs all samples of the interval are used, regardless of lithology
+        """
+        stats = StatsCalculation(self.wells, self.wis, 'Sand F', log_table)
+        results = stats.run()
+        self.assertEqual(0, len(results['Sand F'].cutoffs))
+        with_cutoffs = StatsCalculation(self.wells, self.wis, 'Sand F', log_table, {'Volume': ['<', 0.5]}).run()
+
+        interval = self.wis.get_interval('Sand F', 'WELL_F')
+        well = next(_w for _w in (self.wells.values() if isinstance(self.wells, dict) else self.wells)
+                    if _w.name == 'WELL_F')
+        md = well.dict()['md'].to('m').magnitude
+        # Including the samples at the top and the base
+        n_samples = np.sum((md >= interval.top.to('m').magnitude) & (md <= interval.base.to('m').magnitude))
+        self.assertEqual(n_samples, len(results['Sand F'].per_well['WELL_F']['vp_dry']))
+        self.assertLess(len(with_cutoffs['Sand F'].per_well['WELL_F']['vp_dry']), n_samples)
+
+        # A repeated interval can have cutoffs in only one of them
+        results = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand F'], log_table, [None, {'Volume': ['<', 0.5]}],
+                                   ['all', 'sand']).run()
+        self.assertEqual(n_samples, len(results['Sand F, all'].per_well['WELL_F']['vp_dry']))
+        self.assertLess(len(results['Sand F, sand'].per_well['WELL_F']['vp_dry']), n_samples)
+
+        # All the outputs work without cutoffs
+        results = stats.run()
+        self.assertEqual(4 * len(log_table), len(stats.summary(results)))
+        stats.plot_logs_vs_depth(results, file_name=None)
+        stats.plot_averages(results)
+        stats.plot_logs_vs_burial_depth(results, file_name=None)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_name = os.path.join(tmp_dir, 'SumsAndAverages.xlsx')
+            stats.save_rokdoc_output(results, file_name)
+            self.assertEqual(4, len(read_rokdoc_lines(file_name)))
+        show_or_close()
 
     def test_calc_stat(self):
         cutoffs_sands = {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}
         cutoffs_shales = {'Volume': ['>', 0.5], 'Porosity': ['<', 0.1]}
         stats = StatsCalculation(
             self.wells, self.wis, wi_sands + wi_shales,
-            [cutoffs_sands] * len(wi_sands) + [cutoffs_shales] * len(wi_shales),
             log_table,
+            [cutoffs_sands] * len(wi_sands) + [cutoffs_shales] * len(wi_shales),
             ['sands'] * len(wi_sands) + ['shales'] * len(wi_shales),
             )
         results = stats.run()
@@ -191,14 +232,14 @@ class TestCases(unittest.TestCase):
         One interval with different cutoffs for sand and shale must give two results, equal to running them one by one
         """
         sand, shale = {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}, {'Volume': ['>', 0.5]}
-        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand F', 'Sand E'], [sand, shale, sand], log_table,
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand F', 'Sand E'], log_table, [sand, shale, sand],
                                  ['sand', 'shale', 'sand'])
         results = stats.run()
         # Only the repeated interval has the suffix in its key
         self.assertEqual(['Sand F, sand', 'Sand F, shale', 'Sand E'], list(results.keys()))
 
         for _key, _cutoffs, _suffix in [('Sand F, sand', sand, 'sand'), ('Sand F, shale', shale, 'shale')]:
-            alone = StatsCalculation(self.wells, self.wis, 'Sand F', _cutoffs, log_table, _suffix).run()['Sand F']
+            alone = StatsCalculation(self.wells, self.wis, 'Sand F', log_table, _cutoffs, _suffix).run()['Sand F']
             self.assertEqual(_suffix, results[_key].suffix)
             for _well in alone.well_names:
                 np.testing.assert_array_equal(alone.per_well[_well]['vp_dry'].magnitude,
@@ -236,9 +277,9 @@ class TestCases(unittest.TestCase):
         for _suffix in ['', 'same', ['same', 'same']]:
             with self.subTest(suffix=_suffix):
                 with self.assertRaisesRegex(ValueError, 'Sand F'):
-                    StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand F'], [sand, shale], log_table, _suffix)
+                    StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand F'], log_table, [sand, shale], _suffix)
         # A single suffix is fine as long as the intervals differ, and they keep their plain names
-        results = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand E'], sand, log_table, 'same').run()
+        results = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand E'], log_table, sand, 'same').run()
         self.assertEqual(['Sand F', 'Sand E'], list(results.keys()))
 
     def test_linear_depth_trend(self):
@@ -291,8 +332,8 @@ class TestCases(unittest.TestCase):
         wells_by_name['WELL_B'].header['kb'] = Q_(30., 'm')
         wells_by_name['WELL_B'].header['water_depth'] = Q_(300., 'm')
 
-        stats = StatsCalculation(wells, wis, ['Sand F', 'Sand D'],
-                                 {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}, log_table)
+        stats = StatsCalculation(wells, wis, ['Sand F', 'Sand D'], log_table,
+                                 {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]})
         results = stats.run()
         sand_f = results['Sand F']
         self.assertEqual({'WELL_B', 'WELL_F'}, set(sand_f.burial_depth.keys()))
@@ -333,8 +374,8 @@ class TestCases(unittest.TestCase):
         With the kelly bushing and water depth of WELL_B blank in the project table, its burial depth is all NaN.
         It must be reported as lacking, as WELL_A without a TVD log, instead of disappearing from the plot unnoticed
         """
-        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand D'],
-                                 {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}, log_table)
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand D'], log_table,
+                                 {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]})
         results = stats.run()
         self.assertEqual({'WELL_F'}, set(results['Sand F'].burial_depth.keys()))
         fig = stats.plot_logs_vs_burial_depth(results, file_name=None)
@@ -348,7 +389,7 @@ class TestCases(unittest.TestCase):
         """
         Without the burial depth in any well the plot is empty, but must not fail
         """
-        stats = StatsCalculation(self.wells, self.wis, 'Sand F', {'Volume': ['<', 0.5]}, log_table)
+        stats = StatsCalculation(self.wells, self.wis, 'Sand F', log_table, {'Volume': ['<', 0.5]})
         results = stats.run()
         results['Sand F'].burial_depth = {}
         fig = stats.plot_logs_vs_burial_depth(results, file_name=None)
@@ -362,8 +403,8 @@ class TestCases(unittest.TestCase):
         Write the averages of the test wells to a RokDoc Sums and Averages file, and read them back.
         The cutoffs leave no samples of Sand D in WELL_B
         """
-        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand D'],
-                                 {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}, log_table)
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand D'], log_table,
+                                 {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]})
         results = stats.run()
 
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -401,7 +442,7 @@ class TestCases(unittest.TestCase):
         An interval lacking some of the logs RokDoc needs is skipped, so no file is created here
         """
         _log_table = {_k: _v for _k, _v in log_table.items() if _k != 'Density'}
-        stats = StatsCalculation(self.wells, self.wis, 'Sand F', {'Volume': ['<', 0.5]}, _log_table)
+        stats = StatsCalculation(self.wells, self.wis, 'Sand F', _log_table, {'Volume': ['<', 0.5]})
         results = stats.run()
 
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -413,8 +454,8 @@ class TestCases(unittest.TestCase):
         """
         Write the statistics to an excel file and read them back. Writing twice must not add any lines
         """
-        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand D'],
-                                 {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}, log_table)
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand D'], log_table,
+                                 {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]})
         results = stats.run()
         summary = stats.summary(results)
 

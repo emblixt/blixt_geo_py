@@ -10,8 +10,8 @@ Usage:
     wp = Project(name='MyProject', project_table='excels/project_table.xlsx')
     wp.load_all_wells()
     stats = StatsCalculation(wp.wells, wp.load_all_wis(), ['Sand E', 'Sand F'],
-                             cutoffs='Volume<0.5[], Porosity>0.1[]',
-                             log_table={'P velocity': 'vp_dry', 'Porosity': 'phie', 'Volume': 'vcl'})
+                             log_table={'P velocity': 'vp_dry', 'Porosity': 'phie', 'Volume': 'vcl'},
+                             cutoffs='Volume<0.5[], Porosity>0.1[]')  # Leave out to use all samples of the intervals
     results = stats.run()
     print(results['Sand E'].summary())
     stats.save_summary(results, 'summary.xlsx')
@@ -63,7 +63,12 @@ def to_cutoffs(cutoffs: Cutoffs | str | dict | None) -> Cutoffs:
         return Cutoffs(from_string=cutoffs)
     if isinstance(cutoffs, dict):
         rules = []
-        for _param, (_operator, _limit) in cutoffs.items():
+        for _param, _definition in cutoffs.items():
+            if not isinstance(_definition, (list, tuple)) or len(_definition) != 2:
+                raise TypeError('A dict of cutoffs must be {{log type: [operator, limit]}}, not {{{!r}: {!r}}}. If '
+                                'this is a log table: log_table comes before cutoffs in StatsCalculation()'.format(
+                                    _param, _definition))
+            _operator, _limit = _definition
             if isinstance(_limit, (list, tuple)):
                 _limit = [_x if isinstance(_x, pint.Quantity) else Q_(_x, '') for _x in _limit]
             elif not isinstance(_limit, pint.Quantity):
@@ -311,8 +316,8 @@ class StatsCalculation:
                  wells: list | dict,
                  intervals: Intervals,
                  wi_names: str | list,
-                 cutoffs: Cutoffs | str | dict | list | None,
                  log_table: LogTable | dict | list,
+                 cutoffs: Cutoffs | str | dict | list | None = None,
                  suffix: str | list = '',
                  working_dir: str | None = None):
         """
@@ -328,13 +333,14 @@ class StatsCalculation:
         :param wi_names:
             str or list of working interval names
             An interval can be repeated, e.g. to use different cutoffs for sand and shale, if each has its own suffix
-        :param cutoffs:
-            Cutoffs, str (e.g. "Volume<0.5[], Porosity>0.1[]"), dict (e.g. {'Volume': ['<', 0.5]}) or None
-            If a single value, it is used in all working intervals
-            If it is a list, it must have the same length as wi_names
         :param log_table:
             LogTable or dict of {log type: log name}, or a list of these, one per working interval
             The P velocity, S velocity, Density, Porosity and Volume logs are needed for the RokDoc output
+        :param cutoffs:
+            Cutoffs, str (e.g. "Volume<0.5[], Porosity>0.1[]"), dict (e.g. {'Volume': ['<', 0.5]}) or None
+            None uses all samples of the working interval, regardless of lithology
+            If a single value, it is used in all working intervals
+            If it is a list, it must have the same length as wi_names
         :param suffix:
             str or list of strings
             Tags the results of each working interval
