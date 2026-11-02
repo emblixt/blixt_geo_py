@@ -240,6 +240,16 @@ class IntervalStats:
         return pd.DataFrame(rows)
 
 
+def _lacking_burial_depth(results: dict) -> list:
+    """
+    Returns the names of the wells with data, but without the burial depth, in any of the given results
+    """
+    wells = []
+    for stats in results.values():
+        wells += [_w for _w in stats.per_well if _w not in stats.burial_depth and _w not in wells]
+    return wells
+
+
 def collect_interval_stats(wells: list,
                            intervals: Intervals,
                            wi_name: str,
@@ -511,7 +521,8 @@ class StatsCalculation:
             figs[log_type] = fig
         return figs
 
-    def plot_logs_vs_burial_depth(self, results: dict, file_name: str | None = 'logs_vs_burial_depth.png'):
+    def plot_logs_vs_burial_depth(self, results: dict, file_name: str | None = 'logs_vs_burial_depth.png',
+                                  max_intervals: int = 5) -> list:
         """
         QC plot of how much the statistics of each interval are affected by its burial depth varying between the
         wells. Plots each log versus burial depth (TVD below the sea floor), one row per interval, with:
@@ -524,9 +535,38 @@ class StatsCalculation:
 
         The burial depth needs a TVD log, and the kelly bushing and water depth from the project table. Wells lacking
         any of these can't be included, they are listed in the title of the figure
+
+        :param results:
+            dict
+            {working interval name: IntervalStats}, as returned by run()
+        :param file_name:
+            str
+            Name of the saved file. When there is more than one figure, they are numbered, e.g.
+            logs_vs_burial_depth_1.png, logs_vs_burial_depth_2.png
+        :param max_intervals:
+            int
+            The maximum number of intervals in one figure
         :return:
-            Figure
+            list of Figure
+            Also when there is only one figure
         """
+        lacking = _lacking_burial_depth(results)
+        if len(lacking) > 0:
+            print_info('Wells lacking a TVD log, kelly bushing or water depth are not included in the plot versus '
+                       'burial depth: {}'.format(', '.join(lacking)), 'warning', logger)
+
+        items = list(results.items())
+        parts = [dict(items[_i:_i + max_intervals]) for _i in range(0, len(items), max_intervals)]
+        figs = []
+        for i, part in enumerate(parts):
+            _file_name = file_name
+            if file_name is not None and len(parts) > 1:
+                _root, _extension = os.path.splitext(file_name)
+                _file_name = '{}_{}{}'.format(_root, i + 1, _extension)
+            figs.append(self._plot_logs_vs_burial_depth_figure(part, _file_name))
+        return figs
+
+    def _plot_logs_vs_burial_depth_figure(self, results: dict, file_name: str | None):
         log_names = self.log_tables[0].log_names
         fig, axes = plt.subplots(nrows=len(results), ncols=len(log_names), squeeze=False, sharey='row',
                                  figsize=(3 * len(log_names), 3.5 * len(results) + 0.5), layout='constrained')
@@ -580,11 +620,8 @@ class StatsCalculation:
         if len(legend_items) > 0:
             fig.legend(list(legend_items.values()), list(legend_items.keys()), loc='outside lower center',
                        ncols=len(legend_items), prop={'size': 9})
-        lacking = [_w for _w in all_wells
-                   if any(_w in _r.per_well and _w not in _r.burial_depth for _r in results.values())]
+        lacking = _lacking_burial_depth(results)
         if len(lacking) > 0:
-            print_info('Wells lacking a TVD log, kelly bushing or water depth are not included in the plot versus '
-                       'burial depth: {}'.format(', '.join(lacking)), 'warning', logger)
             fig.suptitle('Not included, lacking a TVD log, kelly bushing or water depth: {}'.format(
                 ', '.join(lacking)), fontsize=10)
         self._save(fig, file_name)

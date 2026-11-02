@@ -266,7 +266,7 @@ class TestCases(unittest.TestCase):
             self.assertIn(_name, names)
 
         # All plots show one row, or one tick, per result
-        self.assertEqual(3 * len(log_table), len(stats.plot_logs_vs_burial_depth(results, file_name=None).axes))
+        self.assertEqual(3 * len(log_table), len(stats.plot_logs_vs_burial_depth(results, file_name=None)[0].axes))
         self.assertEqual(3 * len(log_table), len(stats.plot_logs_vs_depth(results, file_name=None).axes))
         ax = stats.plot_averages(results)['P velocity'].axes[0]
         self.assertEqual(['Sand F, sand', 'Sand F, shale', 'Sand E, sand'], [_t.get_text() for _t in ax.get_yticklabels()])
@@ -347,9 +347,11 @@ class TestCases(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             stats.working_dir = tmp_dir
-            fig = stats.plot_logs_vs_burial_depth(results, file_name='logs_vs_burial_depth.png')
+            figs = stats.plot_logs_vs_burial_depth(results, file_name='logs_vs_burial_depth.png')
             self.assertTrue(os.path.isfile(os.path.join(tmp_dir, 'logs_vs_burial_depth.png')))
 
+        self.assertEqual(1, len(figs))
+        fig = figs[0]
         self.assertEqual(2 * len(log_table), len(fig.axes))
         self.assertIn('WELL_A', fig._suptitle.get_text())
         self.assertNotIn('WELL_B', fig._suptitle.get_text())
@@ -369,6 +371,57 @@ class TestCases(unittest.TestCase):
         self.assertIn('1 well,', fig.axes[len(log_table)].get_title(loc='left'))
         show_or_close()
 
+    def test_plot_logs_vs_burial_depth_many_intervals(self):
+        """
+        With more than max_intervals intervals, the plot is split into several figures, keeping the order
+        """
+        names = wi_sands + wi_shales + ['Sand F']
+        suffixes = ['first', '', '', '', '', 'last']
+        stats = StatsCalculation(self.wells, self.wis, names, log_table, {'Volume': ['<', 0.5]}, suffixes)
+        results = stats.run()
+        n_logs = len(log_table)
+
+        def y_labels(_fig):
+            return [_ax.get_ylabel() for _ax in _fig.axes[::n_logs]]
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            stats.working_dir = tmp_dir
+            # Six intervals: five in the first figure, and one in the second
+            figs = stats.plot_logs_vs_burial_depth(results)
+            self.assertEqual(['logs_vs_burial_depth_1.png', 'logs_vs_burial_depth_2.png'], sorted(os.listdir(tmp_dir)))
+            self.assertEqual([5 * n_logs, n_logs], [len(_f.axes) for _f in figs])
+            self.assertIn('Sand F, first', y_labels(figs[0])[0])
+            self.assertIn('Sand F, last', y_labels(figs[1])[0])
+            show_or_close()
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            stats.working_dir = tmp_dir
+            # Exactly five intervals fit in one figure, whose file name has no number
+            five = dict(list(results.items())[:5])
+            self.assertEqual(1, len(stats.plot_logs_vs_burial_depth(five)))
+            self.assertEqual(['logs_vs_burial_depth.png'], os.listdir(tmp_dir))
+            # No empty figure when the intervals fill up the last one
+            self.assertEqual([2 * n_logs, 2 * n_logs, n_logs],
+                             [len(_f.axes) for _f in stats.plot_logs_vs_burial_depth(five, None, max_intervals=2)])
+            self.assertEqual(2, len(stats.plot_logs_vs_burial_depth(dict(list(results.items())[:4]), None,
+                                                                    max_intervals=2)))
+            show_or_close()
+
+    def test_lacking_burial_depth_per_figure(self):
+        """
+        The title of each figure only lists the wells that are lacking in that figure
+        """
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand E'], log_table, {'Volume': ['<', 0.5]})
+        results = stats.run()
+        results['Sand F'].per_well.pop('WELL_B')
+        results['Sand E'].per_well.pop('WELL_A')
+        first, second = stats.plot_logs_vs_burial_depth(results, file_name=None, max_intervals=1)
+        self.assertIn('WELL_A', first._suptitle.get_text())
+        self.assertNotIn('WELL_B', first._suptitle.get_text())
+        self.assertIn('WELL_B', second._suptitle.get_text())
+        self.assertNotIn('WELL_A', second._suptitle.get_text())
+        show_or_close()
+
     def test_burial_depth_lacking_kb_and_water_depth(self):
         """
         With the kelly bushing and water depth of WELL_B blank in the project table, its burial depth is all NaN.
@@ -378,7 +431,7 @@ class TestCases(unittest.TestCase):
                                  {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]})
         results = stats.run()
         self.assertEqual({'WELL_F'}, set(results['Sand F'].burial_depth.keys()))
-        fig = stats.plot_logs_vs_burial_depth(results, file_name=None)
+        fig = stats.plot_logs_vs_burial_depth(results, file_name=None)[0]
         self.assertIn('WELL_A', fig._suptitle.get_text())
         self.assertIn('WELL_B', fig._suptitle.get_text())
         self.assertNotIn('WELL_F', fig._suptitle.get_text())
@@ -392,7 +445,7 @@ class TestCases(unittest.TestCase):
         stats = StatsCalculation(self.wells, self.wis, 'Sand F', log_table, {'Volume': ['<', 0.5]})
         results = stats.run()
         results['Sand F'].burial_depth = {}
-        fig = stats.plot_logs_vs_burial_depth(results, file_name=None)
+        fig = stats.plot_logs_vs_burial_depth(results, file_name=None)[0]
         self.assertEqual(0, len(fig.axes[0].collections))
         for _well in ['WELL_A', 'WELL_B', 'WELL_F']:
             self.assertIn(_well, fig._suptitle.get_text())

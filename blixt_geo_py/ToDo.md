@@ -89,6 +89,6 @@ pint units into use.
 - Add an option to not display the well synthetics in the compare_synth_with_seismic
 - ~~Allow StatsCalculation to be run without cutoffs, so that it simply calculates the statistics of a whole interval, regardless of lithology~~ (cutoffs is now optional, and comes after log_table)
 - Make a fix so that everywhere a Multi log LogTable is used where it is not supported, we raise a warning and just take the first of the given logs
-- If there are more than 5 intervals in plot_logs_vs_burial_depth(), split the plot into one figure per 5 intervals
+- ~~If there are more than 5 intervals in plot_logs_vs_burial_depth(), split the plot into one figure per 5 intervals~~ (max_intervals)
 - ~~StatsCalculation() doesn't handle the case where one interval is repeated but with different cutoffs (e.g. one for sand, and one for shale), or maybe the case I was testing didn't have any data for one of the cutoffs?~~ (each needs its own suffix)
 - Calibrate the Gardner equation (rho = a * Vp^b), within each interval and cutoff range (do it by taking the natural logarithm, then you get a linear regression problem)
