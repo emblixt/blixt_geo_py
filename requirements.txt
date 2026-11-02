@@ -7,7 +7,7 @@ pint
 xarray
 
 # Plotting / interactive
-bokeh
+bokeh>=3.5      # The fluid substitution dialog of LithoFluidsTable. In 3.4 it is drawn behind other tables
 
 # Geophysics
 segyio          # io/io.py
