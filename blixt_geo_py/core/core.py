@@ -2192,7 +2192,8 @@ class LithoFluid:
 
         if hc is None:
             hc = dict(rho=Q_(0.8, 'G/cc'), k=Q_(1.152, 'GPa'))  # oil
-            # hc = dict(rho=Q_(0.15, 'G/cc'), k=Q_(0.037, 'GPa'))  # gas
+            # hc = dict(rho=Q_(0.17, 'G/cc'), k=Q_(0.12, 'GPa'))  # rich gas
+            # hc = dict(rho=Q_(0.01, 'G/cc'), k=Q_(0.08, 'GPa'))  # biogen gas
             # hc = dict(rho=Q_(0.45, 'G/cc'), k=Q_(0.325, 'GPa'))  # condensate
             # hc = dict(rho=Q_(1.1, 'G/cc'), k=Q_(2.757, 'GPa'))  # Heavy oil
         if mineral is None:

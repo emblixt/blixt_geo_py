@@ -1584,6 +1584,10 @@ def read_general_ascii(file_name: str,
 
 def fix_units_for_pint(unit):
 
+    # Attempt to try and fix the ohm.m problem, which Pint don't approve ('.' is interpreted as an operator)
+    if '.' in unit:
+        unit = unit.replace('.', '')
+
     if '^3' in unit:
         pass
     elif '**3' in unit:
