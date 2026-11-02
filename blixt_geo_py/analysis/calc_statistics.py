@@ -226,7 +226,8 @@ class IntervalStats:
                     continue
                 _values = _data[_log].magnitude
                 rows.append({
-                    'interval': self.wi_name, 'well': _well_name, 'log type': _log_type, 'log': _log,
+                    'interval': self.wi_name, 'suffix': self.suffix, 'well': _well_name, 'log type': _log_type,
+                    'log': _log,
                     'units': str(_data[_log].units), 'n': int(np.sum(~np.isnan(_values))),
                     'mean': np.nanmean(_values), 'median': np.nanmedian(_values), 'std': np.nanstd(_values),
                     'p10': np.nanpercentile(_values, 10), 'p90': np.nanpercentile(_values, 90)
@@ -326,6 +327,7 @@ class StatsCalculation:
             e.g. wp.load_all_wis()
         :param wi_names:
             str or list of working interval names
+            An interval can be repeated, e.g. to use different cutoffs for sand and shale, if each has its own suffix
         :param cutoffs:
             Cutoffs, str (e.g. "Volume<0.5[], Porosity>0.1[]"), dict (e.g. {'Volume': ['<', 0.5]}) or None
             If a single value, it is used in all working intervals
@@ -361,6 +363,12 @@ class StatsCalculation:
         self.log_tables = [_lt if isinstance(_lt, LogTable) else LogTable(dict(_lt))
                            for _lt in _per_interval(log_table, n, 'log_tables', (LogTable, dict))]
         self.suffixes = [_s or '' for _s in _per_interval(suffix, n, 'suffixes', (str,))]
+        # The results, and the lines in the RokDoc output, of these could not be told apart
+        _runs = list(zip(wi_names, self.suffixes))
+        _repeated = sorted({_wi for _wi, _s in _runs if _runs.count((_wi, _s)) > 1})
+        if len(_repeated) > 0:
+            raise ValueError('The working intervals {} are repeated with the same suffix. Give each a different '
+                             'suffix, e.g. suffix=["sand", "shale"]'.format(', '.join(_repeated)))
         self.working_dir = working_dir
 
     def run(self) -> dict:
@@ -368,11 +376,13 @@ class StatsCalculation:
         :return:
             dict
             {working interval name: IntervalStats}
+            The key of a repeated interval also holds the suffix (IntervalStats.label), e.g. 'Sand F, sand'
         """
         results = {}
         for wi_name, cutoffs, log_table, suffix in zip(self.wi_names, self.cutoffs, self.log_tables, self.suffixes):
             print_info('Interval: {}. Cutoffs: {}'.format(wi_name, cutoffs), 'info', logger)
-            results[wi_name] = collect_interval_stats(self.wells, self.intervals, wi_name, log_table, cutoffs, suffix)
+            stats = collect_interval_stats(self.wells, self.intervals, wi_name, log_table, cutoffs, suffix)
+            results[wi_name if self.wi_names.count(wi_name) == 1 else stats.label] = stats
         return results
 
     def summary(self, results: dict) -> pd.DataFrame:

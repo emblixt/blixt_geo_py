@@ -186,6 +186,61 @@ class TestCases(unittest.TestCase):
             self.assertAlmostEqual(np.std(results['rho_dry']), line['RhoStdDev'])
             self.assertAlmostEqual(np.mean(results['phie']), line['PorosityMean'])
 
+    def test_repeated_interval(self):
+        """
+        One interval with different cutoffs for sand and shale must give two results, equal to running them one by one
+        """
+        sand, shale = {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}, {'Volume': ['>', 0.5]}
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand F', 'Sand E'], [sand, shale, sand], log_table,
+                                 ['sand', 'shale', 'sand'])
+        results = stats.run()
+        # Only the repeated interval has the suffix in its key
+        self.assertEqual(['Sand F, sand', 'Sand F, shale', 'Sand E'], list(results.keys()))
+
+        for _key, _cutoffs, _suffix in [('Sand F, sand', sand, 'sand'), ('Sand F, shale', shale, 'shale')]:
+            alone = StatsCalculation(self.wells, self.wis, 'Sand F', _cutoffs, log_table, _suffix).run()['Sand F']
+            self.assertEqual(_suffix, results[_key].suffix)
+            for _well in alone.well_names:
+                np.testing.assert_array_equal(alone.per_well[_well]['vp_dry'].magnitude,
+                                              results[_key].per_well[_well]['vp_dry'].magnitude)
+
+        # The two must differ, or this test could not detect one overwriting the other
+        self.assertNotEqual(len(results['Sand F, sand'].per_well['WELL_B']['vp_dry']),
+                            len(results['Sand F, shale'].per_well['WELL_B']['vp_dry']))
+
+        # The summary tells them apart
+        summary = stats.summary(results)
+        rows = summary[(summary['interval'] == 'Sand F') & (summary['well'] == 'WELL_B') & (summary['log'] == 'vp_dry')]
+        self.assertEqual(['sand', 'shale'], list(rows['suffix']))
+        self.assertEqual([len(results['Sand F, sand'].per_well['WELL_B']['vp_dry']),
+                          len(results['Sand F, shale'].per_well['WELL_B']['vp_dry'])], list(rows['n']))
+
+        # So does the RokDoc output
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_name = os.path.join(tmp_dir, 'SumsAndAverages.xlsx')
+            stats.save_rokdoc_output(results, file_name)
+            names = [_l['Name'] for _l in read_rokdoc_lines(file_name)]
+        self.assertEqual(len(names), len(set(names)))
+        for _name in ['Sand F_sand', 'Sand F_shale', 'WELL_B Sand F_sand', 'WELL_B Sand F_shale']:
+            self.assertIn(_name, names)
+
+        # All plots show one row, or one tick, per result
+        self.assertEqual(3 * len(log_table), len(stats.plot_logs_vs_burial_depth(results, file_name=None).axes))
+        self.assertEqual(3 * len(log_table), len(stats.plot_logs_vs_depth(results, file_name=None).axes))
+        ax = stats.plot_averages(results)['P velocity'].axes[0]
+        self.assertEqual(['Sand F, sand', 'Sand F, shale', 'Sand E, sand'], [_t.get_text() for _t in ax.get_yticklabels()])
+        show_or_close()
+
+    def test_repeated_interval_needs_different_suffixes(self):
+        sand, shale = {'Volume': ['<', 0.5]}, {'Volume': ['>', 0.5]}
+        for _suffix in ['', 'same', ['same', 'same']]:
+            with self.subTest(suffix=_suffix):
+                with self.assertRaisesRegex(ValueError, 'Sand F'):
+                    StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand F'], [sand, shale], log_table, _suffix)
+        # A single suffix is fine as long as the intervals differ, and they keep their plain names
+        results = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand E'], sand, log_table, 'same').run()
+        self.assertEqual(['Sand F', 'Sand E'], list(results.keys()))
+
     def test_linear_depth_trend(self):
         rng = np.random.default_rng(0)
         tvd = np.linspace(1000., 3000., 500)
