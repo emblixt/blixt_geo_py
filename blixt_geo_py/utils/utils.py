@@ -30,41 +30,41 @@ def find_value(x: np.ndarray, x_index: int, snap_to: str = 'exact') -> (float, i
     """
     Returns the value of the array x at index position x_index, when 'snap_to' is 'exact'
     But can return the nearest min, max or extreme, depending on 'snap_to'
+
+    A flat-topped (or flat-bottomed) extreme, where several neighbouring samples have the same value, counts as one
+    extreme, positioned at its middle sample. With an even number of samples, it is the lower of the two middle indices.
+    The first and last samples of x are never extremes.
+
     :param x:
     :param x_index:
     :param snap_to:
         'exact': returns (x[x_index], x_index)
         'nearest_min': returns the local minimum closest to x_index and its index
         'nearest_max': returns the local maximum closest to x_index and its index
-        'nearest_extreme': returns the local extreme closest to x_index and its index
+        'nearest_extreme': returns the local extreme closest to x_index and its index. If a minimum and a maximum are
+            equally far from x_index, the maximum is returned
     :return:
         (value, index_position)
+    :raises ValueError:
+        If x does not contain an extreme of the requested type
     """
-    from scipy.signal import argrelmax, argrelmin
+    from scipy.signal import find_peaks
     if snap_to == 'exact':
         return x[x_index], x_index
     elif snap_to == 'nearest_min':
-        local_minima = argrelmin(x)[0]
-        closest_minima = np.argmin(np.sqrt((local_minima - x_index)**2))
-        x_index = local_minima[closest_minima]
-        return x[x_index], x_index
+        candidates = find_peaks(-x)[0]
     elif snap_to == 'nearest_max':
-        local_max = argrelmax(x)[0]
-        closest_max = np.argmin(np.sqrt((local_max - x_index)**2))
-        x_index = local_max[closest_max]
-        return x[x_index], x_index
+        candidates = find_peaks(x)[0]
     elif snap_to == 'nearest_extreme':
-        local_minima = argrelmin(x)[0]
-        local_max = argrelmax(x)[0]
-        closest_minima = np.argmin(np.sqrt((local_minima - x_index)**2))
-        closest_max = np.argmin(np.sqrt((local_max - x_index) ** 2))
-        if abs(x_index - local_minima[closest_minima]) < abs(x_index - local_max[closest_max]):
-            x_index = local_minima[closest_minima]
-        else:
-            x_index = local_max[closest_max]
-        return x[x_index], x_index
+        # The maxima come first, because np.argmin below returns the first of the equally close candidates
+        candidates = np.concatenate((find_peaks(x)[0], find_peaks(-x)[0]))
     else:
         raise IOError('Unknown snap_to: {}'.format(snap_to))
+
+    if len(candidates) == 0:
+        raise ValueError("Can not snap to '{}', as there is no such local extreme in the data".format(snap_to))
+    x_index = candidates[np.argmin(np.abs(candidates - x_index))]
+    return x[x_index], x_index
 
 
 def isnan(val):

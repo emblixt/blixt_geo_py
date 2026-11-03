@@ -191,4 +191,4 @@ Collected on 2026-11-03. Each item gives the file (relative to this folder), the
 - `utils/masks.py:61`, create_mask(): The special handling of data in units of 'fract' is a work around, which I hopefully can avoid in the future
 - `utils/masks.py:65`, create_mask(): But what if the data is not a pint.Quantity? How do we deal with that? Need to strengthen this. Maybe require that both data and limits are pint.Quantities?
 - `utils/signal_analysis.py:71`, smooth(): The window parameter could be the window itself if an array instead of a string
-- `utils/utils.py:32`, find_value(): The docstring ended in "But can return the nearest min or max, ... or TODO". Finish the description, or add further 'snap_to' options
+- ~~`utils/utils.py:32`, find_value(): The docstring ended in "But can return the nearest min or max, ... or TODO". Finish the description, or add further 'snap_to' options~~
