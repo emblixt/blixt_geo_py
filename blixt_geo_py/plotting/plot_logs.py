@@ -171,10 +171,6 @@ def plot_chi_rotation(well: cw.Well,
     :param rel_widths:
     :return:
     """
-    # TODO 1. check that the logs have the same length and step
-    # TODO 2. The center of the Chi line must update after changing zoom or recalculating the EEI
-    # TODO 3. Create a Class for this
-    # TODO 4. Plot the uncertainty in log AI vs. log GI plot
     # Well must have LogCurve with TWT (or OWT) data, so first check that this exists
     twt = None
     log_types = well.get_log_types
@@ -1296,8 +1292,6 @@ def plot_trends(x_name: str, wells: list, log_table: LogTable, wis:Intervals, wi
     # x0 = [1000., -1000., -0.001]
     target_function = linear_function
     x0 = [1., 1.]
-    # TODO
-    # We need a x0 for each log type
 
     res = {
         'success': False,

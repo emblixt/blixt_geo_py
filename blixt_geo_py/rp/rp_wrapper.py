@@ -384,8 +384,6 @@ def rpt_phi_sw(phi: pint.Quantity, sw: pint.Quantity, **kwargs):
     calc_phi_eff = kwargs.pop('calc_phi_eff', False)      # set this to True to calculate effective porosity and use it
 
     # rp_core is not handling Pint Quantities correctly, so we need to take their magnitude
-    # TODO
-    # Insert a test so that 'float' isn't used on the input variables that are arrays or lists
     _phi = phi.to('dimensionless').magnitude
     _sw = sw.to('dimensionless').magnitude
     _vsh = float(vsh.to('dimensionless').magnitude)

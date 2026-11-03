@@ -2216,8 +2216,6 @@ class LithoFluid:
                   fluid_mix = 'Reuss',
                   verbose: bool = False):
 
-        # TODO
-        # Insert a test of k_dry
         """
         Simplistic fluid substitution.
         Returns a new LithoFluid after fluid substitution.
@@ -2538,7 +2536,6 @@ class LithoFluidsTable:
             cds.data = new_data
 
         def update_table_function():
-            # TODO: I suspect this doesn't work correctly when adding a new row when we're having a Quasi 2D litho fluid
             new_data = dict(cds.data)
             _litho_fluids = []
             for _i in range(len(new_data['name'])):

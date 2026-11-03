@@ -38,7 +38,6 @@ def create_mask(data, operator, limits):
         numpy boolean mask array
         True values indicate that this data point fulfills the operator with the given limits
     """
-    # TODO Force data and limits to be pint Quantities
     from blixt_geo_py.core.log_curve import Depth
     from blixt_geo_py.utils.utils import print_info
     # convert limits to a list of limits, as limits is either a single value, or a list of two values for the '><'
@@ -59,13 +58,10 @@ def create_mask(data, operator, limits):
         data = data.magnitude
         # Limits without units are assumed to be in the units of the data, and are used as they are
         if data_unit == 'fract':
-            # TODO This is a work around, which I hopefully can avoid in the future
             limits = [_x.magnitude if isinstance(_x, pint.Quantity) else _x for _x in limits]
         else:
             limits = [_x.to(data_unit).magnitude if isinstance(_x, pint.Quantity) else _x for _x in limits]
     else:
-        # But what if the data is not a pint.Quantity? How do we deal with that?
-        # TODO Need to strengthen this. Maybe require that both data and limits are pint.Quantities?
         # print_info('Is data a pint.Quantity? {}, is limits a pint.Quantity? {}.\n BE CAREFUL'.format(
         #     isinstance(data, pint.Quantity), isinstance(limits, pint.Quantity),
         # ), 'warning', logger)

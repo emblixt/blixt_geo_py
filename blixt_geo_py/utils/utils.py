@@ -29,7 +29,7 @@ def nan_corrcoef(x, y):
 def find_value(x: np.ndarray, x_index: int, snap_to: str = 'exact') -> (float, int):
     """
     Returns the value of the array x at index position x_index, when 'snap_to' is 'exact'
-    But can return the nearest min or max, ... or TODO
+    But can return the nearest min, max or extreme, depending on 'snap_to'
     :param x:
     :param x_index:
     :param snap_to:

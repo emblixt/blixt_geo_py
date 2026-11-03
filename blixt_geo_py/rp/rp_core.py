@@ -14,8 +14,6 @@ from blixt_geo_py import Q_, ureg
 
 logger = logging.getLogger(__name__)
 
-# TODO: Make sure that we are certain about the usage of confining and effective pressure
-
 # Functions decorated with ureg.wraps(output_units, input_units, strict=False) accept either pint Quantities,
 # which are converted to the given input units, or plain numbers, which are assumed to already be in those units.
 # The returned values are pint Quantities in the given output units.
@@ -1102,9 +1100,6 @@ def gassmann_vel(vp_1, vs_1, rho_1, k_f1, rho_f1, k_f2, rho_f2, k_min, phi):
         np.array
         Porosity
     """
-    # TODO
-    # Allow a mask to only do the fluid substitution where the mask is True
-
     # Avoid low porosity points
     if isinstance(phi, np.ndarray):  # when input is an array
         phi[phi < 7E-3] = 7E-3

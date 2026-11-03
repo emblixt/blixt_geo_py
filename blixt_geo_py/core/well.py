@@ -644,7 +644,6 @@ class Well(object):
         for _log in self.logs:
             _dict[_log.name] = _log.data  # Keep the units!
 
-        # TODO Is it needed?
         # TESTING WITHOUT IT
         # # The depth (= md) log is always needed. Comes with units
         # _dict['depth'] = _log.depth.depth
@@ -958,7 +957,6 @@ class Well(object):
                 continue
 
             if verbose:
-                # TODO! The order of vp, vs, and rho must match the columns of the plot!
                 for i, block in enumerate([vp_block, vs_block, rho_block]):
                     ax[i].plot(
                         [block['median'], block['median']],
@@ -986,7 +984,6 @@ class Well(object):
                 vp = vp_block['median'],
                 vs = vs_block['median'],
                 rho = rho_block['median'],
-                # TODO: Seems like the litho_fluids doesn't pick up the STD when running the one_d_model() method below
                 vp_std_dev = vp_block['std'],
                 vs_std_dev = vs_block['std'],
                 rho_std_dev = rho_block['std']

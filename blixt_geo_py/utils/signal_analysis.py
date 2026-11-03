@@ -68,8 +68,6 @@ def smooth(x, window_len=11, window='hanning', method='convolution', interp_vec=
 
     numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
     scipy.signal.lfilter
-
-    TODO: the window parameter could be the window itself if an array instead of a string
     """
     padding_mode = kwargs.pop('padding_mode', 'edge')
     padding_reflect_type = kwargs.pop('padding_reflect_type', None)

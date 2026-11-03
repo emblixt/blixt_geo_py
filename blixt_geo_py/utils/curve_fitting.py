@@ -454,7 +454,6 @@ def outlier_weights(y: np.ndarray, mask: np.ndarray | None = None, method: str |
     :return:
     """
     if method is None:
-        # TODO: Maybe this method removes to much data?? Try using the std
         if mask is not None:
             weights = 1. - np.sqrt((y[mask] - np.nanmedian(y[mask])) ** 2)
         else:

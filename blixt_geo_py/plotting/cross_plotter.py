@@ -223,8 +223,7 @@ class DataSource:
         for _key, _value in self._templates.items():
             if _key not in self.variables:
                 continue
-            # TODO Maybe we should remove '_value is not None', all our data should have units?
-            # TODO No, the 'mask' column has no units
+            # The 'mask' column has no units
             if _value is not None and _value.units is not None:
                 units.append(_value.units)
         return units
@@ -286,7 +285,6 @@ class DataSource:
     def calc_mask(self,
                   cutoffs: Cutoffs,
                   logtable: LogTable):
-        # TODO
         pass
 
 
@@ -970,7 +968,6 @@ class CrossPlotter:
         _y_menu =  Select(title='Y axis', value=self.y, options=self.common_variables)
         _size_menu =  Select(title='Size', value=20,
                              options= self.fixed_sizes + self.common_variables)
-        # TODO The selectors below needs fixing before they can be used properly
         _color_menu =  Select(title='Color axis', value=self.common_variables[0],
                               options=self.fixed_colors + self.common_variables)
         _marker_menu =  Select(title='Marker', value=self.common_variables[0], options=self.common_variables)
@@ -1043,44 +1040,6 @@ class CrossPlotter:
             //  }
             x_source.change.emit()
             
-        """
-        # TODO
-        # The above 'order' function works, but Bokeh draws everything in one 'vectorized call', making the
-        # order meaningless
-        # A suggested solution by CoPilot is to split the data into different renderers, and then control
-        # each of them individually:
-        """
-        # Create one renderer per group
-        renderers = {}
-
-        for group in df['group'].unique():
-            view = ColumnDataSource(df[df['group'] == group])
-
-            r = p.scatter(
-                x='x',
-                y='y',
-                source=view,
-                size='size',
-                color='color',
-                marker='marker',
-                legend_label=group
-            )
-
-            renderers[group] = r
-            
-        # Then, the JS call back:
-        const renderers = renderer_dict;
-        const selected = group_select.value;
-
-        // Move selected renderer to end (top layer)
-        const all_renderers = Object.values(renderers);
-
-        // Remove selected
-        const others = all_renderers.filter(r => r !== renderers[selected]);
-
-        // Rebuild order
-        p.renderers = [...others, renderers[selected]];
-        ``
         """
         style_table = DataSourceStyle(self._data_sources)
         style_cds = style_table.cds

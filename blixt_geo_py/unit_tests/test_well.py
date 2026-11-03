@@ -384,7 +384,6 @@ class WellTestCase(unittest.TestCase):
             ]
         )
 
-        # TODO: CONTINUE HERE, make sure we actually get a working model out from one_d_model()
         lfs, model = well1.one_d_model(log_table2, wis, down_weight_outliers=False, verbose=True)
         print(model.domain)
         model.plot()

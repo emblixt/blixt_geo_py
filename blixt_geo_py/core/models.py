@@ -149,8 +149,6 @@ def plot_1d(model, ax=None, index=0, legend=True, yticks=True):
         twt, layer_index, vp, vs, rho, z = model.realize_model(Q_(1, 'millisecond'))
         y = twt
     else:
-        # TODO: We have said that the realize function need resolution in time domain - but it is not
-        # TODO: fully consistent. FOLLOW THE TAG "TODO: REALIZATION"
         # twt, layer_index, vp, vs, rho, z = model.realize_model(Q_(0.1, 'meter'))
         twt, layer_index, vp, vs, rho, z = model.realize_model(Q_(1, 'millisecond'))
         y = z
@@ -230,8 +228,6 @@ def plot_1d(model, ax=None, index=0, legend=True, yticks=True):
         if model.domain == 'TWT':
             ax.set_ylabel('TWT [s]')
         else:
-            # TODO
-            # The realization returns the twt
             # ax.set_ylabel('TWT [s]')
             ax.set_ylabel('Z [m]')
 
@@ -294,9 +290,6 @@ def plot_wiggles(model, sample_rate, wavelet, angle=0., eei=False, ax=None, colo
     Returns:
         avo_curves, extracted_amplitudes, minimum amplitude, maximum amplitude, distance between min & max
     """
-    # TODO
-    # We can make the 'distance between min & max' more robust, so that it works more correctly for "non-symmetric"
-    # wedge models
     from blixt_geo_py.utils.utils import find_value
 
     if avo_plot_position is None:
@@ -473,9 +466,6 @@ def plot_wiggles(model, sample_rate, wavelet, angle=0., eei=False, ax=None, colo
                 ax.annotate('{}'.format(_i + 1), avo_positions[_i], bbox={'boxstyle': 'circle', 'color': cnames[_i % len(cnames)]})
                 # ax.annotate('{}'.format(_i + 1), (10, 2.), bbox={'boxstyle': 'circle', 'color': cnames[_i % len(cnames)]})
             else:
-                # TODO
-                # The Z position is not entirely correct, as we have hard-coded it to use the first
-                # vector of the Z array
                 twt_index = np.argmin((twt - avo_positions[_i][1]) ** 2)
                 ax.annotate('{}'.format(_i + 1),
                             (avo_positions[_i][0], z[0, twt_index]), bbox={'boxstyle': 'circle', 'color': cnames[_i % len(cnames)]})
@@ -1251,7 +1241,6 @@ class Model:
         else:
             layer_index, this_vp, this_vs, this_rho = np.zeros(0), np.zeros(0), np.zeros(0), np.zeros(0)
             this_z = np.zeros(0)
-            # TODO: REALIZATION  What about models in TWT?
             last_z = z_top.to('m').magnitude
             for i, layer in enumerate(self.layers):
                 _vp, _vs, _rho = layer.realize_layer(resolution, voigt_reuss_hill=voigt_reuss_hill)
@@ -1264,7 +1253,6 @@ class Model:
                 # print('last_z', type(last_z), last_z)
                 # print('_vp', type(_vp), _vp[0])
                 # print('resolution', type(resolution), resolution)
-                # TODO: REALIZATION
                 # this_z = np.append(this_z, last_z + 0.5 * np.cumsum(_vp * resolution)
                 this_z = np.append(this_z, last_z + 0.5 * np.cumsum(_vp * resolution.to('second').magnitude))
                 last_z = this_z[-1]
@@ -1478,10 +1466,6 @@ class ModelTable:
                 else:
                     _vp[i_inds[i-1]:i_inds[i]] = this_vp.magnitude
                     _vs[i_inds[i-1]:i_inds[i]] = this_vs.magnitude
-                    # TODO
-                    # Sometimes I get a
-                    #    "TypeError: float() argument must be a string or a real number, not 'datetime.datetime'"
-                    # here. But when I first write it out, it doesn't occur??!!
                     # print('XXX1', _case, i, j, this_rho)
                     _rho[i_inds[i-1]:i_inds[i]] = this_rho.magnitude
 
@@ -1561,11 +1545,6 @@ class ModelTable:
             new_data = dict(cds.data)
             layers = []
 
-            # TODO
-            # It doesn't seem to catch if I change name of a layer correctly.
-            # The names are updated in the table, but if I by mistake had several layers with the
-            # same name and case, I can't fix that interactively
-
             # Iterate over all layers
             for _i in range(len(new_data['name'])):
                 this_lf = new_data['litho_fluid'][_i]
@@ -1619,7 +1598,6 @@ class ModelTable:
                     color=new_data['color'][_i],
                     thickness=_thickness,
                     litho_fluid=LithoFluid(
-                        # TODO Unsure if the name of the lithofluid will update correctly
                         name=litho_fluids_cds.data['name'][litho_fluid_i],
                         vp=_vp,
                         vs=_vs,
@@ -1967,7 +1945,6 @@ class LaminarModel:
             options=self.model.case_names)
         freq_slider = Slider(title='Wavelet central freq. [Hz]', start=10, end=40, step=5, value=self.freq)
 
-        # TODO: Just inserted this. Need work to be put in use
         # Select lateral resolution
         if self.dx is not None:
             dx_selector = NumericInput(
@@ -2041,11 +2018,6 @@ class LaminarModel:
             float(freq_slider.value)
         )
 
-        # TODO
-        # Tried to plot the physical x axis range when dx is given.
-        # It works, but adds two follow-up problems:
-        # 1. The x-axis range does not update when we change dx interactively
-        # 2. The trace-index selector needs to be updated too
         # if self.model.dx is not None:
         #     _x = self.model.trace_index_range * self.model.dx.to('m').magnitude
         # else:
@@ -2478,7 +2450,6 @@ class FaultModel(LaminarModel):
         :param resolution:
             resolution in depth
 
-        # TODO We are moving these two to the mother LaminarModel object
         :param dx:
             Distance between each 1D model
         :param n_traces:
@@ -2808,8 +2779,6 @@ def tuning_wedge_analysis(depth_to_wedge, from_thickness, to_thickness, n_traces
         wedge_thickness = np.linspace(from_thickness, to_thickness, n_traces) * target['vp'] * 0.5  # m
         wedge_xlabel = 'Wedge thickness [m]'
 
-    # TODO
-    # Double check that it should be 'TWT' below!
     m = build_wedge(depth_to_wedge, from_thickness, to_thickness, n_traces,
                     overburden, target, underburden, domain='TWT')
     avo_curves, amps, min_amps, max_amps, apparent_thickness = plot_wiggles(
@@ -2898,7 +2867,6 @@ def laminar_model_analysis(
     """
 
     fig, axs = plt.subplots(1, 2, figsize=(8, 8), gridspec_kw={'width_ratios': [1, 0.4]})
-    # TODO Try using a shared y axis
     # axs[1, 1].set_axis_off()
     wiggle_ax = axs[0]
     model_ax = axs[1]
@@ -3274,7 +3242,7 @@ def update_1d_model_function(
             _p_vpvs.line(x='vpvs_{}'.format(_case), y='depth', source=cds_lines,
                          **{'line_color': 'red', 'legend_label': 'VpVs_{}'.format(_case)})
 
-    # Only handle the situation when a new case is added, for now (TODO)
+    # Only handle the situation when a new case is added, for now
     if len(case_changes['removed']) > 0:
         print_info('Can not handle the situation when a case is removed', 'error', logger, raiser='IOError')
 
@@ -3343,7 +3311,7 @@ def update_2d_model_function(
             _p_vpvs.line(x='vpvs_{}'.format(_case), y='depth', source=cds_lines,
                          **{'line_color': 'red', 'legend_label': 'VpVs_{}'.format(_case)})
 
-    # Only handle the situation when a new case is added, for now (TODO)
+    # Only handle the situation when a new case is added, for now
     if len(case_changes['removed']) > 0:
         print_info('Can not handle the situation when a case is removed', 'error', logger, raiser='IOError')
 

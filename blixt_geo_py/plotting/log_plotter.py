@@ -881,7 +881,6 @@ def add_strat_table(_p: bokeh.plotting.figure,
                     stratigraphy: dict,
                     width: int | None = None,
                     column_index: int | None = None) -> bokeh.models.DataTable:
-    # TODO Rewrite to reuse the WorkingIntervalsTable class
     """
     Adds the stratigraphic levels in the stratigraphy dictionary to the plot, and adds a table that
     control them.

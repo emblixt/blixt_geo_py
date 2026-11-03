@@ -101,15 +101,6 @@ class SeismicTraces:
     Each trace must have the same depth/time dimension
 
     """
-    # TODO
-    # TODO Suggested major re-write
-    # Rename this to something like "SeismicSection", and make StochasticSyntheticTraces and
-    # AvoAmplitudes methods of this class.
-    # Add more attributes, e.g. "incident_angle", "chi_angle" which can be used for near, mid and far-stacks
-    # and so on.
-    # Also add a model as a non-mandatory attribute. so that the seismic section can be calculated from
-    # this model
-    # Also, make the output seismic sections from models.py of this type
     def __init__(self,
                  x: np.ndarray | None = None,
                  y: np.ndarray | None = None,
@@ -309,7 +300,6 @@ class AvoAmplitudes:
 
         :param model:
             One of the model types in models.py.
-            TODO Maybe we should restrict ourselves to LaminarModel and WedgeModel only
             Used to calculate the synthetic AVO / Chi response of the seismic section
 
         :return:
@@ -420,7 +410,6 @@ class AvoAmplitudes:
 
         :param model:
             One of the model types in models.py.
-            TODO Maybe we should restrict ourselves to LaminarModel and WedgeModel only
             Used to calculate the synthetic AVO / Chi response of the seismic section
 
         :return:
@@ -759,7 +748,6 @@ class AvoAnalyzer:
         j_indxs = [np.argmin((np.linspace(self.y0, self.y0 + self.dh, self.n_rows) - _ys)**2) for _ys in ys]
         # print(self.n_cols*(xs[0] - self.x0)/self.dw, np.argmin( (np.linspace(self.x0, self.x0 + self.dw, self.n_cols) - xs[0])**2 ))
         # print(self.n_rows*(ys[0] - self.y0)/self.dh, np.argmin( (np.linspace(self.y0, self.y0 + self.dh, self.n_rows) - ys[0])**2 ))
-        # TODO At present, the AvoAnalyzer cant handle name changes of the points
         names = ['One', 'Two', 'Three', 'Four']
         colors = ['red', 'blue', 'green', 'yellow']
 
@@ -1833,7 +1821,6 @@ def seismic_data_plot(_type:str) -> figure:
         max_val = np.nanmax(cds.data['value'])
         _seismic_color_map = seismic_color_map(min_val=min_val, max_val=max_val)
         p.image('value', source=cds,
-                # TODO The seismic seems upside down!
                 color_mapper=_seismic_color_map, dh=cds.data['value'][0].shape[1], dw=cds.data['value'][0].shape[0],
                 x=0, y=-1. * cds.data['value'][0].shape[1])
 

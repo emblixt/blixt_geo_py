@@ -130,7 +130,6 @@ class TestCase(unittest.TestCase):
         m.append(first_layer)
 
         wavelet = bumw.ricker(0.096, 0.001, 25)
-        # TODO: There is a collision between the "old" and "new" model layers, and the sample_rate
         plot_wiggles(m, 0.001, wavelet, avo_angles=[0., 5., 10., 15., 20., 25., 30., 35., 40.])
         plot_wiggles(m, 0.001, wavelet, eei=True, avo_angles=[-90, -70., -50., -30., -15., 0., 15., 30., 50., 70., 90.],
                      extract_avo_at=(-90, 1.99))
@@ -141,10 +140,6 @@ class TestCase(unittest.TestCase):
         net_vp = 3000.
         resolution = 0.001
         fig, axs = plt.subplots(nrows=11)
-        # TODO: This raises an AttributeError. 'Layer' object has no attribute 'ntg'.
-        # It is because the Layer has no attribute 'target' on initialization now. To create a 'target' layer we
-        # need to have two layers, one base case and one perturbed case, for the same layer.
-        # The "old" model interface and plotting will not be able to handle this right now
         for i in range(11):
             ntg = i / 10.
 
@@ -208,10 +203,6 @@ class TestCase(unittest.TestCase):
         from blixt_geo_py.core.core import LithoFluid, LithoFluids, LithoFluidsTable
 
         n_samplings = 11
-
-        # TODO
-        # At the moment, quasi2d models will likely fail when combining a varying thickness with NTG separate from 1
-        # when Voigt Reuss Hill average is set to False.
 
         # for a wedge model to work, we need to counterweight the changing thickness of one layer with an extra layer
         # so that the total height of the model is kept constant

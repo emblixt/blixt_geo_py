@@ -385,7 +385,6 @@ class TestPlot(unittest.TestCase):
             trace_type='chi')
 
         plotter = LogPlotter(width=800, height=1000)
-        # TODO This needs to be rewritten to fulfill the requirement that the CDS is mandatory
         line = Line(x=vp.values * rho.values, y=vp.depth.values, style=Template(
             **{'name': 'AI'} ))
         c1 = LogColumn('AI', lines=[line], rel_width=1)

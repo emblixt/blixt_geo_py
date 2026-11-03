@@ -118,8 +118,6 @@ def calc_ai_around_top(
     if ref_traces is not None:
         ax_names.insert(-2, 'ref_trace_ax')
         width_ratios.insert(-2, 1)
-    # TODO
-    # Check that axes never are used as input
     # if axes is not None:
     #     for n in ax_names:
     #         if n not in list(axes.keys()):

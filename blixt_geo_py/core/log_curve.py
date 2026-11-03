@@ -635,8 +635,6 @@ class LogCurve(object):
         :return
             LogCurve object
         """
-        # TODO
-        # Make sure this works correctly for log curves of different sampling and start and stop!
         if self.depth_type != log_curve.depth_type:
             raise ValueError('The two depth formats (depth_type) are not the same: {} != {}'.format(
                 self.depth_type, log_curve.depth_type))
@@ -1258,7 +1256,6 @@ class LogCurve(object):
             to_depth, trend_function.__name__, ', '.join('{:}'.format(_x) for _x in params))
 
         if verbose:
-            # TODO Here the self.min & max function have lost their units?!
             x0 = self.min.magnitude if isinstance(self.min, pint.Quantity) else self.min
             x1 = self.max.magnitude if isinstance(self.max, pint.Quantity) else self.max
             fig, ax = plt.subplots()

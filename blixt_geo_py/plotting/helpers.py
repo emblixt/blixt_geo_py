@@ -102,9 +102,6 @@ def plot_one_column(well, try_these_log_types, templates, header_ax=None, plot_a
          to the right of logtype 2 (logtype 1 is not necessarily larger than logtype 2, but plots to the right of
          logtype 2 given the limits in the templates
          E.G. [('Density', 'Neutron density', 'b'), ('Neutron density', 'Density', 'y')]
-
-         TODO
-         fill_between only work when the templates of the data to plot contain min and max value limits
     :return:
     """
     if header_ax is None and plot_ax is None:
@@ -128,9 +125,6 @@ def plot_one_column(well, try_these_log_types, templates, header_ax=None, plot_a
         z_max = np.max(depth[mask])
 
     log_types = [x for x in try_these_log_types if (len(well.get_logs_of_type(x)) > 0)]
-    # TODO
-    # Now we take the first log of each log type, generalize this so that it by default takes the first, but
-    # can plot all or one specific
     log_names = {ltype: well.get_logs_of_type(ltype)[0].name for ltype in log_types}
     _templates = {x: Template.from_dict(templates.get(x)) for x in log_types}
     limits = [[_templates[x].min, _templates[x].max] for x in log_types]
@@ -667,8 +661,6 @@ def annotate_plot(ax, y, pad=-30, intervals=None, interval_names=None, interval_
     Returns:
 
     """
-    # TODO
-    # Remove the hardcoded cyclic coloring of intervals when needed
     interval_colors = 'cyclic'
 
     ylim = kwargs.pop('ylim', None)

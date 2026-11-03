@@ -1050,7 +1050,6 @@ def read_sums_and_averages(filename, header=20):
         for i, value in enumerate(table[key]):
             # We want to be able to comment-out specific lines of the excel file
             # Try to avoid lines that contain the character '#' first in the Name
-            # TODO: Make it skip empty rows
             if table['Name'][i][0] == '#':
                 continue
             answer[table['Name'][i]][key] = value
@@ -1682,10 +1681,6 @@ def read_petrel_points(filename):
     return result
 
 def read_petrel_checkshots(filename, only_these_wells=None):
-    # TODO
-    # Build in a check to see what the time units are!
-    # Now we assume it is in ms
-    # If we correct this, then make sure every usage of read_petrel_checkshots is updated
     from blixt_geo_py.utils.utils import fix_well_name
     checkshots = {}
     keys = []
@@ -1766,12 +1761,10 @@ def read_well_headers(filename):
 
         else: # inside the data section
             # Find all parts of the row that contains a '<key AAAA> BBBB </key>' section, and replace and ignore it
-            # TODO handle the replaced xml code too
             match = re.findall("<key (.*?)</key>", row)
             for i, this_match in enumerate(match):
                 row = row.replace('<key {}</key>'.format(this_match), 'key_replacement_{}'.format(i))
 
-            # TODO Find any strings specifying a lat / lon (e.g 65°55'1.6900"N) and replace with deg, min, sec
             # match = re.findall('[^ ]*\"[NE]', row)
 
             # find any string within "" on this line
@@ -2229,7 +2222,6 @@ def well_reader(lines, file_format='las', rename_logs: None | dict = None):
                 section = 'data'
                 # initiate all key to empty list
                 for key in generated_keys:
-                    # TODO This will probably fail. Test and compare with 'original' converter
                     well_dict.add_section(well_dict, key, [])
                 continue  # jump into data
 
@@ -2300,11 +2292,6 @@ def well_reader(lines, file_format='las', rename_logs: None | dict = None):
 
         elif section == "data":
             content = line.split()
-            # TODO
-            # Some las files contain names enclosed in " ", and these names can contain spaces (see
-            # S:\Well\Wells_Norway\QUAD_35\35_4-3\Petrophysics\Interpretation\35_4-3_CPI_OUT_2022-11-06.las )
-            # And we need to be smart to separate out these somehow.
-            # It is done in not-so-smart way in read_petrel_checkshots():
 
             for k, v in zip(generated_keys, content):
                 #v = float(v) if v != null_val else None
@@ -2385,8 +2372,6 @@ def well_excel_reader(well_name, file_name, sheet_name, header_line, well_key, d
     accepted_sections = {"version", "well_info", "parameter", "curve", "data"}
     well_dict = {xx: {} for xx in accepted_sections}
     well_dict['version'] = {'vers': {'value': 'xlsx', 'unit': '', 'desc': 'Read from excel table of well data'}}
-    # TODO
-    # Make it possible to add units and description to data read from Excel files too
     for key in generated_keys:
         well_dict['curve'][key] = {'api_code': None, 'unit': None, 'desc': None}
         well_dict['data'][key] = data_dict[well_name][key]
@@ -2445,7 +2430,6 @@ def interpret_cutoffs_string(cutoffs_string):
     :return:
         dict or None
     """
-    # TODO This can be *REMOVED* because the new CutoffRule and Cutoffs can be generated directly from a string
     from blixt_geo_py.utils.utils import print_info
     if len(cutoffs_string) < 3:
         return None
