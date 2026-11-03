@@ -2251,6 +2251,8 @@ class LithoFluid:
 
         :return:
             LithoFluid with fluid substituted results
+            If the porosity is negative, a warning is given and no fluid substitution is done. The returned LithoFluid
+            is then a copy of this one, with the same values and the same name, while the name otherwise gets the tag
         """
         from blixt_geo_py.rp.rp_core import gassmann_vel, por_from_mass_balance, k_from_v, k_dry
         from blixt_geo_py.utils.definitions import default_fluids, default_minerals
@@ -2291,6 +2293,18 @@ class LithoFluid:
                 self.rho.to('G/cc').magnitude,
                 mineral['rho'].to('G/cc').magnitude,
                 rho_f1), '')
+
+        if np.any(phi.to('dimensionless').magnitude < 0.):
+            if estimated:
+                reason = 'The porosity estimated with the mass balance equation is negative ({}). This happens when ' \
+                         'the litho fluid (density {}) is denser than the mineral (density {} G/cc).'.format(
+                    phi.to('dimensionless').magnitude, self.rho, mineral['rho'].to('G/cc').magnitude)
+            else:
+                reason = 'The given porosity is negative ({}).'.format(phi.to('dimensionless').magnitude)
+            print_info('No fluid substitution of {} is done. {} A negative porosity gives wrong results, which can '
+                       'still look believable, e.g. a density that increases when brine is replaced by gas.'.format(
+                self.name, reason), 'warning', logger)
+            return deepcopy(self)
 
         _k_dry =  k_dry(
             k_from_v(self.vp.to('km/s').magnitude,

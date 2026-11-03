@@ -800,6 +800,54 @@ class LithoFluidTests(unittest.TestCase):
         for _key in ['vp', 'vs', 'rho']:
             self.assertEqual(getattr(expected, _key), getattr(result, _key))
 
+    def test_fluid_sub_with_negative_porosity_does_nothing(self):
+        from blixt_geo_py.core.core import LithoFluid
+        from blixt_geo_py.utils.definitions import default_minerals
+        lf = LithoFluid(default='brine_sst')  # Its density of 2.4 G/cc is higher than the 1.8 G/cc of the ooze
+
+        with self.assertLogs('blixt_geo_py.core.core', level='WARNING') as logs:
+            result = lf.fluid_sub(mineral=default_minerals['ooze'])
+        self.assert_is_unchanged_copy(lf, result)
+        self.assertIn('negative', logs.output[0])
+        self.assertIn('denser than the mineral', logs.output[0])
+
+        with self.assertLogs('blixt_geo_py.core.core', level='WARNING') as logs:
+            result = lf.fluid_sub(phi=Q_(-0.1, ''))
+        self.assert_is_unchanged_copy(lf, result)
+        self.assertIn('The given porosity is negative', logs.output[0])
+
+        # It is a new LithoFluid, so changing it leaves the original as it was
+        result.name = 'changed'
+        self.assertEqual('brine_sst', lf.name)
+
+    def assert_is_unchanged_copy(self, lf, result):
+        self.assertIsNot(lf, result)
+        self.assertEqual(lf.name, result.name)
+        for _key in ['vp', 'vs', 'rho', 'vp_std_dev', 'vs_std_dev', 'rho_std_dev']:
+            self.assertEqual(getattr(lf, _key), getattr(result, _key))
+
+    def test_fluid_sub_with_positive_porosity_gives_no_warning(self):
+        from blixt_geo_py.core.core import LithoFluid
+        lf = LithoFluid(default='brine_sst')
+        with self.assertNoLogs('blixt_geo_py.core.core', level='WARNING'):
+            result = lf.fluid_sub()
+        self.assertIsNot(lf, result)
+        self.assertEqual('brine_sst_hc', result.name)
+
+    def test_fluid_sub_dialog_refuses_a_negative_porosity(self):
+        from bokeh.models import Div, Select
+        _, cds, button, dialog = self.fluid_sub_table()
+        before = {_k: list(_v) for _k, _v in cds.data.items()}
+        cds.selected.indices = [0]
+        self.click(button)
+        [_s for _s in dialog.select({'type': Select}) if _s.title == 'Mineral'][0].value = 'ooze'
+
+        self.click(self.apply_button(dialog))
+
+        self.assertTrue(dialog.visible)
+        self.assertEqual(before, {_k: list(_v) for _k, _v in cds.data.items()})
+        self.assertTrue(any('negative porosity' in str(_d.text) for _d in dialog.select({'type': Div})))
+
     def test_fluid_sub_replaces_the_selected_row(self):
         from blixt_geo_py.core.core import LithoFluid
         lfs, cds, button, dialog = self.fluid_sub_table()
@@ -821,26 +869,36 @@ class LithoFluidTests(unittest.TestCase):
         self.assertAlmostEqual(expected.vp.magnitude, lfs['brine_sst_hc'].vp.magnitude)
 
     def test_fluid_sub_uses_the_inputs(self):
-        from bokeh.models import Spinner
+        from bokeh.models import Select, Spinner
         from blixt_geo_py.core.core import LithoFluid
-        hc = dict(rho=Q_(0.15, 'G/cc'), k=Q_(0.037, 'GPa'))
-        mineral = dict(rho=Q_(2.71, 'G/cc'), k=Q_(63.7, 'GPa'))
-        expected = LithoFluid(default='brine_sst').fluid_sub(Q_(0.9, ''), Q_(0., ''), hc, mineral)
+        from blixt_geo_py.utils.definitions import default_fluids, default_minerals
+        expected = LithoFluid(default='brine_sst').fluid_sub(
+            Q_(0.9, ''), Q_(0., ''), default_fluids['rich gas'], default_minerals['calcite'])
 
         _, cds, button, dialog = self.fluid_sub_table()
         cds.selected.indices = [0]
         self.click(button)
-        values = {'Initial water saturation': 0.9, 'Final water saturation': 0., 'Hydrocarbon density [g/cm3]': 0.15,
-                  'Hydrocarbon bulk modulus [GPa]': 0.037, 'Mineral density [g/cm3]': 2.71,
-                  'Mineral bulk modulus [GPa]': 63.7}
-        spinners = list(dialog.select({'type': Spinner}))
-        self.assertEqual(set(values), {_s.title for _s in spinners})
-        for _spinner in spinners:
-            _spinner.value = values[_spinner.title]
+        values = {'Initial water saturation': 0.9, 'Final water saturation': 0., 'Hydrocarbon': 'rich gas',
+                  'Mineral': 'calcite'}
+        widgets = list(dialog.select({'type': Spinner})) + list(dialog.select({'type': Select}))
+        self.assertEqual(set(values), {_w.title for _w in widgets})
+        for _widget in widgets:
+            _widget.value = values[_widget.title]
         self.click(self.apply_button(dialog))
         self.assertAlmostEqual(expected.vp.magnitude, cds.data['vp'][0])
         self.assertAlmostEqual(expected.vs.magnitude, cds.data['vs'][0])
         self.assertAlmostEqual(expected.rho.magnitude, cds.data['rho'][0])
+
+    def test_fluid_sub_lists_the_default_hydrocarbons_and_minerals(self):
+        from bokeh.models import Select
+        from blixt_geo_py.utils.definitions import default_fluids, default_minerals
+        _, _, _, dialog = self.fluid_sub_table()
+        selects = {_s.title: _s for _s in dialog.select({'type': Select})}
+
+        self.assertEqual('oil', selects['Hydrocarbon'].value)
+        self.assertEqual(set(default_fluids) - {'brine'}, set(selects['Hydrocarbon'].options))
+        self.assertEqual('quartz', selects['Mineral'].value)
+        self.assertEqual(set(default_minerals), set(selects['Mineral'].options))
 
     def test_fluid_sub_needs_one_selected_row(self):
         _, cds, button, dialog = self.fluid_sub_table()

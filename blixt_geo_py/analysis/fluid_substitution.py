@@ -19,7 +19,7 @@ from copy import deepcopy
 from math import isfinite
 from pathlib import Path
 
-from bokeh.models import Button, ColumnDataSource, Dialog, Div, Spinner
+from bokeh.models import Button, ColumnDataSource, Dialog, Div, Select, Spinner
 from bokeh.plotting import column, row
 import pint
 
@@ -350,11 +350,8 @@ class InteractiveFluidSub:
         # The default values of LithoFluid.fluid_sub()
         self.s_w1 = Spinner(title='Initial water saturation', value=1., low=0., high=1., step=0.05)
         self.s_w2 = Spinner(title='Final water saturation', value=0.2, low=0., high=1., step=0.05)
-        oil, quartz = default_fluids['oil'], default_minerals['quartz']
-        self.hc_rho = Spinner(title='Hydrocarbon density [g/cm3]', value=oil['rho'].to('G/cc').magnitude, low=0., step=0.01)
-        self.hc_k = Spinner(title='Hydrocarbon bulk modulus [GPa]', value=oil['k'].to('GPa').magnitude, low=0., step=0.01)
-        self.mineral_rho = Spinner(title='Mineral density [g/cm3]', value=quartz['rho'].to('G/cc').magnitude, low=0., step=0.01)
-        self.mineral_k = Spinner(title='Mineral bulk modulus [GPa]', value=quartz['k'].to('GPa').magnitude, low=0., step=0.1)
+        self.hc = Select(title='Hydrocarbon', value='oil', options=[_x for _x in default_fluids if _x != 'brine'])
+        self.mineral = Select(title='Mineral', value='quartz', options=list(default_minerals))
         self.selected = Div()
         self.message = Div(styles={'color': 'red'})
         self.dialog = None
@@ -398,6 +395,10 @@ class InteractiveFluidSub:
             result = litho_fluid.fluid_sub(s_w1, s_w2, hc, mineral)
         except ZeroDivisionError:
             return fail_txt
+        if result.name == litho_fluid.name:  # fluid_sub() has given a warning, and done nothing
+            return 'No fluid substitution of {} is done, as it is denser than the mineral, which gives a negative ' \
+                   'porosity. A negative porosity gives wrong results, which can still look believable, e.g. a ' \
+                   'density that increases when brine is replaced by gas.'.format(litho_fluid.name)
         values = {'vp': float(result.vp.to('m/s').magnitude), 'vs': float(result.vs.to('m/s').magnitude),
                   'rho': float(result.rho.to('g/cm**3').magnitude)}
         if not all(isfinite(_x) for _x in values.values()):
@@ -431,15 +432,14 @@ class InteractiveFluidSub:
         self.dialog.visible = True
 
     def _apply(self):
-        inputs = [self.s_w1, self.s_w2, self.hc_rho, self.hc_k, self.mineral_rho, self.mineral_k]
-        if any(_x.value is None for _x in inputs):
+        if self.s_w1.value is None or self.s_w2.value is None:
             self.message.text = 'All values must be given'
             return
         error = self.substitute(
             Q_(self.s_w1.value, ''),
             Q_(self.s_w2.value, ''),
-            dict(rho=Q_(self.hc_rho.value, 'g/cm**3'), k=Q_(self.hc_k.value, 'GPa')),
-            dict(rho=Q_(self.mineral_rho.value, 'g/cm**3'), k=Q_(self.mineral_k.value, 'GPa')))
+            default_fluids[self.hc.value],
+            default_minerals[self.mineral.value])
         self.message.text = '' if error is None else error
         self.dialog.visible = error is not None
 
@@ -459,8 +459,8 @@ class InteractiveFluidSub:
         cancel.on_click(self._close_dialog)
         self.dialog = Dialog(
             title='Fluid substitution',
-            content=column(self.selected, row(self.s_w1, self.s_w2), row(self.hc_rho, self.hc_k),
-                           row(self.mineral_rho, self.mineral_k), self.message, row(apply, cancel)),
+            content=column(self.selected, row(self.s_w1, self.s_w2), row(self.hc, self.mineral), self.message,
+                           row(apply, cancel)),
             visible=False,
             close_action='hide')
 
