@@ -25,6 +25,7 @@ import pint
 
 from blixt_geo_py import Q_
 from blixt_geo_py.core.well import Well
+from blixt_geo_py.utils.definitions import default_fluids, default_minerals
 from blixt_geo_py.utils.utils import isnan, print_info
 from blixt_geo_py.core.core import Intervals, LithoFluid, LithoFluids, LogTable, Cutoffs
 from blixt_geo_py.rp.rp_core import gassmann_vel
@@ -349,10 +350,11 @@ class InteractiveFluidSub:
         # The default values of LithoFluid.fluid_sub()
         self.s_w1 = Spinner(title='Initial water saturation', value=1., low=0., high=1., step=0.05)
         self.s_w2 = Spinner(title='Final water saturation', value=0.2, low=0., high=1., step=0.05)
-        self.hc_rho = Spinner(title='Hydrocarbon density [g/cm3]', value=0.8, low=0., step=0.01)
-        self.hc_k = Spinner(title='Hydrocarbon bulk modulus [GPa]', value=1.152, low=0., step=0.01)
-        self.mineral_rho = Spinner(title='Mineral density [g/cm3]', value=2.6, low=0., step=0.01)
-        self.mineral_k = Spinner(title='Mineral bulk modulus [GPa]', value=36.6, low=0., step=0.1)
+        oil, quartz = default_fluids['oil'], default_minerals['quartz']
+        self.hc_rho = Spinner(title='Hydrocarbon density [g/cm3]', value=oil['rho'].to('G/cc').magnitude, low=0., step=0.01)
+        self.hc_k = Spinner(title='Hydrocarbon bulk modulus [GPa]', value=oil['k'].to('GPa').magnitude, low=0., step=0.01)
+        self.mineral_rho = Spinner(title='Mineral density [g/cm3]', value=quartz['rho'].to('G/cc').magnitude, low=0., step=0.01)
+        self.mineral_k = Spinner(title='Mineral bulk modulus [GPa]', value=quartz['k'].to('GPa').magnitude, low=0., step=0.1)
         self.selected = Div()
         self.message = Div(styles={'color': 'red'})
         self.dialog = None

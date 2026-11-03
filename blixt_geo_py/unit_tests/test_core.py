@@ -785,6 +785,21 @@ class LithoFluidTests(unittest.TestCase):
         from bokeh.models import Button
         return [_b for _b in dialog.select({'type': Button}) if _b.label == 'Apply'][0]
 
+    def test_fluid_sub_defaults_come_from_definitions(self):
+        from unittest.mock import patch
+        from blixt_geo_py.core.core import LithoFluid
+        from blixt_geo_py.utils.definitions import default_fluids, default_minerals
+        lf = LithoFluid(default='brine_sst')
+        hc, mineral, brine = default_fluids['rich gas'], default_minerals['calcite'], dict(default_fluids['brine'])
+        brine['k'] = Q_(3., 'GPa')
+        expected = lf.fluid_sub(hc=hc, mineral=mineral, brine=brine)
+
+        with patch.dict(default_fluids, {'oil': hc, 'brine': brine}), patch.dict(default_minerals, {'quartz': mineral}):
+            result = lf.fluid_sub()
+
+        for _key in ['vp', 'vs', 'rho']:
+            self.assertEqual(getattr(expected, _key), getattr(result, _key))
+
     def test_fluid_sub_replaces_the_selected_row(self):
         from blixt_geo_py.core.core import LithoFluid
         lfs, cds, button, dialog = self.fluid_sub_table()

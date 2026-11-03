@@ -2230,12 +2230,15 @@ class LithoFluid:
         :param hc:
             dict
             Dictionary with density and bulk modulus of the hydrocarbons,
+            By default the 'oil' of default_fluids in utils/definitions.py
         :param mineral:
             dict
-            Dictionary with density and bulk modulus of the minerals,
+            Dictionary with density and modulus of the (bulk) minerals (really a mixture of minerals),
+            By default the 'quartz' of default_minerals in utils/definitions.py
         :param brine:
             dict
             Dictionary with density and bulk modulus of the brine,
+            By default the 'brine' of default_fluids in utils/definitions.py
         :param phi:
             pint.Quantity
             Porosity
@@ -2250,23 +2253,18 @@ class LithoFluid:
             LithoFluid with fluid substituted results
         """
         from blixt_geo_py.rp.rp_core import gassmann_vel, por_from_mass_balance, k_from_v, k_dry
+        from blixt_geo_py.utils.definitions import default_fluids, default_minerals
 
         if tag is None:
             tag = 'hc'
         name='{}_{}'.format(str(self.name), tag)
 
         if hc is None:
-            hc = dict(rho=Q_(0.8, 'G/cc'), k=Q_(1.152, 'GPa'))  # oil
-            # hc = dict(rho=Q_(0.17, 'G/cc'), k=Q_(0.12, 'GPa'))  # rich gas
-            # hc = dict(rho=Q_(0.01, 'G/cc'), k=Q_(0.08, 'GPa'))  # biogen gas
-            # hc = dict(rho=Q_(0.45, 'G/cc'), k=Q_(0.325, 'GPa'))  # condensate
-            # hc = dict(rho=Q_(1.1, 'G/cc'), k=Q_(2.757, 'GPa'))  # Heavy oil
+            hc = default_fluids['oil']
         if mineral is None:
-            mineral = dict(rho=Q_(2.6, 'G/cc'), k=Q_(36.6, 'GPa')) # quartz
-            # mineral = dict(rho=Q_(2.35, 'G/cc'), k=Q_(11.4, 'GPa')) # shale
-            # mineral = dict(rho=Q_(2.71, 'G/cc'), k=Q_(63.7, 'GPa')) # Calcite
+            mineral = default_minerals['quartz']
         if brine is None:
-            brine = dict(rho=Q_(1.02, 'G/cc'), k=Q_(2.56, 'GPa'))
+            brine = default_fluids['brine']
 
         # Bulk modulus of fluid 1 [2]  in [GPa]
         if fluid_mix == 'Reuss':
