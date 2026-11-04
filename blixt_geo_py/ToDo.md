@@ -19,8 +19,8 @@ Add the following usages to the different introduction notebooks
 
 ~~We could think about adding a "style" element to both LogCurve, Well & Param classes, so that we are less dependent on using the "template" dictionary everywhere.~~
 
-Look into the possibility of using calculated masks, using calc_mask(), and their name & description, instead of sending around cutoffs and cutoff strings. 
-Many functions could use a mask, and its description, as input. See blixt_rp.rp_utils.calc_toc.calc_toc() as example
+~~Look into the possibility of using calculated masks, using calc_mask(), and their name & description, instead of sending around cutoffs and cutoff strings. 
+Many functions could use a mask, and its description, as input. See blixt_rp.rp_utils.calc_toc.calc_toc() as example~~
 
 ##### 2023-03-20
 ~~Move LogCurve class in to well.py~~
@@ -47,9 +47,9 @@ Merge the WorkingIntervalsTable of core.py into the add_strat_table() in log_plo
 ### 2026-02-03
 Use the lasio package to deal with reading and writing .las files instead of self-built programs. It can read wrapped 
 files and will be updated to deal with las 3 format that is coming.
-Use the Agile Geoscience bruges library for wavelets, filters and rock physics instead of self-built programs. It is no
+~~Use the Agile Geoscience bruges library for wavelets, filters and rock physics instead of self-built programs. It is no
 longer developed from Agile Geoscience, but it is maintained by volunteers (seldomly). Write a wrapper so that it takes 
-pint units into use. 
+pint units into use.~~ 
 
 ### 2026-10-29
 - ~~Clean up / Remove all the unused "calc_stats" functionality - it is only obstructing~~
@@ -195,3 +195,10 @@ Collected on 2026-11-03. Each item gives the file (relative to this folder), the
 
 ### 2026-11-03
 - I'm a bit suspicious that the plot_logs_vs_burial_depth() isn't using the correct burial depth. The error could be in the calculation of the burial depth, or in the handling of it in this plot function
+- In LaminarModel, the name of the model should be displayed on the top of the Bokeh plot
+- "Add row" function in LithoFluidsTable should not add a new LithoFluid with the same name as an already existing LithoFluid in the table. If it creates a duplicate, add a number to its name
+- Modify the "Fluid sub" button of the LithoFluidsTable so that it instead creates a new LithoFluid based on the selected one, and give the user the possibility to set its name (default: <OLD_NAME>_hc)
+- Make the Gardner calibration plots behave the same way as the plot_logs_vs_burial_depth(), so that the intervals are plotted in the same order.
+- Create a similar plot as plot_logs_vs_burial_depth() but which plots acoustic impedance (Vp*Rho) against Vp/Vs. No regression is needed, only plot the data
+- Is the "Update" button in the LithoFluidsTable really necessary?
+- The title of the 1D model synthetic in compare_synth_with_seismic() doesn't update when shifting the model Case

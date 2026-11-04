@@ -1759,7 +1759,7 @@ class LaminarModel:
 
     def draw_lf_table(self, lf_cds: ColumnDataSource):
         # Returns the LithoFluidsTable with control buttons
-        # Returns: lf_table, lf_add_row, lf_delete_row, lf_update
+        # Returns: lf_table, lf_controls
         # lf_obj = LithoFluidsTable(self._litho_fluids, width=self.lf_width)
         return self.lf_table.draw(lf_cds)
 
