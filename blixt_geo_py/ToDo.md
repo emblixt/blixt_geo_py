@@ -135,7 +135,7 @@ Collected on 2026-11-03. Each item gives the file (relative to this folder), the
 - `io/io.py:2433`, interpret_cutoffs_string(): This function can be *REMOVED* because the new CutoffRule and Cutoffs can be generated directly from a string
 - `plotting/avo_chi_plotter.py:246`, create_mc_avo_plot(): Do a complete re-write of this function utilizing a 2 layer LaminarModel instead. And after AvoAnalyzer is ready, use that functionality to plot the AVO curves
 - `plotting/avo_chi_plotter.py:264`, create_mc_avo_plot(): Try using the new LithoFluidsTable object in core.py instead of create_litho_fluids_table(). It doesn't interact well with the other objects. Needs to be checked. The commented out attempt is still in the code here (see also 2025-11-10)
-- `plotting/cross_plotter.py:226`, DataSource.units(): Maybe we should remove '_value is not None', all our data should have units? No, the 'mask' column has no units
+- ~~`plotting/cross_plotter.py:226`, DataSource.units(): Maybe we should remove '_value is not None', all our data should have units?~~ No, the 'mask' column has no units
 - `plotting/cross_plotter.py:288`, DataSource.calc_mask(): Implement calc_mask(), it is only an empty stub
 - `plotting/cross_plotter.py:971`, CrossPlotter.drop_down_menus(): The selectors for color axis, marker and legend needs fixing before they can be used properly
 - ~~`plotting/cross_plotter.py:1044`, CrossPlotter.add_data_source_style(): Make the 'order' function work~~ Done, each data source now has its own renderer, and the Order column of the style table reorders them. The old attempt failed because of a bug in its sort, and because reordering the rows makes the swatches of a `legend_group` legend stale, not because of how Bokeh draws
