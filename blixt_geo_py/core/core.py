@@ -2525,15 +2525,15 @@ class LithoFluidsTable:
                 _index = max(cds.selected.indices) + 1
             else:
                 _index = 0
-            new_data = dict(cds.data)
             lf = LithoFluid(default='brine_sst')
+            lf.name = 'brine sst'
+            new_data = {_key: list(_column) for _key, _column in cds.data.items()}
             for _key in list(new_data.keys()):
-                if _key == 'name':
-                    # new_data[_key].append('brine sst')
-                    new_data[_key].insert(_index, 'brine sst')
-                else:
-                    # new_data[_key].append(lf.__dict__[_key])
-                    new_data[_key].insert(_index, lf.__dict__[_key])
+                new_data[_key].insert(_index, lf.name if _key == 'name' else lf.__dict__[_key].magnitude)
+            # update_table_function() matches the rows with the litho fluids by their position
+            _litho_fluids = list(self.litho_fluids.litho_fluids)
+            _litho_fluids.insert(_index, lf)
+            self.litho_fluids.litho_fluids = _litho_fluids
             cds.data = new_data
 
         def delete_row_function():
@@ -2544,6 +2544,9 @@ class LithoFluidsTable:
                     continue
                 for _x in self.keys:
                     new_data[_x].append(cds.data[_x][_i])
+            # update_table_function() matches the rows with the litho fluids by their position
+            self.litho_fluids.litho_fluids = [_lf for _i, _lf in enumerate(self.litho_fluids.litho_fluids)
+                                              if _i not in selected_index]
             cds.selected.indices = []
             cds.data = new_data
 

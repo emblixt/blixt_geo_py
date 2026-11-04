@@ -328,7 +328,7 @@ def run_fluid_substitution(
 class InteractiveFluidSub:
     """
     A button, and a dialog, for a 'naiv' fluid substitution of the selected LithoFluid in a LithoFluidsTable.
-    A new row is added at the end of the table, with the name given in the dialog (by default <OLD_NAME>_hc), and the
+    A new row is added below the selected row, with the name given in the dialog (by default <OLD_NAME>_hc), and the
     Vp, Vs and Rho from LithoFluid.fluid_sub(). The rest of the new row, e.g. the standard deviations, is copied from
     the selected row, which is left as it is.
     Nothing happens unless exactly one row is selected.
@@ -342,7 +342,7 @@ class InteractiveFluidSub:
             ColumnDataSource of the LithoFluidsTable
         :param litho_fluids:
             The LithoFluids of the LithoFluidsTable, used for finding the quasi 2D litho fluids, which can't be fluid
-            substituted
+            substituted. The new litho fluid is added to it
         :param update_table:
             Called after a row has been added
         """
@@ -372,7 +372,7 @@ class InteractiveFluidSub:
 
     def substitute(self, s_w1: pint.Quantity, s_w2: pint.Quantity, hc: dict, mineral: dict, name: str) -> str | None:
         """
-        Adds a new row, at the end of the table, with the results of the fluid substitution of the selected row.
+        Adds a new row, below the selected row, with the results of the fluid substitution of the selected row.
         The table is left as it is if it fails
 
         :param s_w1:
@@ -416,10 +416,17 @@ class InteractiveFluidSub:
         if not all(isfinite(_x) for _x in values.values()):
             return fail_txt
 
-        # At the end, because LithoFluidsTable matches the rows with its litho fluids by their position, and a row
-        # inserted further up would make the quasi 2D litho fluids below it end up on the wrong rows
         values['name'] = name
-        self.cds.data = {_key: list(_column) + [values.get(_key, _column[row])] for _key, _column in data.items()}
+        new_data = {_key: list(_column) for _key, _column in data.items()}
+        for _key, _column in new_data.items():
+            _column.insert(row + 1, values.get(_key, _column[row]))
+        # update_table() matches the rows with the litho fluids by their position
+        if self.litho_fluids is not None:
+            result.name = name
+            _litho_fluids = list(self.litho_fluids.litho_fluids)
+            _litho_fluids.insert(row + 1, result)
+            self.litho_fluids.litho_fluids = _litho_fluids
+        self.cds.data = new_data
         if self.update_table is not None:
             self.update_table()
         return None
