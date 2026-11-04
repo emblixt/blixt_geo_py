@@ -195,10 +195,10 @@ Collected on 2026-11-03. Each item gives the file (relative to this folder), the
 
 ### 2026-11-03
 - ~~I'm a bit suspicious that the plot_logs_vs_burial_depth() isn't using the correct burial depth. The error could be in the calculation of the burial depth, or in the handling of it in this plot function~~  Looks correct after an extra indepth look
-- In LaminarModel, the name of the model should be displayed on the top of the Bokeh plot
+- ~~In LaminarModel, the name of the model should be displayed on the top of the Bokeh plot~~ (draw() and draw_2d() return it as a Div, which the calling layout must place above the grid)
 - ~~"Add row" function in LithoFluidsTable should not add a new LithoFluid with the same name as an already existing LithoFluid in the table. If it creates a duplicate, add a number to its name~~ Not important
 - ~~Modify the "Fluid sub" button of the LithoFluidsTable so that it instead creates a new LithoFluid based on the selected one, and give the user the possibility to set its name (default: <OLD_NAME>_hc)~~ (the new row is added below the selected one)
 - ~~Make the Gardner calibration plots behave the same way as the plot_logs_vs_burial_depth()~~
 - ~~Create a similar plot as plot_gardner() but which plots acoustic impedance (Vp*Rho) against Vp/Vs. No regression is needed, only plot the data~~ (StatsCalculation.plot_elastics())
 - ~~Is the "Update" button in the LithoFluidsTable really necessary?~~  Edited cell values still need "Update"
-- The title of the 1D model synthetic in compare_synth_with_seismic() doesn't update when shifting the model Case
+- ~~The title of the 1D model synthetic in compare_synth_with_seismic() doesn't update when shifting the model Case~~ (the synthetic now also follows the Case, without pressing "Update")

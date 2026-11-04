@@ -57,10 +57,10 @@ elif test == 'models__test_model_table_save':
 elif test == 'models__test_laminar_model':
     import test_models
     test = test_models.TestCase()
-    model_table, model_controls, lf_table, lf_controls, grid, controls = test.test_laminar_model(unit_test=False)
+    title, model_table, model_controls, lf_table, lf_controls, grid, controls = test.test_laminar_model(unit_test=False)
     # model_table, add_row_m, delete_row_m, update_m, lf_table, add_row, delete_row, update, grid, controls = test.test_laminar_q2d_model(unit_test=False)
     curdoc().add_root(column(
-        grid, controls,
+        title, grid, controls,
         row(
             column(model_table, model_controls),
             column(lf_table, lf_controls)
@@ -69,11 +69,11 @@ elif test == 'models__test_laminar_model':
 elif test == 'models__test_laminar_model_with_avo_points':
     import test_models
     test = test_models.TestCase()
-    (model_table, model_controls, lf_table, lf_controls, grid, controls,
+    (title, model_table, model_controls, lf_table, lf_controls, grid, controls,
      points_table, update_avo, avo_figure, ixg_figure, eei_figure, chi_input, avo_cds) = test.test_laminar_model_with_avo_points(unit_test=False)
 
     curdoc().add_root(column(
-        grid, controls,
+        title, grid, controls,
         row(
             column(model_table, model_controls),
             column(lf_table, lf_controls)
@@ -82,11 +82,11 @@ elif test == 'models__test_laminar_model_with_avo_points':
 elif test == 'models__test_wedge':
     import test_models
     test = test_models.TestCase()
-    (model_table, model_controls, lf_table, lf_controls, grid, controls, new_grid, points_table, update_avo, avo_figure,
-     ixg_figure, eei_figure, chi_input) = test.test_wedge(unit_test=False)
+    (title, model_table, model_controls, lf_table, lf_controls, grid, controls, new_grid, points_table, update_avo,
+     avo_figure, ixg_figure, eei_figure, chi_input) = test.test_wedge(unit_test=False)
     curdoc().add_root(
         row(
-            column(grid, controls, new_grid,
+            column(title, grid, controls, new_grid,
                 row(
                     column(model_table, model_controls),
                     column(lf_table, lf_controls)

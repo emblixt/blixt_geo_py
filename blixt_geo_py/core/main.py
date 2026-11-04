@@ -34,10 +34,10 @@ elif test == 'test_lf_table':
 elif test == 'test_laminar_model':
     import blixt_geo_py.unit_tests.test_models as test_models
     test = test_models.TestCase()
-    model_table, model_controls, lf_table, lf_controls, grid, controls \
+    title, model_table, model_controls, lf_table, lf_controls, grid, controls \
         = test.test_laminar_model(unit_test=False)
     curdoc().add_root(
-        column(grid, controls,
+        column(title, grid, controls,
                row(
                    column(model_table, model_controls),
                    column(lf_table, lf_controls)
@@ -47,10 +47,10 @@ elif test == 'test_laminar_model':
 elif test == 'test_laminar_q2d_model':
     import blixt_geo_py.unit_tests.test_models as test_models
     test = test_models.TestCase()
-    model_table, model_controls, lf_table, lf_controls, grid, controls\
+    title, model_table, model_controls, lf_table, lf_controls, grid, controls\
         = test.test_laminar_q2d_model(unit_test=False)
     curdoc().add_root(
-        column(grid, controls,
+        column(title, grid, controls,
                     row(
                         column(model_table, model_controls),
                         column(lf_table, lf_controls)

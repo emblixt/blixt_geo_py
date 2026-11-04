@@ -897,7 +897,8 @@ class Model:
                     )
                 )
             return Model(depth_to_top=self.depth_to_top,
-                         layers=layers
+                         layers=layers,
+                         name=self.name
                          )
         else:
             return self  # if it is a 1D model, return itself. Does this make sense?
@@ -1608,6 +1609,7 @@ class ModelTable:
             self.model = Model(
                 depth_to_top=self.model.depth_to_top,
                 layers=layers,
+                name=self.model.name,
                 trace_index_range=self.model.trace_index_range
             )
             cds.data = new_data
@@ -1773,6 +1775,16 @@ class LaminarModel:
         # Returns: model_table, model_add_row, model_delete_row, model_update
         return self.model_table.draw(mod_cds, lf_cds)
 
+    def title_div(self):
+        # Returns the Div with the name of the model, to be placed on top of the plot. It is empty for an unnamed model
+        from bokeh.models import Div
+
+        if self.model.name is None:
+            return Div(text='')
+        title_txt = '<div style="font-size:12px; font-weight:600; margin-bottom:0px; text-align:center">\n'
+        title_txt += '{}\n </div>'.format(self.model.name)
+        return Div(text=title_txt)
+
     def draw(self):
         from bokeh.models import Span, Slider, Div, CustomJS
         from bokeh.models import GlyphRenderer
@@ -1903,14 +1915,7 @@ class LaminarModel:
         # update_m.on_click(update_m_function)
         # update.on_click(update_m_function)  # When using this the model table returns to its previous state when "Update" is clicked
 
-        if self.model.name is None:
-            title = Div(text="<div></div")
-        else:
-            title_txt = '<div style="font-size:12px; font-weight:600; margin-bottom:0px; text-align:center">\n'
-            title_txt += '{}\n </div>'.format(self.model.name)
-            title = Div(text=title_txt)
-
-        return (title, lf_table, lf_controls,
+        return (self.title_div(), lf_table, lf_controls,
                 _model_table, model_controls,
                 grid, freq_slider, synth_cds_base)
 
@@ -2095,14 +2100,7 @@ class LaminarModel:
         trace_selector.on_change("value", update_trace_function)
         case_selector.on_change("value", update_case_function)
 
-        if self.model.name is None:
-            title = Div(text="<div></div")
-        else:
-            title_txt = '<div style="font-size:12px; font-weight:600; margin-bottom:0px; text-align:center">\n'
-            title_txt += '{}\n </div>'.format(self.model.name)
-            title = Div(text=title_txt)
-
-        return (title, lf_table, lf_controls, _model_table,
+        return (self.title_div(), lf_table, lf_controls, _model_table,
                 model_controls, grid,
                 row(trace_selector, case_selector, freq_slider, color_amp_factor, dx_selector), synth_2d_cds)
 
@@ -2126,6 +2124,7 @@ class WedgeModel(LaminarModel):
                  min_thickness: pint.Quantity | None = None,
                  max_thickness: pint.Quantity | None = None,
                  n_traces: int | None = None,
+                 name: str | None = 'Wedge model',
                  **kwargs
                  ):
         """
@@ -2191,6 +2190,9 @@ class WedgeModel(LaminarModel):
         :param min_thickness:
         :param max_thickness:
         :param n_traces:
+        :param name:
+            str
+            Name of the model, displayed on top of the plot
         :param kwargs:
         """
 
@@ -2260,6 +2262,7 @@ class WedgeModel(LaminarModel):
 
         model = Model(layers=layers,
                       depth_to_top=depth_to_top,
+                      name=name,
                       trace_index_range=np.arange(n_traces)
                       )
         super().__init__(
@@ -2416,7 +2419,7 @@ class WedgeModel(LaminarModel):
 
         new_grid = gridplot([[p_scatter, p_lines]], toolbar_location='right', merge_tools=True)
 
-        return (lf_table, lf_controls, model_table, row(update_m), grid,
+        return (title, lf_table, lf_controls, model_table, row(update_m), grid,
                 row(controls, top_picker, base_picker), new_grid, synth_2d_cds)
 
 

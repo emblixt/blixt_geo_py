@@ -472,6 +472,47 @@ class TestPlot(unittest.TestCase):
 
         return bupp.compare_synth_with_seismic(well, ref_log_table, vp_vs_rho_table, st_orig)
 
+    def test_compare_seismic_follows_model_case(self):
+        # The model synthetic, and its title, should follow the selected case of the model
+        from bokeh.models import CustomJS, GlyphRenderer
+        from bokeh.models.glyphs import Image
+        from blixt_geo_py.core.core import LithoFluid
+        from blixt_geo_py.core.models import Model, Layer
+
+        wp = Project(name='MyProject', project_table=project_table)
+        wp.load_all_wells()
+        well = [_w for _w in wp.wells if _w.name == 'WELL_F'][0]
+        model = Model(layers=[
+            Layer('Top', 'Base', thickness=Q_(50., 'm'), litho_fluid=LithoFluid(default='shale')),
+            Layer('Reservoir', 'Base', thickness=Q_(25., 'm'), litho_fluid=LithoFluid(default='brine_sst')),
+            Layer('Reservoir', 'Oil', thickness=Q_(25., 'm'), litho_fluid=LithoFluid(default='oil_sst')),
+            Layer('Bottom', 'Base', thickness=Q_(50., 'm'), litho_fluid=LithoFluid(default='shale')),
+        ])
+
+        output = bupp.compare_synth_with_seismic(
+            well,
+            LogTable({'Volume': 'vcl'}),
+            LogTable({'Density': 'rho_dry', 'P velocity': 'vp_dry', 'S velocity': 'vs_dry'}),
+            model=model)
+        grid, case_selector = output[0], output[-1]
+        model_column = [_c[0] for _c in grid.children if _c[0].name == 'MODEL_SYNTH'][0]
+        image = [_r for _r in model_column.renderers
+                 if isinstance(_r, GlyphRenderer) and isinstance(_r.glyph, Image)][0]
+        base_synthetic = np.array(image.data_source.data['value'][0])
+
+        # The title is changed in the browser, by the same callback as for the sliders
+        title_callbacks = [_c for _c in case_selector.js_property_callbacks['change:value']
+                           if isinstance(_c, CustomJS)]
+        self.assertEqual(len(title_callbacks), 1)
+        self.assertIn('model_axis.axis_label', title_callbacks[0].code)
+        self.assertIs(title_callbacks[0].args['model_axis'], model_column.xaxis[0])
+
+        case_selector.value = 'Oil'
+        self.assertFalse(np.array_equal(base_synthetic, image.data_source.data['value'][0]))
+
+        case_selector.value = 'Base'
+        np.testing.assert_allclose(base_synthetic, image.data_source.data['value'][0])
+
     def test_plot_trends(self):
         # Only have Well A active in the project table
         log_table = LogTable({'Density': 'rho_dry', 'P velocity': 'vp_dry', 'S velocity': 'vs_dry',

@@ -1100,6 +1100,10 @@ def compare_synth_with_seismic(
         # update_m.on_click(update_m_function)
         # update_m.js_on_change('value', legend_callback)
 
+        # The model synthetic, and its title, follow the selected case
+        case_selector.on_change('value', lambda attr, old, new: update_m_function())
+        case_selector.js_on_change('value', legend_callback)
+
 
     return (grid, backus_slider, freq_slider, shift_slider, data_table, color_amp_factor,
             # lf_table, add_row, delete_row, update, save,

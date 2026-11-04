@@ -388,7 +388,37 @@ class TestCase(unittest.TestCase):
                  )
             return None
         else:
-            return model_table, model_controls, lf_table, lf_controls, grid, controls
+            return title, model_table, model_controls, lf_table, lf_controls, grid, controls
+
+    def test_laminar_model_title(self):
+        lm = LaminarModel(resolution=Q_(0.1, 'm'), avo_or_eei='avo')
+        self.assertIn('Default model', lm.draw()[0].text)
+
+        lm_2d = LaminarModel(
+            model=Model(layers=[layer1, layer2, layer5], name='Q2D model', trace_index_range=np.arange(3)),
+            resolution=Q_(0.1, 'm'), avo_or_eei='avo')
+        self.assertIn('Q2D model', lm_2d.draw_2d()[0].text)
+
+        lm.model.name = None
+        self.assertEqual(lm.title_div().text, '')
+
+    def test_wedge_model_title(self):
+        self.assertIn('Wedge model', WedgeModel(n_traces=5).draw()[0].text)
+        self.assertIn('My wedge', WedgeModel(n_traces=5, name='My wedge').draw()[0].text)
+
+    def test_model_name_survives_table_update(self):
+        lm = LaminarModel(resolution=Q_(0.1, 'm'), avo_or_eei='avo')
+        model_controls = lm.draw()[4]
+        layers_before = lm.model_table.model.layers
+        for _callback in model_controls.children[2]._event_callbacks['button_click']:
+            _callback()
+        # The table has built a new Model
+        self.assertIsNot(lm.model_table.model.layers, layers_before)
+        self.assertEqual(lm.model_table.model.name, 'Default model')
+
+    def test_model_name_survives_taking_a_trace(self):
+        model = Model(layers=[layer1, layer2, layer5], name='Q2D model', trace_index_range=np.arange(3))
+        self.assertEqual(model[1].name, 'Q2D model')
 
     def test_laminar_model_with_avo_points(self, unit_test=True):
         from bokeh.plotting import show, row, column
@@ -420,7 +450,7 @@ class TestCase(unittest.TestCase):
             )
             return None
         else:
-            return (model_table, model_controls, lf_table, lf_controls, grid, controls,
+            return (title, model_table, model_controls, lf_table, lf_controls, grid, controls,
                     points_table, update_avo, avo_figure, ixg_figure, eei_figure, chi_input, avo_cds)
 
     def test_laminar_q2d_model(self, unit_test=True):
@@ -461,7 +491,7 @@ class TestCase(unittest.TestCase):
          synth_2d_cds) = lm.draw_2d()
 
         if unit_test:
-            show(column(grid, controls,
+            show(column(title, grid, controls,
                 row(
                     column(model_table, model_controls),
                     column(lf_table, lf_controls)
@@ -469,12 +499,12 @@ class TestCase(unittest.TestCase):
             )
             return None
         else:
-            return model_table, model_controls, lf_table, lf_controls, grid, controls
+            return title, model_table, model_controls, lf_table, lf_controls, grid, controls
 
     def test_wedge(self, unit_test=True):
         from bokeh.plotting import show, row, column
         wm = WedgeModel(n_traces=51)
-        lf_table, lf_controls, model_table, model_controls, grid, controls, new_grid, synth_2d_cds = wm.draw()
+        title, lf_table, lf_controls, model_table, model_controls, grid, controls, new_grid, synth_2d_cds = wm.draw()
 
         wm.model.plot()
         show_or_close()
@@ -485,7 +515,7 @@ class TestCase(unittest.TestCase):
         points_table, update_avo, avo_figure, ixg_figure, eei_figure, chi_input, avo_cds = analyze_avo.draw(points_cds, synth_2d_cds)
         if unit_test:
             show(row(
-                column(grid, controls, new_grid,
+                column(title, grid, controls, new_grid,
                         row(
                             column(model_table, model_controls),
                             column(lf_table, lf_controls)
@@ -494,7 +524,7 @@ class TestCase(unittest.TestCase):
                  )
             return None
         else:
-            return (model_table, model_controls, lf_table, lf_controls, grid, controls, new_grid, points_table,
+            return (title, model_table, model_controls, lf_table, lf_controls, grid, controls, new_grid, points_table,
                     update_avo, avo_figure, ixg_figure, eei_figure, chi_input)
 
     def test_catch_change_in_cases(self):
