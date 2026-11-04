@@ -552,7 +552,8 @@ class StatsCalculation:
         Returns the color and marker of the well, from its style when set, else from the default cycles
         """
         _well = next((_w for _w in self.wells if _w.name == well_name), None)
-        color = _well.style.line_color if _well is not None else None
+        # The project table gives the color of a well as its fill_color
+        color = (_well.style.fill_color or _well.style.line_color) if _well is not None else None
         marker = _well.style.marker if _well is not None else None
         return color or xp.cnames[index % len(xp.cnames)], marker or xp.msymbols[index % len(xp.msymbols)]
 
@@ -772,8 +773,11 @@ class StatsCalculation:
 
     def plot_gardner(self, results: dict, file_name: str | None = 'gardner.png', n_columns: int = 3):
         """
-        Plots density versus P velocity, one panel per interval, with the samples and the calibrated Gardner equation
-        of each well and of all wells together, and the published equation (rho = 0.31 * vp ** 0.25) for reference
+        Plots density versus P velocity, one panel per interval, with the published equation (rho = 0.31 * vp ** 0.25)
+        for reference, and:
+            - the samples, the calibrated Gardner equation, the mean and the standard deviation of each well, in the
+              color and marker of the well
+            - the calibrated Gardner equation and the mean of all wells together
 
         :param results:
             dict
@@ -802,15 +806,19 @@ class StatsCalculation:
                 vp_range = np.linspace(np.min(vp[valid]), np.max(vp[valid]), 50)
                 trend = fit_gardner(vp, rho)
                 if well_name == 'All':
+                    legend_items['All wells'] = ax.scatter(np.mean(vp[valid]), np.mean(rho[valid]), marker='*', s=220,
+                                                           c='pink', edgecolors='k', zorder=6)
                     if trend is not None:
                         legend_items['Calibrated, all wells'] = ax.plot(
                             vp_range, trend['a'] * vp_range ** trend['b'], 'k-', lw=2, zorder=4)[0]
                         legend_items['Published, a = {}, b = {}'.format(gardner_a, gardner_b)] = ax.plot(
                             vp_range, gardner_a * vp_range ** gardner_b, 'k--', lw=1, zorder=3)[0]
                     continue
-                color, _ = self.well_style(well_name, all_wells.index(well_name))
-                legend_items[well_name] = ax.scatter(vp[valid], rho[valid], s=4, alpha=0.3, color=color,
-                                                     edgecolors='none', rasterized=True)
+                color, marker = self.well_style(well_name, all_wells.index(well_name))
+                ax.scatter(vp[valid], rho[valid], s=4, alpha=0.3, color=color, edgecolors='none', rasterized=True)
+                legend_items[well_name] = ax.errorbar(
+                    np.mean(vp[valid]), np.mean(rho[valid]), xerr=np.std(vp[valid]), yerr=np.std(rho[valid]),
+                    marker=marker, ms=8, color=color, mec='k', ecolor=color, capsize=4, ls='none', zorder=5)
                 if trend is not None:
                     ax.plot(vp_range, trend['a'] * vp_range ** trend['b'], '-', c=color, lw=1, zorder=3)
             trend = fit_gardner(*samples['All']) if 'All' in samples else None
@@ -829,7 +837,7 @@ class StatsCalculation:
         if len(legend_items) > 0:
             handles = list(legend_items.values())
             fig.legend(handles, list(legend_items.keys()), loc='outside lower center', ncols=len(handles),
-                       prop={'size': 9}, markerscale=3)
+                       prop={'size': 9})
         self._save(fig, file_name)
         return fig
 

@@ -69,7 +69,7 @@ pint units into use.~~
   fluid_substitution.py)
 - calc_elastics.calc_ai_around_top() fails without templates, as the default templates lack 'Impedance', 
   'P velocity' and 'Density'
-- StatsCalculation.well_style() reads line_color, but the well colour from the project table is in fill_color
+- ~~StatsCalculation.well_style() reads line_color, but the well colour from the project table is in fill_color~~
 - ~~Port test_masking to the current Well API~~
 - ~~Let masks.create_mask() accept limits without units, and stop its false warning for lists of pint Quantities~~
 - ~~Remove the pre-pint Param class (param.py)~~

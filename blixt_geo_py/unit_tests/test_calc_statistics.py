@@ -456,6 +456,41 @@ class TestCases(unittest.TestCase):
         self.assertEqual(1, len(one.axes))
         show_or_close()
 
+    def test_well_style_comes_from_the_project_table(self):
+        from blixt_geo_py.plotting import crossplot as xp
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F'], log_table, {'Volume': ['<', 0.5]})
+        self.assertEqual(('#1f77b4', 'o'), stats.well_style('WELL_A', 0))
+        self.assertEqual(('#ff7f0e', 's'), stats.well_style('WELL_B', 1))
+        # The default cycles are used for a well that isn't known
+        self.assertEqual((xp.cnames[1], xp.msymbols[1]), stats.well_style('NO_SUCH_WELL', 1))
+
+    def test_plot_gardner_uses_the_well_styles(self):
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F'], log_table, {'Volume': ['<', 0.5]})
+        results = stats.run()
+        fig = stats.plot_gardner(results, file_name=None)
+        ax = fig.axes[0]
+
+        # One mean with error bars per well, in the style of that well
+        samples = results['Sand F'].vp_and_rho()
+        wells = [_w for _w in samples if _w != 'All']
+        self.assertEqual(len(wells), len(ax.containers))
+        all_wells = [_w.name for _w in stats.wells]
+        for well_name, container in zip(wells, ax.containers):
+            color, marker = stats.well_style(well_name, all_wells.index(well_name))
+            line = container.lines[0]
+            self.assertEqual(marker, line.get_marker())
+            self.assertEqual(color, line.get_color())
+            self.assertTrue(container.has_xerr and container.has_yerr)
+            vp, rho = samples[well_name]
+            self.assertAlmostEqual(np.nanmean(vp), line.get_xdata()[0])
+            self.assertAlmostEqual(np.nanmean(rho), line.get_ydata()[0])
+
+        # The legend has the wells and all wells together
+        labels = [_t.get_text() for _t in fig.legends[0].get_texts()]
+        for _label in wells + ['All wells']:
+            self.assertIn(_label, labels)
+        show_or_close()
+
     def test_linear_depth_trend(self):
         rng = np.random.default_rng(0)
         tvd = np.linspace(1000., 3000., 500)
