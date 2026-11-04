@@ -19,7 +19,7 @@ from copy import deepcopy
 from math import isfinite
 from pathlib import Path
 
-from bokeh.models import Button, ColumnDataSource, Dialog, Div, Select, Spinner
+from bokeh.models import Button, ColumnDataSource, Dialog, Div, Select, Spinner, TextInput
 from bokeh.plotting import column, row
 import pint
 
@@ -328,8 +328,9 @@ def run_fluid_substitution(
 class InteractiveFluidSub:
     """
     A button, and a dialog, for a 'naiv' fluid substitution of the selected LithoFluid in a LithoFluidsTable.
-    The name, Vp, Vs and Rho of the selected row are replaced by the results of LithoFluid.fluid_sub(). The rest of the
-    row, e.g. the standard deviations, is kept.
+    A new row is added at the end of the table, with the name given in the dialog (by default <OLD_NAME>_hc), and the
+    Vp, Vs and Rho from LithoFluid.fluid_sub(). The rest of the new row, e.g. the standard deviations, is copied from
+    the selected row, which is left as it is.
     Nothing happens unless exactly one row is selected.
     """
     def __init__(self,
@@ -340,13 +341,15 @@ class InteractiveFluidSub:
         :param cds:
             ColumnDataSource of the LithoFluidsTable
         :param litho_fluids:
-            The LithoFluids of the LithoFluidsTable, used for finding the quasi 2D litho fluids, which can't be replaced
+            The LithoFluids of the LithoFluidsTable, used for finding the quasi 2D litho fluids, which can't be fluid
+            substituted
         :param update_table:
-            Called after a row has been replaced
+            Called after a row has been added
         """
         self.cds = cds
         self.litho_fluids = litho_fluids
         self.update_table = update_table
+        self.new_name = TextInput(title='Name of the new litho fluid')
         # The default values of LithoFluid.fluid_sub()
         self.s_w1 = Spinner(title='Initial water saturation', value=1., low=0., high=1., step=0.05)
         self.s_w2 = Spinner(title='Final water saturation', value=0.2, low=0., high=1., step=0.05)
@@ -367,9 +370,9 @@ class InteractiveFluidSub:
         _lf = self.litho_fluids.litho_fluids[row]
         return any(isinstance(_x, Callable) for _x in [_lf.vp, _lf.vs, _lf.rho])
 
-    def substitute(self, s_w1: pint.Quantity, s_w2: pint.Quantity, hc: dict, mineral: dict) -> str | None:
+    def substitute(self, s_w1: pint.Quantity, s_w2: pint.Quantity, hc: dict, mineral: dict, name: str) -> str | None:
         """
-        Replaces the selected row with the results of the fluid substitution.
+        Adds a new row, at the end of the table, with the results of the fluid substitution of the selected row.
         The table is left as it is if it fails
 
         :param s_w1:
@@ -377,6 +380,8 @@ class InteractiveFluidSub:
         :param hc:
         :param mineral:
             See LithoFluid.fluid_sub()
+        :param name:
+            Name of the new litho fluid
         :return:
             None, or a description of why it failed
         """
@@ -387,6 +392,13 @@ class InteractiveFluidSub:
             return 'Litho fluid {} is quasi 2D, and can not be fluid substituted'.format(self.cds.data['name'][row])
 
         data = self.cds.data
+        name = name.strip()
+        if len(name) == 0:
+            return 'The new litho fluid must have a name'
+        # The model table finds its litho fluids by name, so the name must be unique
+        if name.lower() in [str(_x).lower() for _x in data['name']]:
+            return 'There is already a litho fluid named {}'.format(name)
+
         litho_fluid = LithoFluid(name=data['name'][row], vp=Q_(data['vp'][row], 'm/s'), vs=Q_(data['vs'][row], 'm/s'),
                                  rho=Q_(data['rho'][row], 'g/cm**3'))
         fail_txt = 'The fluid substitution of {} failed, its porosity is zero or undefined. Is its density the same ' \
@@ -404,24 +416,21 @@ class InteractiveFluidSub:
         if not all(isfinite(_x) for _x in values.values()):
             return fail_txt
 
-        # The model table finds its litho fluids by name, so the name must be unique
-        other_names = [str(_x).lower() for _i, _x in enumerate(data['name']) if _i != row]
-        if result.name.lower() in other_names:
-            return 'There is already a litho fluid named {}'.format(result.name)
-
-        new_data = dict(data)
-        for _key, _value in dict(values, name=result.name).items():
-            new_data[_key] = list(data[_key])
-            new_data[_key][row] = _value
-        self.cds.data = new_data
+        # At the end, because LithoFluidsTable matches the rows with its litho fluids by their position, and a row
+        # inserted further up would make the quasi 2D litho fluids below it end up on the wrong rows
+        values['name'] = name
+        self.cds.data = {_key: list(_column) + [values.get(_key, _column[row])] for _key, _column in data.items()}
         if self.update_table is not None:
             self.update_table()
         return None
 
     def _show_selected(self):
         row = self.selected_row
-        self.selected.text = 'Select one litho fluid in the table' if row is None else \
-            'Litho fluid: <b>{}</b>'.format(self.cds.data['name'][row])
+        if row is None:
+            self.selected.text = 'Select one litho fluid in the table'
+            return
+        self.selected.text = 'Litho fluid: <b>{}</b>'.format(self.cds.data['name'][row])
+        self.new_name.value = '{}_hc'.format(self.cds.data['name'][row])
 
     def _open_dialog(self):
         if self.selected_row is None:
@@ -439,7 +448,8 @@ class InteractiveFluidSub:
             Q_(self.s_w1.value, ''),
             Q_(self.s_w2.value, ''),
             default_fluids[self.hc.value],
-            default_minerals[self.mineral.value])
+            default_minerals[self.mineral.value],
+            self.new_name.value)
         self.message.text = '' if error is None else error
         self.dialog.visible = error is not None
 
@@ -459,8 +469,8 @@ class InteractiveFluidSub:
         cancel.on_click(self._close_dialog)
         self.dialog = Dialog(
             title='Fluid substitution',
-            content=column(self.selected, row(self.s_w1, self.s_w2), row(self.hc, self.mineral), self.message,
-                           row(apply, cancel)),
+            content=column(self.selected, self.new_name, row(self.s_w1, self.s_w2), row(self.hc, self.mineral),
+                           self.message, row(apply, cancel)),
             visible=False,
             close_action='hide')
 
