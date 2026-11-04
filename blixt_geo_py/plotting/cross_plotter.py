@@ -426,8 +426,9 @@ class DataSourceStyle:
             TableColumn(field='color', title='Color', editor=StringEditor(), formatter=formatter),
             TableColumn(field='marker', title='Marker', editor=SelectEditor(options=markers)),
             TableColumn(field='size', title='Size', editor=SelectEditor(options=['1', '5', '10', '15', '20', '30', 'Size'])),
-            TableColumn(field='opacity', title='Opacity', editor=SelectEditor(options=['0.2', '0.4', '0.6', '0.8', '1.0']))
-            # TableColumn(field='order', title='Order', editor=IntEditor(step=1))
+            TableColumn(field='opacity', title='Opacity', editor=SelectEditor(options=['0.2', '0.4', '0.6', '0.8', '1.0'])),
+            # The data source with the highest order is drawn on top
+            TableColumn(field='order', title='Order', editor=IntEditor(step=1))
         ]
         return table_columns
 
@@ -535,6 +536,7 @@ class CrossPlotter:
         # else:
         #     self._sources = None
         self.xplot = None
+        self._source_renderers = {}
         self.cutoffs = cutoffs
         self._cutoffs_table = None
         if self.cutoffs is not None:
@@ -991,14 +993,21 @@ class CrossPlotter:
         return _out
 
     def add_data_source_style(self, cds: ColumnDataSource):
+        """
+        Returns the table that controls the style and the draw order of the data sources.
+        Must be called after draw(), because the callback reorders the renderers created there.
+
+        :param cds:
+            ColumnDataSource
+            The same cds as was used in draw()
+        :return:
+        """
         code = """
             const x_data = x_source.data;
             const style_data = style_source.data;
-            var orig_order = orig_order;
             const cols = Object.keys(style_data);
             const nrows = style_data[cols[0]].length;
             const groups = x_data['legend_group'];
-            // const indices = Array.from(Array(groups.length).keys());
             const size_string = "Size";
             
             console.log('Trying to update style in plot')
@@ -1020,31 +1029,32 @@ class CrossPlotter:
                 }
             }
             
-            //  // Look for changes in the order, and re order the data
-            //  let changed = false;
-            //  for (let i = 0; i < nrows; i++) {
-            //      if (orig_order[i] !== style_data['order'][i]) {
-            //          console.log('Order has been changed')
-            //          changed = true;
-            //          orig_order[i] = style_data['order'][i];
-            //      }
-            //  }
-            //  if (changed) {
-            //          console.log('Change in order has been detected')
-            //          indices.sort((a, b) => style_data['order'][a] - style_data['order'][b]);
-            //          const new_data = {};
-            //          for (const key in x_data) {
-            //              new_data[key] = indices.map(i => x_data[key][i]);
-            //          }
-            //          x_source.data = new_data;
-            //  }
+            // Draw the data sources in the order given by the style table, highest order on top.
+            // The rows of x_source stay in place, only the renderers are reordered.
+            // Other renderers (trend lines, RPT lines) stay on top of the data
+            const order = {};
+            for (let i = 0; i < nrows; i++) {
+                order[style_data['name'][i]] = Number(style_data['order'][i]);
+            }
+            const current = plot.renderers.filter(r => source_renderers.includes(r));
+            const others = plot.renderers.filter(r => !source_renderers.includes(r));
+            // The sort is stable, so data sources with the same order keep their relative position
+            const sorted = [...current].sort((a, b) => order[a.name] - order[b.name]);
+            if (sorted.some((r, i) => r !== current[i])) {
+                plot.renderers = [...sorted, ...others];
+            }
             x_source.change.emit()
             
         """
         style_table = DataSourceStyle(self._data_sources)
         style_cds = style_table.cds
-        orig_order = style_cds.data['order']
-        source_callback = CustomJS(args=dict(x_source=cds, style_source=style_cds, orig_order=orig_order), code=code)
+        source_callback = CustomJS(
+            args=dict(
+                x_source=cds,
+                style_source=style_cds,
+                plot=self.xplot,
+                source_renderers=list(self._source_renderers.values())),
+            code=code)
         style_cds.js_on_change('patching', source_callback)
 
         return style_table.draw(style_cds)
@@ -1056,7 +1066,7 @@ class CrossPlotter:
         return xplot
 
     def draw(self, cds: ColumnDataSource, set_all_intervals_active: bool = False, verbose: bool = False):
-        from bokeh.models import CDSView, BooleanFilter, Button, Div
+        from bokeh.models import CDSView, BooleanFilter, Button, Div, GroupFilter
         import blixt_geo_py.utils.masks as masks
         from blixt_geo_py import Q_
 
@@ -1095,11 +1105,14 @@ class CrossPlotter:
         # Create a BooleanFilter using the 'mask' column
         boolean_filter = BooleanFilter(booleans=cds.data['mask'])
 
-        # Create a CDSView using the BooleanFilter
-        view = CDSView(filter=boolean_filter)
-
-        self.xplot.scatter(x='x', y='y', source=cds, view=view, fill_color='color', marker='marker',
-                      legend_group='legend_group', size='size', fill_alpha='opacity', line_color=None)
+        # Create one renderer per data source, so that the draw order and the visibility of each data source can be
+        # controlled individually. They all share the same cds, and each view combines the mask with the data source
+        self._source_renderers = {}
+        for _name in self._data_sources:
+            view = CDSView(filter=boolean_filter & GroupFilter(column_name='source_name', group=_name))
+            self._source_renderers[_name] = self.xplot.scatter(
+                x='x', y='y', source=cds, view=view, fill_color='color', marker='marker', name=_name,
+                legend_label=_name, size='size', fill_alpha='opacity', line_color=None)
 
         # Axes
         for _var, _axis in zip([x_var, y_var], [self.xplot.xaxis, self.xplot.yaxis]):

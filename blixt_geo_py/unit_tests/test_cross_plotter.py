@@ -150,6 +150,27 @@ class TestCases(unittest.TestCase):
         return xplot, x_menu, y_menu, size_menu, color_menu, apply_mask, reset_mask, ct_guis, wis_guis
 
 
+    def test_data_source_order(self):
+        from blixt_geo_py.plotting.cross_plotter import DataSourceStyle
+
+        ds1, ds2, wis, cutoffs = make_data_sources(size_1=10, size_2=12)
+        data_sources = {_s.name: _s for _s in [ds1, ds2]}
+        xp = CrossPlotter(data_sources)
+        cds = xp.cds
+        xplot, *_ = xp.draw(cds)
+        xp.add_data_source_style(cds)
+
+        # One renderer per data source, all sharing the same cds, drawn in the order of the data sources
+        self.assertEqual([_r.name for _r in xplot.renderers], ['one', 'two'])
+        self.assertTrue(all(_r.data_source is cds for _r in xplot.renderers))
+        self.assertEqual([_i.label.value for _i in xplot.legend.items], ['one', 'two'])
+        self.assertEqual([_i.renderers for _i in xplot.legend.items], [[_r] for _r in xplot.renderers])
+
+        # The order can be edited in the style table, and it starts out matching the draw order
+        style = DataSourceStyle(data_sources)
+        self.assertIn('order', [_c.field for _c in style.table_columns()])
+        self.assertEqual(list(style.cds.data['order']), [0, 1])
+
     def test_moduli(self):
         from blixt_geo_py.core.well import Well
         from blixt_geo_py.core.core import LogTable
