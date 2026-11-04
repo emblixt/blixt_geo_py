@@ -491,6 +491,79 @@ class TestCases(unittest.TestCase):
             self.assertIn(_label, labels)
         show_or_close()
 
+    def test_ai_and_vpvs(self):
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F'], log_table, {'Volume': ['<', 0.5]})
+        result = stats.run()['Sand F']
+        samples = result.ai_and_vpvs()
+        self.assertEqual(result.well_names + ['All'], list(samples.keys()))
+
+        data = result.per_well['WELL_A']
+        ai, vpvs = samples['WELL_A']
+        vp, vs, rho = (data[_x].to(_u).magnitude for _x, _u in
+                       [('vp_dry', 'm/s'), ('vs_dry', 'm/s'), ('rho_dry', 'g/cm**3')])
+        np.testing.assert_allclose(vp * rho / 1000., ai)  # In km/s*g/cm3
+        np.testing.assert_allclose(vp / vs, vpvs)
+        self.assertEqual(sum(len(samples[_w][0]) for _w in result.well_names), len(samples['All'][0]))
+
+    def test_ai_and_vpvs_needs_all_logs(self):
+        no_vs = {_k: _v for _k, _v in log_table.items() if _k != 'S velocity'}
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F'], no_vs, {'Volume': ['<', 0.5]})
+        results = stats.run()
+        self.assertEqual({}, results['Sand F'].ai_and_vpvs())
+
+        # An empty panel, and a warning
+        with self.assertLogs('blixt_geo_py.analysis.calc_statistics', level='WARNING') as logs:
+            fig = stats.plot_elastics(results, file_name=None)
+        self.assertIn('Sand F', logs.output[0])
+        self.assertEqual(0, len(fig.axes[0].containers))
+        self.assertEqual(0, len(fig.legends))
+        show_or_close()
+
+    def test_ai_and_vpvs_with_zero_vs(self):
+        result = IntervalStats('Sand', LogTable(log_table), Cutoffs(), per_well={'W': {
+            'vp_dry': Q_(np.array([3000., 3000.]), 'm/s'), 'vs_dry': Q_(np.array([1500., 0.]), 'm/s'),
+            'rho_dry': Q_(np.array([2., 2.]), 'g/cm**3')}})
+        ai, vpvs = result.ai_and_vpvs()['W']
+        np.testing.assert_allclose([6., 6.], ai)
+        self.assertAlmostEqual(2., vpvs[0])
+        self.assertFalse(np.isfinite(vpvs[1]))
+
+    def test_plot_elastics(self):
+        stats = StatsCalculation(self.wells, self.wis, wi_sands + wi_shales, log_table, {'Volume': ['<', 0.5]})
+        results = stats.run()
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            stats.working_dir = tmp_dir
+            fig = stats.plot_elastics(results)
+            self.assertTrue(os.path.isfile(os.path.join(tmp_dir, 'elastics.png')))
+
+        # A panel per interval, in a grid like plot_gardner()
+        self.assertEqual(6, len(fig.axes))
+        self.assertFalse(fig.axes[5].get_visible())
+        self.assertEqual('Sand F', fig.axes[0].get_title(loc='left'))
+        self.assertEqual('Vp/Vs', fig.axes[0].get_ylabel())
+        for _i in [2, 3, 4]:
+            self.assertEqual('Acoustic impedance [km/s*g/cm3]', fig.axes[_i].get_xlabel())
+
+        # The mean of each well, in the style of the well, and no regression lines
+        ax = fig.axes[0]
+        samples = results['Sand F'].ai_and_vpvs()
+        wells = [_w for _w in samples if _w != 'All']
+        self.assertEqual(len(wells), len(ax.containers))
+        self.assertEqual([], [_l for _l in ax.get_lines() if len(_l.get_xdata()) > 1])
+        all_wells = [_w.name for _w in stats.wells]
+        for well_name, container in zip(wells, ax.containers):
+            color, marker = stats.well_style(well_name, all_wells.index(well_name))
+            line = container.lines[0]
+            self.assertEqual(marker, line.get_marker())
+            self.assertEqual(color, line.get_color())
+            ai, vpvs = samples[well_name]
+            self.assertAlmostEqual(np.nanmean(ai), line.get_xdata()[0])
+            self.assertAlmostEqual(np.nanmean(vpvs), line.get_ydata()[0])
+        labels = [_t.get_text() for _t in fig.legends[0].get_texts()]
+        for _label in wells + ['All wells']:
+            self.assertIn(_label, labels)
+        show_or_close()
+
     def test_linear_depth_trend(self):
         rng = np.random.default_rng(0)
         tvd = np.linspace(1000., 3000., 500)

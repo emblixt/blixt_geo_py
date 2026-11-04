@@ -22,6 +22,7 @@ Usage:
     stats.save_gardner(results, 'gardner.xlsx')
     a, b = read_gardner('gardner.xlsx', 'Sand E')
     stats.plot_gardner(results)
+    stats.plot_elastics(results)
 """
 import logging
 import os
@@ -248,6 +249,22 @@ def _log_in_well(data: dict, log_name: str) -> bool:
     return log_name in data and len(data[log_name]) > 0
 
 
+def _plot_samples_of_well(ax, x: np.ndarray, y: np.ndarray, color: str, marker: str):
+    """
+    Plots the samples of a well, and their mean with the standard deviation in both directions
+
+    :return:
+        The mean with its error bars, to use in a legend
+    """
+    ax.scatter(x, y, s=4, alpha=0.3, color=color, edgecolors='none', rasterized=True)
+    return ax.errorbar(np.mean(x), np.mean(y), xerr=np.std(x), yerr=np.std(y), marker=marker, ms=8, color=color,
+                       mec='k', ecolor=color, capsize=4, ls='none', zorder=5)
+
+
+def _plot_mean_of_all_wells(ax, x: np.ndarray, y: np.ndarray):
+    return ax.scatter(np.mean(x), np.mean(y), marker='*', s=220, c='pink', edgecolors='k', zorder=6)
+
+
 @dataclass
 class IntervalStats:
     """
@@ -318,6 +335,32 @@ class IntervalStats:
         if len(samples) > 0:
             samples['All'] = (np.concatenate([_vp for _vp, _ in samples.values()]),
                               np.concatenate([_rho for _, _rho in samples.values()]))
+        return samples
+
+    def ai_and_vpvs(self) -> dict:
+        """
+        Returns the acoustic impedance (Vp * Rho) in km/s*g/cm3 and Vp/Vs, for each well that has the P velocity, S
+        velocity and density, and for these wells together ('All'). A zero S velocity gives a non-finite Vp/Vs
+
+        :return:
+            dict
+            {well name: (np.ndarray, np.ndarray)}
+            Empty if the log table lacks 'P velocity', 'S velocity' or 'Density'
+        """
+        if any(_log_type not in self.log_table for _log_type in ['P velocity', 'S velocity', 'Density']):
+            return {}
+        vp_log, vs_log, rho_log = [self.log_table[_x] for _x in ['P velocity', 'S velocity', 'Density']]
+        samples = {}
+        # Only wells with all logs, so that the samples of 'All' still belong together
+        for _well, _data in self.per_well.items():
+            if vp_log in _data and vs_log in _data and rho_log in _data:
+                _vp = _data[vp_log].to('km/s').magnitude
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    samples[_well] = (_vp * _data[rho_log].to('g/cm**3').magnitude,
+                                      _vp / _data[vs_log].to('km/s').magnitude)
+        if len(samples) > 0:
+            samples['All'] = (np.concatenate([_ai for _ai, _ in samples.values()]),
+                              np.concatenate([_vpvs for _, _vpvs in samples.values()]))
         return samples
 
     def gardner(self) -> pd.DataFrame:
@@ -791,10 +834,7 @@ class StatsCalculation:
         :return:
             Figure
         """
-        n_columns = min(n_columns, len(results))
-        n_rows = int(np.ceil(len(results) / n_columns))
-        fig, axes = plt.subplots(nrows=n_rows, ncols=n_columns, squeeze=False, sharex=True, sharey=True,
-                                 figsize=(5 * n_columns, 4 * n_rows + 0.5), layout='constrained')
+        fig, axes = self._panels(len(results), n_columns)
         all_wells = [_w.name for _w in self.wells]
         legend_items = {}
         for ax, stats in zip(axes.flat, results.values()):
@@ -806,8 +846,7 @@ class StatsCalculation:
                 vp_range = np.linspace(np.min(vp[valid]), np.max(vp[valid]), 50)
                 trend = fit_gardner(vp, rho)
                 if well_name == 'All':
-                    legend_items['All wells'] = ax.scatter(np.mean(vp[valid]), np.mean(rho[valid]), marker='*', s=220,
-                                                           c='pink', edgecolors='k', zorder=6)
+                    legend_items['All wells'] = _plot_mean_of_all_wells(ax, vp[valid], rho[valid])
                     if trend is not None:
                         legend_items['Calibrated, all wells'] = ax.plot(
                             vp_range, trend['a'] * vp_range ** trend['b'], 'k-', lw=2, zorder=4)[0]
@@ -815,10 +854,7 @@ class StatsCalculation:
                             vp_range, gardner_a * vp_range ** gardner_b, 'k--', lw=1, zorder=3)[0]
                     continue
                 color, marker = self.well_style(well_name, all_wells.index(well_name))
-                ax.scatter(vp[valid], rho[valid], s=4, alpha=0.3, color=color, edgecolors='none', rasterized=True)
-                legend_items[well_name] = ax.errorbar(
-                    np.mean(vp[valid]), np.mean(rho[valid]), xerr=np.std(vp[valid]), yerr=np.std(rho[valid]),
-                    marker=marker, ms=8, color=color, mec='k', ecolor=color, capsize=4, ls='none', zorder=5)
+                legend_items[well_name] = _plot_samples_of_well(ax, vp[valid], rho[valid], color, marker)
                 if trend is not None:
                     ax.plot(vp_range, trend['a'] * vp_range ** trend['b'], '-', c=color, lw=1, zorder=3)
             trend = fit_gardner(*samples['All']) if 'All' in samples else None
@@ -826,20 +862,79 @@ class StatsCalculation:
                 stats.label, 'No fit' if trend is None else 'All wells: a = {:.3f}, b = {:.3f}, R2 = {:.2f}'.format(
                     trend['a'], trend['b'], trend['r2'])), fontsize=9, loc='left')
             ax.grid(True)
-        for ax in axes.flat[len(results):]:
+        self._finish_panels(fig, axes, len(results), 'Vp [m/s]', 'Density [g/cm3]', legend_items, file_name)
+        return fig
+
+    def plot_elastics(self, results: dict, file_name: str | None = 'elastics.png', n_columns: int = 3):
+        """
+        Plots Vp/Vs versus acoustic impedance (Vp * Rho), one panel per interval, with the samples, the mean and the
+        standard deviation of each well, in the color and marker of the well, and the mean of all wells together.
+        Only wells with P velocity, S velocity and density are included
+
+        :param results:
+            dict
+            {working interval name: IntervalStats}, as returned by run()
+        :param file_name:
+            str
+            Name of the saved file
+        :param n_columns:
+            int
+            The maximum number of panels per row
+        :return:
+            Figure
+        """
+        lacking = [_s.label for _s in results.values() if
+                   any(_x not in _s.log_table for _x in ['P velocity', 'S velocity', 'Density'])]
+        if len(lacking) > 0:
+            print_info('The log table lacks P velocity, S velocity or density, so there are no elastics to plot for: '
+                       '{}'.format(', '.join(lacking)), 'warning', logger)
+
+        fig, axes = self._panels(len(results), n_columns)
+        all_wells = [_w.name for _w in self.wells]
+        legend_items = {}
+        for ax, stats in zip(axes.flat, results.values()):
+            for well_name, (ai, vpvs) in stats.ai_and_vpvs().items():
+                valid = np.isfinite(ai) & np.isfinite(vpvs) & (ai > 0.) & (vpvs > 0.)
+                if not np.any(valid):
+                    continue
+                if well_name == 'All':
+                    legend_items['All wells'] = _plot_mean_of_all_wells(ax, ai[valid], vpvs[valid])
+                    continue
+                color, marker = self.well_style(well_name, all_wells.index(well_name))
+                legend_items[well_name] = _plot_samples_of_well(ax, ai[valid], vpvs[valid], color, marker)
+            ax.set_title(stats.label, fontsize=9, loc='left')
+            ax.grid(True)
+        self._finish_panels(fig, axes, len(results), 'Acoustic impedance [km/s*g/cm3]', 'Vp/Vs', legend_items, file_name)
+        return fig
+
+    @staticmethod
+    def _panels(n_panels: int, n_columns: int) -> tuple:
+        """
+        Returns the figure and axes of a grid of panels with shared axes, with at most n_columns panels per row
+        """
+        n_columns = min(n_columns, n_panels)
+        n_rows = int(np.ceil(n_panels / n_columns))
+        return plt.subplots(nrows=n_rows, ncols=n_columns, squeeze=False, sharex=True, sharey=True,
+                            figsize=(5 * n_columns, 4 * n_rows + 0.5), layout='constrained')
+
+    def _finish_panels(self, fig, axes, n_panels: int, x_label: str, y_label: str, legend_items: dict,
+                       file_name: str | None):
+        """
+        Hides the unused panels, adds the axis labels and the legend of a figure from _panels(), and saves it
+        """
+        for ax in axes.flat[n_panels:]:
             ax.set_visible(False)
         for ax in axes[:, 0]:
-            ax.set_ylabel('Density [g/cm3]')
+            ax.set_ylabel(y_label)
         # The lowest panel of each column, which is not in the last row below a hidden panel
-        for ax in axes.flat[len(results) - n_columns:len(results)]:
-            ax.set_xlabel('Vp [m/s]')
+        for ax in axes.flat[n_panels - axes.shape[1]:n_panels]:
+            ax.set_xlabel(x_label)
             ax.xaxis.set_tick_params(labelbottom=True)
         if len(legend_items) > 0:
             handles = list(legend_items.values())
             fig.legend(handles, list(legend_items.keys()), loc='outside lower center', ncols=len(handles),
                        prop={'size': 9})
         self._save(fig, file_name)
-        return fig
 
     def save_rokdoc_output(self, results: dict, file_name: str):
         """
