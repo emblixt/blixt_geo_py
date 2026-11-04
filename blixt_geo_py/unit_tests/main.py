@@ -7,9 +7,9 @@ from bokeh.plotting import column, figure, show, curdoc, row
 
 
 # test = 'core__test_litho_quasi_2D_fluid_table'
-# test = 'core__test_litho_fluid_table_save'
+test = 'core__test_litho_fluid_table'
 # test = 'models__test_model_table'
-test = 'models__test_model_table_save'
+# test = 'models__test_model_table_save'
 # test = 'models__test_laminar_model'
 # test = 'models__test_wedge'
 
@@ -25,7 +25,7 @@ if test == 'core__test_litho_quasi_2D_fluid_table':
     lf_controls.children[2].on_click(this_test)
     curdoc().add_root(column(lf_table, lf_controls))
 
-elif test == 'core__test_litho_fluid_table_save':
+elif test == 'core__test_litho_fluid_table':
     import test_core
     test = test_core.LithoFluidTests()
     lf_table, lf_controls = test.test_table(unit_test=False)

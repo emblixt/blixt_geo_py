@@ -475,7 +475,7 @@ class IntervalTests(unittest.TestCase):
         self.assertIsInstance(wis, Intervals)
 
     def test_read(self):
-        f = "C:\\Users\\marten.blixt\\OneDrive - Petrolia NOCO AS\\Technical work\\Sodir_well_tops_BarentsSea.xlsx"
+        f = os.path.join(project_dir, 'blixt_geo_py\\test_data\\Sodir_well_tops_BarentsSea.xlsx')
         wis = Intervals(name='Working intervals')
         wis.read_sodir_tops(f)
 
@@ -1165,7 +1165,7 @@ class LithoFluidTests(unittest.TestCase):
         from bokeh.io import output_file
         from bokeh.plotting import show, row, column
         from blixt_geo_py.core.core import LithoFluid, LithoFluids, LithoFluidsTable
-        output_file(os.path.join(project_dir, 'blixt_geo_py\\results_table\\plot.html'))
+        output_file(os.path.join(project_dir, 'blixt_geo_py\\results_folder\\plot.html'))
 
         lfs = LithoFluids(litho_fluids=[LithoFluid(default='shale'), LithoFluid(default='brine_sst')])
         lfs.__add__(LithoFluid(name='Test_None', vp=None))
@@ -1189,7 +1189,7 @@ class LithoFluidTests(unittest.TestCase):
         from bokeh.io import output_file
         from bokeh.plotting import show, row, column
         from blixt_geo_py.core.core import LithoFluid, LithoFluids, LithoFluidsTable
-        output_file(os.path.join(project_dir, 'blixt_geo_py\\results_table\\plot.html'))
+        output_file(os.path.join(project_dir, 'blixt_geo_py\\results_folder\\plot.html'))
 
         def vp(_i):
             return Q_(3000. +  5. * _i, 'm/s')
