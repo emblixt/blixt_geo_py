@@ -537,6 +537,8 @@ class CrossPlotter:
         #     self._sources = None
         self.xplot = None
         self._source_renderers = {}
+        self._size_menu = None
+        self._style_table = DataSourceStyle(self._data_sources)
         self.cutoffs = cutoffs
         self._cutoffs_table = None
         if self.cutoffs is not None:
@@ -894,8 +896,7 @@ class CrossPlotter:
             //const c_param = c_drop.value;
             //const m_param = m_drop.value;
             //const l_param = l_drop.value;
-            const min = min_max[s_param][0];
-            const max = min_max[s_param][1];
+            const [min, max] = min_max[s_param] ?? [0, 0];
             const s = [];
             var new_data = x_y_source.data;
             
@@ -909,7 +910,17 @@ class CrossPlotter:
             // REPLACE DATA
             new_data['x'] = x_y_source.data[x_param];
             new_data['y'] = x_y_source.data[y_param];
-            if (min_max[s_param][0] === 'constant') {
+            if (s_param === '') {
+                    // No value in the size menu, so the style table sets the size of each data source.
+                    // Points keep their size if the table has no number for their data source
+                    const table_size = {};
+                    for (let i = 0; i < style_source.data['name'].length; i++) {
+                        table_size[style_source.data['name'][i]] = Number(style_source.data['size'][i]);
+                    }
+                    const current_size = x_y_source.data['size'];
+                    x_y_source.data['size'] = Array.from(x_y_source.data['source_name'], (name, j) =>
+                        Number.isNaN(table_size[name] ?? NaN) ? current_size[j] : table_size[name]);
+                } else if (min_max[s_param][0] === 'constant') {
                     let length = x_y_source.data[x_param].length;
                     x_y_source.data['size'] = Array(length).fill(Number(s_param));
                 } else {
@@ -917,7 +928,7 @@ class CrossPlotter:
                 }
             //
             x_y_source.change.emit();
-                
+
             // X AXIS
             xaxis.axis_label = x_param;
             if (templates[x_param]['min'] === null || templates[x_param]['min'] === undefined) {
@@ -968,8 +979,9 @@ class CrossPlotter:
         from bokeh.models import Select
         _x_menu =  Select(title='X axis', value=self.x, options=self.common_variables)
         _y_menu =  Select(title='Y axis', value=self.y, options=self.common_variables)
-        _size_menu =  Select(title='Size', value=20,
-                             options= self.fixed_sizes + self.common_variables)
+        # With no value in the size menu, the size of each data source is set in the style table
+        _size_menu =  Select(title='Size', value='',
+                             options= [''] + self.fixed_sizes + self.common_variables)
         _color_menu =  Select(title='Color axis', value=self.common_variables[0],
                               options=self.fixed_colors + self.common_variables)
         _marker_menu =  Select(title='Marker', value=self.common_variables[0], options=self.common_variables)
@@ -1021,8 +1033,9 @@ class CrossPlotter:
                     if (x_data['legend_group'][j] === style_data['name'][i]) {
                         x_data['color'][j] = style_data['color'][i];
                         x_data['marker'][j] = style_data['marker'][i];
-                        if (String(style_data['size'][i]) !== size_string) {
-                            x_data['size'][j] = style_data['size'][i];
+                        // A value in the size menu takes precedence over the size in the table
+                        if (s_drop.value === '' && String(style_data['size'][i]) !== size_string) {
+                            x_data['size'][j] = Number(style_data['size'][i]);
                         }
                         x_data['opacity'][j] = style_data['opacity'][i];
                     }
@@ -1046,12 +1059,13 @@ class CrossPlotter:
             x_source.change.emit()
             
         """
-        style_table = DataSourceStyle(self._data_sources)
+        style_table = self._style_table
         style_cds = style_table.cds
         source_callback = CustomJS(
             args=dict(
                 x_source=cds,
                 style_source=style_cds,
+                s_drop=self._size_menu,
                 plot=self.xplot,
                 source_renderers=list(self._source_renderers.values())),
             code=code)
@@ -1074,6 +1088,7 @@ class CrossPlotter:
 
         # set up drop down menus
         x_menu, y_menu, size_menu, color_menu, marker_menu, legend_menu = self.drop_down_menus()
+        self._size_menu = size_menu
         # Make non-working menus inactive
         color_menu.disabled = True
         marker_menu.disabled = True
@@ -1155,6 +1170,7 @@ class CrossPlotter:
         args_dict = dict(x_drop=x_menu,
                          y_drop=y_menu,
                          s_drop=size_menu,
+                         style_source=self._style_table.cds,
                          x_range=self.xplot.x_range,
                          y_range=self.xplot.y_range,
                          templates={_key: _val.dict()[_key] for _key, _val in self.templates.items() if _val is not None},

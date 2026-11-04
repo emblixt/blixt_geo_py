@@ -171,6 +171,18 @@ class TestCases(unittest.TestCase):
         self.assertIn('order', [_c.field for _c in style.table_columns()])
         self.assertEqual(list(style.cds.data['order']), [0, 1])
 
+    def test_size_menu_starts_empty(self):
+        ds1, ds2, wis, cutoffs = make_data_sources(size_1=10, size_2=12)
+        xp = CrossPlotter({_s.name: _s for _s in [ds1, ds2]})
+        cds = xp.cds
+        _, _, _, size_menu, *_ = xp.draw(cds)
+
+        # With no value in the size menu, the style table sets the size
+        self.assertEqual(size_menu.value, '')
+        self.assertIn('', size_menu.options)
+        self.assertTrue(all(_s == 5. for _s in cds.data['size']))
+        self.assertTrue(all(_s == 5. for _s in xp._style_table.cds.data['size']))
+
     def test_moduli(self):
         from blixt_geo_py.core.well import Well
         from blixt_geo_py.core.core import LogTable
