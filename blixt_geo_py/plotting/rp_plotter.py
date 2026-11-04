@@ -189,7 +189,8 @@ class RockPhysicsPlotter(CrossPlotter):
                 """
             ))
 
-        xplot, x_menu, y_menu, size_menu, color_menu, apply_mask, reset_mask, ct_guis, wis_guis = super().draw(cds)
+        xplot, x_menu, y_menu, size_menu, color_menu, apply_mask, reset_mask, ct_guis, wis_guis = super().draw(
+            cds, set_all_intervals_active=set_all_intervals_active, verbose=verbose)
         style_table = self.add_data_source_style(cds)
 
         table_cds, rpt_lines_cds, rpt_dt, add_row, var_select, delete_row, update_table = self.rpt_table(

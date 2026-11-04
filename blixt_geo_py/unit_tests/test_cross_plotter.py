@@ -53,6 +53,149 @@ def make_data_sources(size_1: int = 500, size_2: int = 800):
     return ds1, ds2, wis, cutoffs
 
 
+class TestBehaviour(unittest.TestCase):
+    """
+    Checks the results of CrossPlotter, without needing any data files or looking at a plot
+    """
+    @staticmethod
+    def _source(name='a', **data):
+        from blixt_geo_py import Q_
+        return DataSource(name=name, data={_key: Q_(np.array(_val), _unit) for _key, (_val, _unit) in data.items()})
+
+    def test_variables_keep_the_order_of_the_first_source(self):
+        ds1, ds2, _, _ = make_data_sources(size_1=3, size_2=4)
+        xp = CrossPlotter({_s.name: _s for _s in [ds1, ds2]})
+        self.assertEqual(xp.common_variables, ['md', 'var_one', 'var_two'])
+        self.assertEqual(xp.all_variables, ['md', 'var_one', 'var_two', 'var_three', 'var_four'])
+        self.assertEqual((xp.x, xp.y), ('md', 'var_one'))
+
+    def test_default_y_differs_from_x(self):
+        ds1, ds2, _, _ = make_data_sources(size_1=3, size_2=4)
+        xp = CrossPlotter({_s.name: _s for _s in [ds1, ds2]}, x='var_one')
+        self.assertEqual((xp.x, xp.y), ('var_one', 'md'))
+
+    def test_too_few_common_variables_gives_clear_error(self):
+        with self.assertRaisesRegex(IOError, 'at least two variables'):
+            CrossPlotter({'a': self._source(p=([1.], 'm'))})
+
+    def test_min_and_max_of_values_outside_one_million(self):
+        xp = CrossPlotter({'a': self._source(p=([2e9, 3e9], 'Pa'), q=([-5e6, -4e6], 'm'))})
+        min_max = xp.min_and_max()
+        self.assertEqual(min_max['p'], [2e9, 3e9])
+        self.assertEqual(min_max['q'], [-5e6, -4e6])
+
+    def test_min_and_max_of_data_without_units(self):
+        ds = DataSource(name='a', data=dict(p=np.array([1., 2.]), q=np.array([3., 4.])))
+        self.assertEqual(CrossPlotter({'a': ds}).min_and_max()['q'], [3., 4.])
+
+    def test_min_and_max_ignores_invalid_values(self):
+        xp = CrossPlotter({'a': self._source(p=([1., np.nan, np.inf], 'm'), q=([np.nan, np.nan, np.nan], 'm'))})
+        min_max = xp.min_and_max()
+        self.assertEqual(min_max['p'], [1., 1.])
+        self.assertEqual(min_max['q'], [None, None])
+
+    def test_cds_uses_the_mask_of_the_data_sources(self):
+        from blixt_geo_py import Q_
+        ds = DataSource(name='a', data=dict(p=Q_(np.array([1., 2.]), 'm'), q=Q_(np.array([3., 4.]), 'm')),
+                        mask=np.array([True, False]))
+        self.assertEqual(list(CrossPlotter({'a': ds}).cds.data['mask']), [True, False])
+
+    def test_cds_converts_all_sources_to_the_units_of_the_template(self):
+        from blixt_geo_py import Q_
+        from blixt_geo_py.core.core import Template
+        ds_m = DataSource(name='in_m', data=dict(d=Q_(np.array([1000.]), 'm'), q=Q_(np.array([1.]), 'm')),
+                          templates={'d': Template(name='d', units='m')})
+        ds_ft = DataSource(name='in_ft', data=dict(d=Q_(np.array([1000.]), 'feet'), q=Q_(np.array([1.]), 'm')))
+        xp = CrossPlotter({'in_m': ds_m, 'in_ft': ds_ft}, x='d', y='q')
+        np.testing.assert_allclose(xp.cds.data['d'], [1000., 304.8])
+        np.testing.assert_allclose(xp.min_and_max()['d'], [304.8, 1000.])
+
+    def test_incompatible_units_keep_their_values(self):
+        ds_1 = self._source('one', d=([1.], 'm'), q=([1.], 'm'))
+        ds_2 = self._source('two', d=([2.], 'kg'), q=([1.], 'm'))
+        xp = CrossPlotter({'one': ds_1, 'two': ds_2}, x='d', y='q')
+        np.testing.assert_allclose(xp.cds.data['d'], [1., 2.])
+
+    def test_each_data_source_has_its_own_legend_item(self):
+        ds1, ds2, _, _ = make_data_sources(size_1=3, size_2=4)
+        xp = CrossPlotter({_s.name: _s for _s in [ds1, ds2]})
+        xplot = xp.draw(xp.cds)[0]
+        items = xplot.legend[0].items
+        self.assertEqual([_item.label.value for _item in items], ['one', 'two'])
+        self.assertEqual([len(_item.renderers) for _item in items], [1, 1])
+        self.assertIsNot(items[0].renderers[0], items[1].renderers[0])
+        self.assertEqual(xplot.legend[0].click_policy, 'hide')
+
+    def test_size_menu_starts_at_the_plotted_size(self):
+        ds1, ds2, _, _ = make_data_sources(size_1=3, size_2=4)
+        xp = CrossPlotter({_s.name: _s for _s in [ds1, ds2]})
+        cds = xp.cds
+        size_menu = xp.draw(cds)[3]
+        self.assertEqual(float(size_menu.value), cds.data['size'][0])
+
+    def test_axis_label_without_template_or_units(self):
+        from blixt_geo_py.core.core import Template
+        ds = self._source(p=([1., 2.], 'm'), q=([3., 4.], 'm'))
+        ds.templates = {'q': Template(name='q')}
+        xp = CrossPlotter({'a': ds}, x='p', y='q')
+        xplot = xp.draw(xp.cds)[0]
+        self.assertEqual(xplot.xaxis[0].axis_label, 'p')
+        self.assertEqual(xplot.yaxis[0].axis_label, 'q')
+
+    def test_axis_limits_from_template_or_padded_data(self):
+        from bokeh.models import Range1d
+        from blixt_geo_py.core.core import Template
+        ds = self._source(p=([0., 10.], 'm'), q=([3., 3.], 'm'), r=([np.nan, np.nan], 'm'))
+        ds.templates = {'p': Template(name='p', units='m', min=-1., max=20.), 'q': Template(name='q', units='m')}
+        xp = CrossPlotter({'a': ds}, x='p', y='q')
+        limits = xp.axis_limits()
+        self.assertEqual(limits['p'], [-1., 20.])
+        self.assertEqual(limits['q'], [2.5, 3.5])
+        self.assertEqual(limits['r'], [None, None])
+        xplot = xp.draw(xp.cds)[0]
+        self.assertIsInstance(xplot.x_range, Range1d)
+        self.assertEqual((xplot.x_range.start, xplot.x_range.end), (-1., 20.))
+
+    def test_draw_with_a_variable_without_valid_data(self):
+        ds = self._source(p=([np.nan, np.nan], 'm'), q=([3., 4.], 'm'))
+        xp = CrossPlotter({'a': ds}, x='p', y='q')
+        xplot = xp.draw(xp.cds)[0]
+        self.assertNotIsInstance(xplot.x_range, type(xplot.y_range))
+
+    def _click_apply_masks(self, ds, wis):
+        xp = CrossPlotter({ds.name: ds}, working_intervals=wis)
+        cds = xp.cds
+        apply_mask = xp.draw(cds)[5]
+        for _handler in apply_mask._event_callbacks['button_click']:
+            _handler()
+        self.assertEqual(len(cds.data['mask']), len(ds))
+
+    def test_apply_masks_with_depth_named_dept(self):
+        from blixt_geo_py import Q_
+        from blixt_geo_py.core.core import Interval, Intervals, StratUnit
+        wis = Intervals(name='test', intervals=[
+            Interval(well='one', top=Q_(1350, 'm'), base=Q_(1450, 'm'), interval_info=StratUnit('wi_1', 1))])
+        ds = self._source('one', dept=([1000., 1400., 1600.], 'm'), q=([1., 2., 3.], 'm'))
+        self.assertEqual(CrossPlotter({'one': ds}).depth_variable, 'dept')
+        self._click_apply_masks(ds, wis)
+
+    def test_apply_masks_without_depth(self):
+        from blixt_geo_py import Q_
+        from blixt_geo_py.core.core import Interval, Intervals, StratUnit
+        wis = Intervals(name='test', intervals=[
+            Interval(well='one', top=Q_(1350, 'm'), base=Q_(1450, 'm'), interval_info=StratUnit('wi_1', 1))])
+        ds = self._source('one', p=([1., 2., 3.], 'm'), q=([1., 2., 3.], 'm'))
+        self.assertIsNone(CrossPlotter({'one': ds}).depth_variable)
+        self._click_apply_masks(ds, wis)
+
+    def test_draw_twice_with_default_tools(self):
+        from bokeh.document import Document
+        ds1, ds2, _, _ = make_data_sources(size_1=3, size_2=4)
+        xp = CrossPlotter({_s.name: _s for _s in [ds1, ds2]})
+        for _ in range(2):
+            Document().add_root(xp.draw(xp.cds)[0])
+
+
 class TestCases(unittest.TestCase):
     def test_data_cds(self):
 

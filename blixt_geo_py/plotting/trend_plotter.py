@@ -142,8 +142,9 @@ class TrendPlotter(CrossPlotter):
             source=line_cds
         )
 
-        # Clear the legend from the previous legend
-        p.legend.items = [item for item in p.legend.items if line_renderer in item.renderers]
+        # Clear the legend from the previous line, the items of all the other renderers are kept
+        renderer_ids = [r.id for r in p.renderers]
+        p.legend.items = [item for item in p.legend.items if all(r.id in renderer_ids for r in item.renderers)]
 
     def draw(self, cds: ColumnDataSource, set_all_intervals_active: bool = False, verbose: bool = False):
         from bokeh.models import Button, Tooltip
@@ -175,7 +176,8 @@ class TrendPlotter(CrossPlotter):
                 """
             ))
 
-        xplot, x_menu, y_menu, size_menu, color_menu, apply_mask, reset_mask, ct_guis, wis_guis = super().draw(cds)
+        xplot, x_menu, y_menu, size_menu, color_menu, apply_mask, reset_mask, ct_guis, wis_guis = super().draw(
+            cds, set_all_intervals_active=set_all_intervals_active, verbose=verbose)
         x_menu.disabled = True
 
         def calc_trend_func():

@@ -10,14 +10,10 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 import pint
-from bokeh.models import PanTool, BoxZoomTool, WheelZoomTool, ResetTool, SaveTool, CrosshairTool, HoverTool, TextInput
-from bokeh.models import (Slider, ColorPicker, Range1d, LinearAxis, LogAxis, Span, Legend, ColumnDataSource, Text,
-                          CustomJS, CustomJSTransform, LinearColorMapper, CheckboxEditor, Select)
+from bokeh.models import PanTool, BoxZoomTool, WheelZoomTool, ResetTool, SaveTool, CrosshairTool, HoverTool
+from bokeh.models import ColumnDataSource, CustomJS, Range1d
 from bokeh.plotting import column, row
 from bokeh.plotting import figure, show
-# from prompt_toolkit.shortcuts import button_dialog
-# from html5lib.constants import mathmlTextIntegrationPointElements
-from scipy.stats import wilcoxon
 
 from blixt_geo_py.core.core import Intervals, WorkingIntervalsTable
 from blixt_geo_py.core.core import Cutoffs, ClassificationTable, LogTable
@@ -42,6 +38,35 @@ def default_tools() -> list:
 
 cnames = [mcolors.to_hex(tmp['color']) for tmp, j in zip(plt.rcParams['axes.prop_cycle'], range(20))]
 markers = ['circle', 'diamond', 'hex', 'inverted_triangle', 'plus', 'square', 'star', 'triangle']
+default_marker_size = 5.
+
+
+def magnitude_in_units(values, units: pint.Unit | None, name: str = '') -> np.ndarray:
+    """
+    Returns the values as a plain array, ready for a ColumnDataSource, converted to the given units when possible
+
+    :param values:
+        pint Quantity or array-like
+        Values without units are returned as they are
+    :param units:
+        pint Unit or None
+        None means that a Quantity keeps its own units
+    :param name:
+        str
+        Name of the variable, only used in the warning about incompatible units
+    :return:
+        np.ndarray
+    """
+    if not isinstance(values, pint.Quantity):
+        return np.asarray(values)
+    if units is None:
+        return np.asarray(values.magnitude)
+    try:
+        return np.asarray(values.to(units).magnitude)
+    except pint.DimensionalityError:
+        print_info('Can not convert {} from {} to {}, keeping the values as they are'.format(
+            name, values.units, units), 'warning', logger)
+        return np.asarray(values.magnitude)
 
 
 def add_x_y_to_cds(
@@ -85,69 +110,25 @@ def add_x_y_to_cds(
     """
     _vars = list(cds_dict.keys())
     _n = len(cds_dict[_vars[0]])
-    _dict = {}
 
-    # for _key in ['x', 'y', 'size', 'color', 'marker', 'legend_group']:
-    #     if _key in _vars:
-    #         warn_txt = 'The key {} is among the original keys of the input cds and will be overwritten'.format(_key)
-    #         print_info(warn_txt, 'warning', logger)
+    def _column(value, default_key: str):
+        if value is None:
+            return cds_dict[default_key]
+        if isinstance(value, str) and value in _vars:
+            return cds_dict[value]
+        return [value] * _n
 
-
-    if x is not None and x in _vars:
-        _dict['x'] = cds_dict[x]
-    elif x is not None:
-        _dict['x'] = x
-    else:
-        _dict['x'] = cds_dict[_vars[0]]
-
-    if y is not None and y in _vars:
-        _dict['y'] = cds_dict[y]
-    elif y is not None:
-        _dict['y'] = y
-    else:
-        _dict['y'] = cds_dict[_vars[1]]
-
-    if size is not None and size in _vars:
-        _dict['size'] = cds_dict[size]
-    elif size is not None:
-        _dict['size'] = [size] * _n
-    else:
-        _dict['size'] = cds_dict['size']
-
-    if color is not None and color in _vars:
-        _dict['color'] = cds_dict[color]
-    elif color is not None:
-        _dict['color'] = [color] * _n
-    else:
-        _dict['color'] = cds_dict['color']
-
-    if marker is not None and marker in _vars:
-        _dict['marker'] = cds_dict[marker]
-    elif marker is not None:
-        _dict['marker'] = [marker] * _n
-    else:
-        _dict['marker'] = cds_dict['marker']
-
-    if legend_group is not None and legend_group in _vars:
-        _dict['legend_group'] = cds_dict[legend_group]
-    elif legend_group is not None:
-        _dict['legend_group'] = [legend_group] * _n
-    else:
-        _dict['legend_group'] = cds_dict['legend_group']
-
-    if opacity is not None and opacity in _vars:
-        _dict['opacity'] = cds_dict[opacity]
-    elif opacity is not None:
-        _dict['opacity'] = [opacity] * _n
-    else:
-        _dict['opacity'] = cds_dict['opacity']
-
-    if mask is not None:
-        _dict['mask'] = mask
-    else:
-        _dict['mask'] = cds_dict['mask']
-
-    _dict['source_name'] = cds_dict['source_name']
+    _dict = {
+        'x': _column(x, _vars[0]),
+        'y': _column(y, _vars[1]),
+        'size': _column(size, 'size'),
+        'color': _column(color, 'color'),
+        'marker': _column(marker, 'marker'),
+        'legend_group': _column(legend_group, 'legend_group'),
+        'opacity': _column(opacity, 'opacity'),
+        'mask': mask if mask is not None else cds_dict['mask'],
+        'source_name': cds_dict['source_name']
+    }
 
     cds_dict.update(_dict)
     return cds_dict
@@ -287,90 +268,7 @@ class DataSource:
                   logtable: LogTable):
         pass
 
-
-    # def transform_source_data(self,
-    #                      x: None | str = None,
-    #                      y: None | str = None,
-    #                      size: None | str = None,
-    #                      color: None | str = None,
-    #                      marker: None | str = None,
-    #                      legend_group: None | str = None,
-    #                      ) -> dict:
-    #     """
-    #     The idea is to let the input decide which parameter that should be used on the x-axis, y-axis, size, color,
-    #     marker and legend
-    #     E.G.
-    #         if x = 'vp'
-    #         WHEN
-    #         self.data = dict(vp=..., vs=..., rho=...)
-    #         THEN
-    #         transformed_source_data = dict(x=self.data['vp'], y=..., etc...)
-
-    #     :param x:
-    #     :param y:
-    #     :param size:
-    #     :param color:
-    #     :param marker:
-    #     :param legend_group:
-
-    #     :return:
-    #         dict
-    #         transformed_source
-    #         The dictionary has at least the following keys:
-    #             'x', 'y', 'size', 'color', 'marker' and 'legend_group'
-    #     """
-
-    #     _n = len(self.data[list(self.keys())[0]])
-    #     _dict = {}
-
-    #     if x is not None and x in list(self.keys()):
-    #         _dict['x'] = self.data[x]
-    #     elif x is not None:
-    #         _dict['x'] = x
-    #     else:
-    #         pass
-
-    #     if y is not None and y in list(self.keys()):
-    #         _dict['y'] = self.data[y]
-    #     elif y is not None:
-    #         _dict['y'] = y
-    #     else:
-    #         pass
-
-    #     if size is not None and size in list(self.keys()):
-    #         _dict['size'] = self.data[size]
-    #     elif size is not None:
-    #         _dict['size'] = [size] * _n
-    #     else:
-    #         pass
-
-    #     if color is not None and color in list(self.keys()):
-    #         _dict['color'] = self.data[color]
-    #     elif color is not None:
-    #         _dict['color'] = [color] * _n
-    #     else:
-    #         pass
-
-    #     if marker is not None and marker in list(self.keys()):
-    #         _dict['marker'] = self.data[marker]
-    #     elif marker is not None:
-    #         _dict['marker'] = [marker] * _n
-    #     else:
-    #         pass
-
-    #     if legend_group is not None and legend_group in list(self.keys()):
-    #         _dict['legend_group'] = self.data[legend_group]
-    #     elif legend_group is not None:
-    #         _dict['legend_group'] = [legend_group] * _n
-    #     else:
-    #         pass
-
-    #     _dict['mask'] = self.mask
-
-    #     return _dict
-
 class DataSourceStyle:
-    from bokeh.models import DataTable
     def __init__(self,
                  data_sources: dict,
                  width: int | None = None,
@@ -399,7 +297,7 @@ class DataSourceStyle:
             _dict['name'].append(_name)
             _dict['color'].append(cnames[_i % len(cnames)])
             _dict['marker'].append(markers[_i % len(markers)])
-            _dict['size'].append(5.)
+            _dict['size'].append(default_marker_size)
             _dict['opacity'].append(1.)
             _dict['order'].append(_i)
         self._cds = ColumnDataSource(_dict)
@@ -512,16 +410,20 @@ class CrossPlotter:
         """
 
         self._data_sources = data_sources
+        _common = self.common_variables
+        if len(_common) < 2:
+            raise IOError('The data sources must have at least two variables in common, but they only share: {}'.format(
+                ', '.join(_common) if _common else 'nothing'))
         if x is None:
-            x = self.common_variables[0]
-        if x not in self.common_variables:
+            x = _common[0]
+        if x not in _common:
             raise IOError('The x parameter {} is not among the parameters of the source ({})'.format(
-                x, ', '.join(self.common_variables) ))
+                x, ', '.join(_common)))
         if y is None:
-            y = self.common_variables[1]
-        if y not in self.common_variables:
+            y = next(_var for _var in _common if _var != x)
+        if y not in _common:
             raise IOError('The y parameter {} is not among the parameters of the source ({})'.format(
-                y, ', '.join(self.common_variables) ))
+                y, ', '.join(_common)))
         if width is None:
             width = 600
         if height is None:
@@ -530,10 +432,6 @@ class CrossPlotter:
         self.height = height
         self.x = x
         self.y = y
-        # if data_sources is not None:
-        #     self._sources = {_key: _val.source for _key, _val in data_sources.items()}
-        # else:
-        #     self._sources = None
         self.xplot = None
         self.cutoffs = cutoffs
         self._cutoffs_table = None
@@ -547,20 +445,14 @@ class CrossPlotter:
             self._interval_table = WorkingIntervalsTable(self.working_intervals, set_all_active=False)
         self.active_intervals = []
 
-
-        if tools is None:
-            tools = default_tools()
+        # None means that fig() creates a new set of the default tools for each plot, see default_tools()
         self._tools = tools
 
         self.fixed_sizes = ['1', '5', '10', '20']
         self.fixed_colors = ['Data set', 'Classification']
 
     def __len__(self):
-        _len = 0
-        for _key, _item in self._data_sources.items():
-            _var = self.common_variables[0]
-            _len += len(_item.cds.data[_var])
-        return _len
+        return sum(len(_item) for _item in self._data_sources.values())
 
     @property
     def cutoffs_table(self):
@@ -572,10 +464,10 @@ class CrossPlotter:
 
     @property
     def all_variables(self):
-        _all = []
-        for _source in self._data_sources.values():
-            _all += [_x for _x in list(_source.keys()) if _x != 'mask']
-        return list(set(_all))
+        # dict.fromkeys removes duplicates, but keeps the order, which a set doesn't do between python sessions
+        return list(dict.fromkeys(
+            _x for _source in self._data_sources.values() for _x in _source.keys() if _x != 'mask'
+        ))
 
     @property
     def templates(self):
@@ -590,405 +482,203 @@ class CrossPlotter:
 
     @property
     def common_variables(self):
-        _list =  list(set.intersection(
-            *[set(list(_s.keys())) for _s in self._data_sources.values()]
-        ))
-        if 'mask' in _list:
-            _list.remove('mask')
-        return _list
+        _sources = list(self._data_sources.values())
+        # Keeps the order of the first data source, so the default x and y are the same each time
+        return [_x for _x in _sources[0].keys()
+                if _x != 'mask' and all(_x in _source.keys() for _source in _sources[1:])]
 
     @property
     def common_units(self):
-        _units = []
-        _params = []
-        for _param in self.common_variables:
-            # The 'parameter' mask is typically not specified in the templates
-            if _param == 'mask':
-                _units.append('')
-                continue
-            _units.append(
-                self.templates[_param].units if _param in self.templates else ''
-            )
-        return _units
+        return [self.templates[_param].units if _param in self.templates else '' for _param in self.common_variables]
+
+    @property
+    def depth_variable(self) -> str | None:
+        """
+        Name of the common variable with the measured depth, which is named differently depending on the source of
+        the data, e.g. 'dept' in las files. None if there is no such variable.
+        """
+        _common = self.common_variables
+        return next((_var for _var in ['md', 'dept', 'depth'] if _var in _common), None)
+
+    def plot_units(self, variable: str) -> pint.Unit | None:
+        """
+        Returns the units a variable is plotted in, which are the units of its template, as these are the units shown
+        on the axes and in the cutoffs table. Without a usable template, the units of the first data source are used.
+
+        :param variable:
+            str
+        :return:
+            pint Unit or None
+        """
+        from blixt_geo_py import Q_
+        _template = self.templates.get(variable)
+        if _template is not None and _template.units:
+            try:
+                return Q_(1., _template.units).units
+            except Exception:  # Units come from e.g. las files and can be any string, which pint raises many errors for
+                logger.debug('Template of {} has unknown units: {}'.format(variable, _template.units))
+        for _source in self._data_sources.values():
+            if isinstance(_source.data.get(variable), pint.Quantity):
+                return _source.data[variable].units
+        return None
 
     @property
     def cds(self) -> ColumnDataSource:
         """
         Returns a merged CDS with all the common variables from all data_sources, plus the extra variables
-        created by add_x_y_to_cds
+        created by add_x_y_to_cds.
+        Each variable is converted to the same units, see plot_units()
         :return:
         """
-        _dict = {}
-        _i = 0
-        for _key, _item in self._data_sources.items():
-            _len = 0
-            for _var in self.common_variables:
-                _len = len(_item.cds.data[_var])
-                if _i == 0:
-                    _dict[_var] = _item.cds.data[_var]
-                else:
-                    _dict[_var] = np.append(_dict[_var], _item.cds.data[_var])
-            if _i == 0:
-                _dict['source_name'] = np.array([_key] * _len)
-                _dict['legend_group'] = np.array([_key] * _len)
-                _dict['color'] = np.array([cnames[_i % len(cnames)]] * _len)
-                _dict['marker'] = np.array([markers[_i % len(markers)]] * _len)
-                _dict['size'] = np.array([5.] * _len)
-                _dict['opacity'] = np.array([1.] * _len)
-                _dict['mask'] = np.array([True] * _len)
-            else:
-                _dict['source_name'] = np.append(_dict['source_name'], np.array([_key] * _len))
-                _dict['legend_group'] = np.append(_dict['legend_group'], np.array([_key] * _len))
-                _dict['color'] = np.append(_dict['color'], np.array([cnames[_i % len(cnames)]] * _len))
-                _dict['marker'] = np.append(_dict['marker'], np.array([markers[_i % len(markers)]] * _len))
-                _dict['size'] = np.append(_dict['size'], np.array([5.] * _len))
-                _dict['opacity'] = np.append(_dict['opacity'], np.array([1.] * _len))
-                _dict['mask'] = np.append(_dict['mask'], np.array([True] * _len))
-            _i += 1
+        _variables = self.common_variables
+        _units = {_var: self.plot_units(_var) for _var in _variables}
+        _columns = {_key: [] for _key in _variables + ['source_name', 'legend_group', 'color', 'marker', 'size',
+                                                       'opacity', 'mask']}
+        for _i, (_key, _item) in enumerate(self._data_sources.items()):
+            for _var in _variables:
+                _columns[_var].append(magnitude_in_units(_item.data[_var], _units[_var], _var))
+            _len = len(_columns[_variables[0]][-1])
+            _columns['source_name'].append(np.full(_len, _key))
+            _columns['legend_group'].append(np.full(_len, _key))
+            _columns['color'].append(np.full(_len, cnames[_i % len(cnames)]))
+            _columns['marker'].append(np.full(_len, markers[_i % len(markers)]))
+            _columns['size'].append(np.full(_len, default_marker_size))
+            _columns['opacity'].append(np.full(_len, 1.))
+            _columns['mask'].append(np.asarray(_item.data.get('mask', _item.mask), dtype=bool))
 
+        _dict = {_key: np.concatenate(_val) for _key, _val in _columns.items()}
         _dict = add_x_y_to_cds(_dict, self.x, self.y)
         return ColumnDataSource(_dict)
 
-    # def x_y_source(self,
-    #                source_dict: dict,
-    #                x: None | str = None,
-    #                y: None | str = None,
-    #                size: None | float | str = None,
-    #                color: None | str = None,
-    #                marker: None | str = None,
-    #                legend_group: None | str = None,
-    #                mask: None | np.ndarray = None
-    #                ) -> dict:
-    #     """
-    #     The idea is to let the input decide which parameter that should be used on the x-axis, y-axis, size, color,
-    #     marker and legend
-    #     E.G.
-    #         if x = 'vp'
-    #         WHEN
-    #         source_dict = dict(vp=..., vs=..., rho=...)
-    #         THEN
-    #         x_y_source = dict(x=source_dict['vp'], y=..., etc...)
-
-    #     :param source_dict:
-    #     :param x:
-    #     :param y:
-    #     :param size:
-    #     :param color:
-    #     :param marker:
-    #     :param legend_group:
-    #     :param mask:
-
-    #     :return:
-    #         dict
-    #         transformed_source
-    #         The dictionary has at least the following keys:
-    #             'x', 'y', 'size', 'color', 'marker' and 'legend_group'
-    #     """
-    #     _n = len(self)
-    #     _vars = list(source_dict.keys())
-    #     _dict = {}
-
-    #     if x is not None and x in _vars:
-    #         _dict['x'] = source_dict[x]
-    #     elif x is not None:
-    #         _dict['x'] = x
-    #     else:
-    #         pass
-
-    #     if y is not None and y in _vars:
-    #         _dict['y'] = source_dict[y]
-    #     elif y is not None:
-    #         _dict['y'] = y
-    #     else:
-    #         pass
-
-    #     if size is not None and size in _vars:
-    #         _dict['size'] = source_dict[size]
-    #     elif size is not None:
-    #         _dict['size'] = [size] * _n
-    #     else:
-    #         _dict['size'] = source_dict['size']
-
-    #     if color is not None and color in _vars:
-    #         _dict['color'] = source_dict[color]
-    #     elif color is not None:
-    #         _dict['color'] = [color] * _n
-    #     else:
-    #         _dict['color'] = source_dict['color']
-
-    #     if marker is not None and marker in _vars:
-    #         _dict['marker'] = source_dict[marker]
-    #     elif marker is not None:
-    #         _dict['marker'] = [marker] * _n
-    #     else:
-    #         _dict['marker'] = source_dict['marker']
-
-    #     if legend_group is not None and legend_group in _vars:
-    #         _dict['legend_group'] = source_dict[legend_group]
-    #     elif legend_group is not None:
-    #         _dict['legend_group'] = [legend_group] * _n
-    #     else:
-    #         _dict['legend_group'] = source_dict['legend_group']
-
-    #     if mask is not None:
-    #         _dict['mask'] = mask
-    #     else:
-    #         _dict['mask'] = source_dict['mask']
-
-    #     _dict['source_name'] = source_dict['source_name']
-    #     return _dict
-
-    def js_code(self, console_only=False):
-        console_only_code = """
-            const x_param = x_drop.value;
-            console.log('dropdown: ' + cb_obj.value, x_param);
+    @staticmethod
+    def js_code() -> str:
         """
-        code1 = """
+        Code of the callback that updates the plot when one of the drop down menus is changed.
+        The marker size is only updated by the size menu, so that changing the axes keeps the sizes set in the
+        data source style table
+        """
+        return """
             const x_param = x_drop.value;
             const y_param = y_drop.value;
             const s_param = s_drop.value;
-            //const c_param = c_drop.value;
-            //const m_param = m_drop.value;
-            //const l_param = l_drop.value;
-            const min = min_max[s_param][0];
-            const max = min_max[s_param][1];
-            const s = [];
-            function size(arr1) {
-                let s = [];
-                for (let i = 0; i < arr1.length; i++) {
-                  s.push(10 + 70 * (arr1[i] - min) / (max - min));
-                      }
-                return s;
+            // A new object is needed for bokeh to detect that the data has changed
+            const new_data = {...x_y_source.data};
+
+            new_data['x'] = new_data[x_param];
+            new_data['y'] = new_data[y_param];
+
+            if (cb_obj === s_drop) {
+                const [min, max] = min_max[s_param];
+                if (min === 'constant') {
+                    new_data['size'] = Array(new_data[x_param].length).fill(Number(s_param));
+                } else {
+                    // Variables with a single value get the smallest size instead of dividing by zero
+                    const scale = max > min ? 70 / (max - min) : 0;
+                    new_data['size'] = Array.from(new_data[s_param], (value) => 10 + scale * (value - min));
+                }
             }
-            // REPLACE DATA
-            for (let i = 0; i < data_keys.length; i++) {
-                data_sources[i].data['x'] = orig_data_sources[i].data[x_param];
-                data_sources[i].data['y'] = orig_data_sources[i].data[y_param]
-                if (min_max[s_param][0] === 'constant') {
-                        let length = orig_data_sources[i].data[x_param].length;
-                        data_sources[i].data['size'] = Array(length).fill(Number(s_param));
-                    } else {
-                        data_sources[i].data['size'] = size(orig_data_sources[i].data[s_param]);
-                    }
-                }
-            //
-            for (let i = 0; i < data_keys.length; i++) {
-                data_sources[i].change.emit();
-                }
-
-            // X AXIS
-            xaxis.axis_label = x_param;
-            if (templates[x_param]['min'] === null || templates[x_param]['min'] === undefined) {
-                    console.log('No ' + x_param + ' min value. Use min: ' + min_max[x_param][0]);
-                    x_range.start = min_max[x_param][0];
-                } else {
-                    console.log(x_param + ' min value ' + templates[x_param]['min']);
-                    x_range.start = templates[x_param]['min'];
-                }
-            if (templates[x_param]['max'] === null || templates[x_param]['max'] === undefined) {
-                    console.log('No ' + x_param + ' max value. Use max: ' + min_max[x_param][1]);
-                    x_range.end = min_max[x_param][1];
-                } else {
-                    console.log(x_param + ' max value ' + templates[x_param]['max']);
-                    x_range.end = templates[x_param]['max'];
-                }
-            x_range.change.emit()
-
-            // Y AXIS
-            yaxis.axis_label = y_param;
-            if (templates[y_param]['min'] === null || templates[y_param]['min'] === undefined) {
-                    console.log('No ' + y_param + ' min value. Use min: ' + min_max[y_param][0]);
-                    y_range.start = min_max[y_param][0];
-                } else {
-                    console.log(y_param + ' min value ' + templates[y_param]['min']);
-                    y_range.start = templates[y_param]['min'];
-                }
-            if (templates[y_param]['max'] === null || templates[y_param]['max'] === undefined) {
-                    console.log('No ' + y_param + ' max value. Use max: ' + min_max[y_param][1]);
-                    y_range.end = min_max[y_param][1];
-                } else {
-                    console.log(y_param + ' max value ' + templates[y_param]['max']);
-                    y_range.end = templates[y_param]['max'];
-                }
-            y_range.change.emit()
-
-            title.text = 'XXX';
-            //
-            console.log('dropdown: ' + cb_obj.value, x_param);
-            """
-        code2 = """
-            const x_param = x_drop.value;
-            const y_param = y_drop.value;
-            const s_param = s_drop.value;
-            //const c_param = c_drop.value;
-            //const m_param = m_drop.value;
-            //const l_param = l_drop.value;
-            const min = min_max[s_param][0];
-            const max = min_max[s_param][1];
-            const s = [];
-            function size(arr1) {
-                let s = [];
-                for (let i = 0; i < arr1.length; i++) {
-                  s.push(10 + 70 * (arr1[i] - min) / (max - min));
-                      }
-                return s;
-            }
-            // REPLACE DATA
-            x_y_source.data['x'] = source.data[x_param];
-            x_y_source.data['y'] = source.data[y_param];
-            if (min_max[s_param][0] === 'constant') {
-                    let length = source.data[x_param].length;
-                    x_y_source.data['size'] = Array(length).fill(Number(s_param));
-                } else {
-                    x_y_source.data['size'] = size(source.data[s_param]);
-                }
-            //
-            x_y_source.change.emit();
-
-            // X AXIS
-            xaxis.axis_label = x_param;
-            if (templates[x_param]['min'] === null || templates[x_param]['min'] === undefined) {
-                    console.log('No ' + x_param + ' min value. Use min: ' + min_max[x_param][0]);
-                    x_range.start = min_max[x_param][0];
-                } else {
-                    console.log(x_param + ' min value ' + templates[x_param]['min']);
-                    x_range.start = templates[x_param]['min'];
-                }
-            if (templates[x_param]['max'] === null || templates[x_param]['max'] === undefined) {
-                    console.log('No ' + x_param + ' max value. Use max: ' + min_max[x_param][1]);
-                    x_range.end = min_max[x_param][1];
-                } else {
-                    console.log(x_param + ' max value ' + templates[x_param]['max']);
-                    x_range.end = templates[x_param]['max'];
-                }
-            x_range.change.emit()
-
-            // Y AXIS
-            yaxis.axis_label = y_param;
-            if (templates[y_param]['min'] === null || templates[y_param]['min'] === undefined) {
-                    console.log('No ' + y_param + ' min value. Use min: ' + min_max[y_param][0]);
-                    y_range.start = min_max[y_param][0];
-                } else {
-                    console.log(y_param + ' min value ' + templates[y_param]['min']);
-                    y_range.start = templates[y_param]['min'];
-                }
-            if (templates[y_param]['max'] === null || templates[y_param]['max'] === undefined) {
-                    console.log('No ' + y_param + ' max value. Use max: ' + min_max[y_param][1]);
-                    y_range.end = min_max[y_param][1];
-                } else {
-                    console.log(y_param + ' max value ' + templates[y_param]['max']);
-                    y_range.end = templates[y_param]['max'];
-                }
-            y_range.change.emit()
-
-            title.text = 'XXX';
-            //
-            console.log('dropdown: ' + cb_obj.value, x_param);
-            """
-        code3 = """
-            const x_param = x_drop.value;
-            const y_param = y_drop.value;
-            const s_param = s_drop.value;
-            //const c_param = c_drop.value;
-            //const m_param = m_drop.value;
-            //const l_param = l_drop.value;
-            const min = min_max[s_param][0];
-            const max = min_max[s_param][1];
-            const s = [];
-            var new_data = x_y_source.data;
-            
-            function size(arr1) {
-                let s = [];
-                for (let i = 0; i < arr1.length; i++) {
-                  s.push(10 + 70 * (arr1[i] - min) / (max - min));
-                      }
-                return s;
-            }
-            // REPLACE DATA
-            new_data['x'] = x_y_source.data[x_param];
-            new_data['y'] = x_y_source.data[y_param];
-            if (min_max[s_param][0] === 'constant') {
-                    let length = x_y_source.data[x_param].length;
-                    x_y_source.data['size'] = Array(length).fill(Number(s_param));
-                } else {
-                    x_y_source.data['size'] = size(x_y_source.data[s_param]);
-                }
-            //
-            x_y_source.change.emit();
-                
-            // X AXIS
-            xaxis.axis_label = x_param;
-            if (templates[x_param]['min'] === null || templates[x_param]['min'] === undefined) {
-                    console.log('No ' + x_param + ' min value. Use min: ' + min_max[x_param][0]);
-                    x_range.start = min_max[x_param][0];
-                } else {
-                    console.log(x_param + ' min value ' + templates[x_param]['min']);
-                    x_range.start = templates[x_param]['min'];
-                }
-            if (templates[x_param]['max'] === null || templates[x_param]['max'] === undefined) {
-                    console.log('No ' + x_param + ' max value. Use max: ' + min_max[x_param][1]);
-                    x_range.end = min_max[x_param][1];
-                } else {
-                    console.log(x_param + ' max value ' + templates[x_param]['max']);
-                    x_range.end = templates[x_param]['max'];
-                }
-            x_range.change.emit()
-            
-            // Y AXIS
-            yaxis.axis_label = y_param;
-            if (templates[y_param]['min'] === null || templates[y_param]['min'] === undefined) {
-                    console.log('No ' + y_param + ' min value. Use min: ' + min_max[y_param][0]);
-                    y_range.start = min_max[y_param][0];
-                } else {
-                    console.log(y_param + ' min value ' + templates[y_param]['min']);
-                    y_range.start = templates[y_param]['min'];
-                }
-            if (templates[y_param]['max'] === null || templates[y_param]['max'] === undefined) {
-                    console.log('No ' + y_param + ' max value. Use max: ' + min_max[y_param][1]);
-                    y_range.end = min_max[y_param][1];
-                } else {
-                    console.log(y_param + ' max value ' + templates[y_param]['max']);
-                    y_range.end = templates[y_param]['max'];
-                }
-            y_range.change.emit()
-            
-            title.text = 'XXX';
-            //
-            console.log('dropdown: ' + cb_obj.value, x_param);
             x_y_source.data = new_data;
+
+            xaxis.axis_label = axis_labels[x_param];
+            yaxis.axis_label = axis_labels[y_param];
+            for (const [range, param] of [[x_range, x_param], [y_range, y_param]]) {
+                const [start, end] = axis_limits[param];
+                // Variables with no valid data have no limits
+                if (start !== null && end !== null) {
+                    range.start = start;
+                    range.end = end;
+                    // Where the reset tool returns to
+                    range.reset_start = start;
+                    range.reset_end = end;
+                }
+            }
             """
-        if console_only:
-            return console_only_code
-        else:
-            return code3
 
     def drop_down_menus(self):
         from bokeh.models import Select
-        _x_menu =  Select(title='X axis', value=self.x, options=self.common_variables)
-        _y_menu =  Select(title='Y axis', value=self.y, options=self.common_variables)
-        _size_menu =  Select(title='Size', value=20,
-                             options= self.fixed_sizes + self.common_variables)
-        _color_menu =  Select(title='Color axis', value=self.common_variables[0],
-                              options=self.fixed_colors + self.common_variables)
-        _marker_menu =  Select(title='Marker', value=self.common_variables[0], options=self.common_variables)
-        _legend_menu =  Select(title='Legend', value=self.common_variables[0], options=self.common_variables)
+        _common = self.common_variables
+        _x_menu =  Select(title='X axis', value=self.x, options=_common)
+        _y_menu =  Select(title='Y axis', value=self.y, options=_common)
+        # The start value must be the size the data is drawn with, see the cds
+        _size_menu =  Select(title='Size', value=str(int(default_marker_size)),
+                             options= self.fixed_sizes + _common)
+        _color_menu =  Select(title='Color axis', value=_common[0],
+                              options=self.fixed_colors + _common)
+        _marker_menu =  Select(title='Marker', value=_common[0], options=_common)
+        _legend_menu =  Select(title='Legend', value=_common[0], options=_common)
         return _x_menu, _y_menu, _size_menu, _color_menu, _marker_menu, _legend_menu
 
     def min_and_max(self):
+        """
+        Returns the limits of each variable across all data sources, in the units of plot_units()
+        Variables without any valid numbers get the limits [None, None]
+        """
         _out = {}
         for _key in self.all_variables:
-            _min = 1E6; _max = -1E6
+            _units = self.plot_units(_key)
+            _min = None
+            _max = None
             for _source in self._data_sources.values():
-                if _key not in list(_source.keys()):
+                if _key not in _source.keys():
                     continue
-                if _source.min_and_max()[_key][0].magnitude < _min:
-                    _min = _source.min_and_max()[_key][0].magnitude
-                if _source.min_and_max()[_key][1].magnitude > _max:
-                    _max = _source.min_and_max()[_key][1].magnitude
+                _values = magnitude_in_units(_source.data[_key], _units, _key)
+                if not np.issubdtype(_values.dtype, np.number):
+                    continue
+                _values = _values[np.isfinite(_values)]
+                if _values.size == 0:
+                    continue
+                _min = float(_values.min()) if _min is None else min(_min, float(_values.min()))
+                _max = float(_values.max()) if _max is None else max(_max, float(_values.max()))
             _out[_key] = [_min, _max]
         for _key in self.fixed_sizes:
             _out[_key] = ['constant', 'constant']
         return _out
+
+    def axis_labels(self) -> dict:
+        """
+        Returns the axis label of each common variable
+        """
+        _labels = {}
+        for _var in self.common_variables:
+            _template = self.templates.get(_var)
+            if _template is None:
+                _labels[_var] = _var
+            elif _template.units:
+                _labels[_var] = '{} [{}]'.format(_template.name, _template.units)
+            else:
+                _labels[_var] = str(_template.name)
+        return _labels
+
+    def template_limits(self, variable: str) -> list:
+        """
+        Returns the [min, max] of the template of the variable, where each of them is None when not specified
+        """
+        _template = self.templates.get(variable)
+        return [None, None] if _template is None else _template.plot_settings()[1]
+
+    def axis_limits(self, min_max: dict | None = None) -> dict:
+        """
+        Returns the axis limits of each common variable, from its template or else from the data.
+        Limits from the data get some padding, so that the outermost markers are not cut in half
+
+        :param min_max:
+            dict
+            The result of min_and_max(), which is calculated when not given
+        """
+        if min_max is None:
+            min_max = self.min_and_max()
+        _limits = {}
+        for _var in self.common_variables:
+            _start, _end = self.template_limits(_var)
+            _min, _max = min_max[_var]
+            if _min is None:
+                _limits[_var] = [_start, _end]
+                continue
+            # Variables with a single value also need a range that isn't empty
+            _padding = 0.05 * (_max - _min) or 0.5
+            _limits[_var] = [_min - _padding if _start is None else _start,
+                             _max + _padding if _end is None else _end]
+        return _limits
 
     def add_data_source_style(self, cds: ColumnDataSource):
         code = """
@@ -1050,13 +740,14 @@ class CrossPlotter:
         return style_table.draw(style_cds)
 
     def fig(self) -> figure:
-        xplot = figure(width=self.width, height=self.height, tools=self._tools)
+        tools = default_tools() if self._tools is None else self._tools
+        xplot = figure(width=self.width, height=self.height, tools=tools)
         xplot.toolbar.active_inspect = None
         xplot.toolbar.logo = None
         return xplot
 
     def draw(self, cds: ColumnDataSource, set_all_intervals_active: bool = False, verbose: bool = False):
-        from bokeh.models import CDSView, BooleanFilter, Button, Div
+        from bokeh.models import CDSView, BooleanFilter, Button, Div, GroupFilter, IntersectionFilter
         import blixt_geo_py.utils.masks as masks
         from blixt_geo_py import Q_
 
@@ -1068,12 +759,6 @@ class CrossPlotter:
         color_menu.disabled = True
         marker_menu.disabled = True
         legend_menu.disabled = True
-
-
-        # Determine x and y variable
-        x_var = x_menu.value
-        y_var = y_menu.value
-        size_var = size_menu.value
 
         # Draw the classification / cutoffs table
         ct_cds = None
@@ -1095,28 +780,40 @@ class CrossPlotter:
         # Create a BooleanFilter using the 'mask' column
         boolean_filter = BooleanFilter(booleans=cds.data['mask'])
 
-        # Create a CDSView using the BooleanFilter
-        view = CDSView(filter=boolean_filter)
+        # Each data source has its own renderer, sharing the same cds and mask, because clicking on an item in the
+        # legend hides all the renderers of that item
+        scatter_renderers = []
+        for _name in self._data_sources.keys():
+            view = CDSView(filter=IntersectionFilter(operands=[
+                boolean_filter, GroupFilter(column_name='source_name', group=str(_name))]))
+            scatter_renderers.append(
+                self.xplot.scatter(x='x', y='y', source=cds, view=view, fill_color='color', marker='marker',
+                                   legend_label=str(_name), size='size', fill_alpha='opacity', line_color=None))
 
-        self.xplot.scatter(x='x', y='y', source=cds, view=view, fill_color='color', marker='marker',
-                      legend_group='legend_group', size='size', fill_alpha='opacity', line_color=None)
+        # The default tooltips of the hover tool only show the position of the mouse
+        if self._tools is None:
+            _tooltips = [('Source', '@source_name'), ('x', '@x'), ('y', '@y')]
+            if self.depth_variable is not None:
+                _tooltips.append((self.depth_variable, '@{}'.format(self.depth_variable)))
+            for _hover in self.xplot.select(type=HoverTool):
+                _hover.tooltips = _tooltips
+                _hover.renderers = scatter_renderers
 
         # Axes
-        for _var, _axis in zip([x_var, y_var], [self.xplot.xaxis, self.xplot.yaxis]):
+        min_max = self.min_and_max()
+        axis_labels = self.axis_labels()
+        axis_limits = self.axis_limits(min_max)
+        for _var, _axis in zip([x_menu.value, y_menu.value], [self.xplot.xaxis, self.xplot.yaxis]):
             # _axis.axis_label_text_font_size = '10px'
             # _axis.major_label_text_font_size = '10px'
             _axis.axis_label_standoff = 0
-            if _var not in list(self.templates.keys()):
-                continue
-            _axis.axis_label = '{} [{}]'.format(
-                self.templates[_var].name, self.templates[_var].units)
-        for _var, _range in zip([x_var, y_var], [self.xplot.x_range, self.xplot.y_range]):
-            if _var not in list(self.templates.keys()):
-                continue
-            if self.templates[_var].min is not None:
-                _range.start = self.templates[_var].min
-            if self.templates[_var].max is not None:
-                _range.end = self.templates[_var].max
+            _axis.axis_label = axis_labels[_var]
+        # A Range1d, as the reset tool of a default DataRange1d always returns to the limits of the first variable.
+        # Without any limits (no valid data, and no template) it is left to the DataRange1d
+        if None not in axis_limits[x_menu.value]:
+            self.xplot.x_range = Range1d(*axis_limits[x_menu.value])
+        if None not in axis_limits[y_menu.value]:
+            self.xplot.y_range = Range1d(*axis_limits[y_menu.value])
 
         # Legend
         if len(self.xplot.legend) > 0:
@@ -1127,94 +824,56 @@ class CrossPlotter:
         #
         # Arrange call backs
         #
+        menu_callback = CustomJS(
+            args=dict(x_drop=x_menu,
+                      y_drop=y_menu,
+                      s_drop=size_menu,
+                      x_range=self.xplot.x_range,
+                      y_range=self.xplot.y_range,
+                      x_y_source=cds,
+                      min_max=min_max,
+                      axis_labels=axis_labels,
+                      axis_limits=axis_limits,
+                      xaxis=self.xplot.xaxis[0],
+                      yaxis=self.xplot.yaxis[0]),
+            code=self.js_code())
+        for _menu in [x_menu, y_menu, size_menu]:
+            _menu.js_on_change('value', menu_callback)
 
-        # # Try to remove incomplete templates
-        # incomplete = []
-        # for _key, _val in self.templates.items():
-        #     if _val is not None and list(_val.dict().keys())[0] is None:
-        #         print(_key, type(_val), len(list(_val.dict().keys())), list(_val.dict().keys()))
-        #         incomplete.append(_key)
-
-        # for _key in incomplete:
-        #             self.templates.__delitem__(_key)
-        # print(self.templates.keys())
-
-        args_dict = dict(x_drop=x_menu,
-                         y_drop=y_menu,
-                         s_drop=size_menu,
-                         x_range=self.xplot.x_range,
-                         y_range=self.xplot.y_range,
-                         templates={_key: _val.dict()[_key] for _key, _val in self.templates.items() if _val is not None},
-                         # data_keys=[_key for _key in list(sources.keys())],
-                         # data_sources=[_val for _val in list(sources.values())],
-                         # orig_data_sources=[_val.source for _val in list(self._data_sources.values())],
-                         x_y_source=cds,
-                         source=self.cds,
-                         min_max=self.min_and_max(),
-                         # # cmap=exp_cmap,
-                         title=self.xplot.title,
-                         xaxis=self.xplot.xaxis[0],
-                         yaxis=self.xplot.yaxis[0],
-                         # # bar=bar
-                         )
-
-        x_menu.js_on_change(
-            'value',
-            CustomJS(
-                args=args_dict,
-                code=self.js_code(console_only=False)))
-        # # Update self.x   DIDN'T WORK
-        # x_menu.js_on_change('value', CustomJS(args=dict(x_drop=x_menu, x=self.x),
-        #                                       code= """ const x_param = x_drop.value;
-        #                                         x = x_param; """))
-
-        y_menu.js_on_change(
-            'value',
-            CustomJS(
-                args=args_dict,
-                code=self.js_code()))
-        # y_menu.js_on_change('value', CustomJS(args=dict(y_drop=y_menu, y=self.y),
-        #                                       code= """ const y_param = y_drop.value;
-        #                                         console.log('TEST', y_param)
-        #                                         y = y_param; """))
-
-        size_menu.js_on_change(
-            'value',
-            CustomJS(
-                args=args_dict,
-                code=self.js_code()))
-
-        cds.js_on_change('patching', CustomJS(
-            args=dict(source=cds),
-            code="""
-            console.log('Patching event detected in CrossPlotter');
-            """
-        ))
+        if verbose:
+            cds.js_on_change('patching', CustomJS(
+                code="""
+                console.log('Patching event detected in CrossPlotter');
+                """
+            ))
 
         data_change_callback = CustomJS(
             args=dict(source=cds, filter=boolean_filter),
             code="""
-            const new_filter = source.data['mask'];
-            filter.booleans = new_filter;
-            console.log('Data event detected in CrossPlotter');
+            // A new array is needed for bokeh to detect that the filter has changed
+            filter.booleans = Array.from(source.data['mask'], Boolean);
             """
         )
 
         def apply_mask_function():
             if self.cutoffs_table is not None and ct_cds is not None:
-                _mask_ct = self.cutoffs_table.create_mask(ct_cds, cds, verbose=True)
+                _mask_ct = self.cutoffs_table.create_mask(ct_cds, cds, verbose=verbose)
                 self.active_cutoffs = self.cutoffs_table.active_cutoffs(ct_cds)
             else:
                 _mask_ct = np.ones(len(cds.data['mask']), dtype=bool)
 
-            if self.interval_table is not None and wis_cds is not None:
+            _depth = self.depth_variable
+            if self.interval_table is not None and wis_cds is not None and _depth is not None:
                _mask_wis = self.interval_table.create_mask(
                    wis_cds,
-                   Q_(cds.data['md'], 'm'),
+                   Q_(cds.data[_depth], self.plot_units(_depth) or 'm'),
                    list(cds.data['source_name']),
-                   verbose=True)
+                   verbose=verbose)
                self.active_intervals = self.interval_table.active_intervals(wis_cds)
             else:
+                if self.interval_table is not None:
+                    print_info('Can not apply the working intervals, the data sources have no common depth variable',
+                               'warning', logger)
                 _mask_wis = np.ones(len(cds.data['mask']), dtype=bool)
 
             cds.data['mask'] = masks.combine_masks([_mask_ct, _mask_wis])
@@ -1230,19 +889,12 @@ class CrossPlotter:
 
         reset_mask = Button(label='Reset mask', button_type='success')
         reset_mask.js_on_click(CustomJS(
-            args=dict(source=cds, cb2=data_change_callback),
+            args=dict(source=cds),
             code = """
-                var _data = source.data;
-                console.log('Mask is reset');
-                for (let j = 0; j < _data['mask'].length; j++) {
-                    _data['mask'][j] = true;
-                }
-                source.data = _data;
-                cb2.execute();
+                // Assigning a new object triggers the data_change_callback
+                source.data = {...source.data, mask: Array(source.data['mask'].length).fill(true)};
             """
         ))
-        # This is a test to see if reset_mask can update the plot, and with this extra call it did
-        reset_mask.js_on_click(CustomJS(args=args_dict, code=self.js_code()))
 
         cds.js_on_change('data', data_change_callback)
 

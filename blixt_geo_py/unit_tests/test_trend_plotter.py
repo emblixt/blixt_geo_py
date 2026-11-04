@@ -37,3 +37,17 @@ class TestCases(unittest.TestCase):
         tp.calc_trend('md', 'var_two', cds, verbose=True)
 
         show_or_close()
+
+    def test_new_trend_only_replaces_the_previous_trend_in_the_legend(self):
+        ds1, ds2, wis, coffs = make_data_sources()
+        tp = TrendPlotter({str(_s.name): _s for _s in [ds1, ds2]}, x='md', y='var_two')
+        cds = tp.cds
+        xplot = tp.draw(cds)[0]
+        for y_param in ['var_two', 'var_one']:
+            line_cds, _ = tp.calc_trend('md', y_param, cds)
+            tp.plot_trend(xplot, line_cds)
+        labels = [_item.label.value for _item in xplot.legend[0].items]
+        self.assertEqual(labels[:2], ['one', 'two'])
+        self.assertEqual(len(labels), 3)
+        self.assertIn('var_one trend', labels[2])
+        plt.close('all')
