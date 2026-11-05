@@ -29,7 +29,8 @@ from blixt_geo_py.plotting.log_plotter import (LogPlotter, LogColumn, Line, Well
 import blixt_geo_py.core.wavelets as bumw
 from blixt_geo_py.utils.utils import nan_corrcoef, print_info
 from blixt_geo_py.core.seismic import SeismicTraces, interpolate_along_offset
-from blixt_geo_py.core.models import Model, LaminarModel, global_base_case_name, calc_synth_cds, create_traces
+from blixt_geo_py.core.models import Model, LaminarModel, global_base_case_name, calc_synth_cds, create_traces, \
+    layer_names_data, add_layer_names, link_layer_names
 
 logger = logging.getLogger(__name__)
 
@@ -536,7 +537,8 @@ def compare_synth_with_seismic(
         width: int | None = None,
         height: int | None = None,
         name_of_seismic: str | None = None,
-        ignore_well_synth: bool = False
+        ignore_well_synth: bool = False,
+        layers_width: float = 0.3
 ):
 
     """
@@ -570,6 +572,10 @@ def compare_synth_with_seismic(
     :param ignore_well_synth:
         Bool
         if true, the Well synthetics are not plotted (but always calculated?)
+    :param layers_width:
+        float
+        Width of the column with the names of the model layers, relative to the other columns (which have width 1).
+        Only used when a model is given. Use 0 to leave the column out
     :return:
     """
     if width is None:
@@ -856,8 +862,13 @@ def compare_synth_with_seismic(
         LogColumn('AI', lines=ais_lines, rel_width=1)
     )
 
-    # Column for model synthetic
+    # Column for the names of the model layers, and the model synthetic
     if laminar_model is not None:
+        if layers_width > 0:
+            col_idxs += 1
+            log_columns.append(
+                LogColumn('LAYERS', lines=[], rel_width=layers_width)
+            )
         col_idxs += 1
         model_synth_idx = col_idxs
         log_columns.append(
@@ -882,6 +893,12 @@ def compare_synth_with_seismic(
 
     plotter.columns = log_columns
     grid = plotter.draw()
+
+    if laminar_model is not None:
+        layers_cds = ColumnDataSource(layer_names_data(laminar_model.model))
+        if layers_width > 0:
+            add_layer_names(select_column(grid, 'LAYERS'), layers_cds)
+            link_layer_names(cds_m, layers_cds)
 
     # Fake some data to add a legend to the real seismic
     if seismic_traces is not None:
@@ -997,6 +1014,7 @@ def compare_synth_with_seismic(
             # Update the ColumnDataSource of the lines and the model
             cds_lines.data = dict(laminar_model.model_table.line_cds(_elastics_dict).data)
             cds_m.data = dict(laminar_model.model_table.cds.data)
+            layers_cds.data = layer_names_data(laminar_model.model_table.model)
 
             # Update the CDS of the model synthetics
             model_synth_cds.data = dict(calc_synth_cds(

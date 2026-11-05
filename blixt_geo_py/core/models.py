@@ -1717,6 +1717,11 @@ class LaminarModel:
             table_height:
                 int
                 Height of the table showing the layers
+            layers_width:
+                float
+                Width of the column with the layer names, relative to a synthetic column (which has width 1).
+                Default is 0.25. Use 0 to leave the column out. The plot grows with the column, so that the other
+                columns keep their width
         """
 
         if model is None:
@@ -1746,6 +1751,7 @@ class LaminarModel:
         self.lf_width = kwargs.pop('lf_width', 300)
         self.model_width = kwargs.pop('model_width', None)
         self.table_height = kwargs.pop('table_height', None)
+        self.layers_width = kwargs.pop('layers_width', 0.25)
         self.lf_table = None
         self.previous_cases = None
         if avo_or_eei is None:
@@ -1790,7 +1796,7 @@ class LaminarModel:
         from bokeh.models import GlyphRenderer
         from bokeh.models.glyphs import Image, ImageRGBA, ImageURL
 
-        from blixt_geo_py.plotting.log_plotter import LogPlotter, LogColumn, Line
+        from blixt_geo_py.plotting.log_plotter import LogPlotter, LogColumn, Line, select_column
         from blixt_geo_py.core.core import Template
         # Create the litho fluids table
         self.initiate_lf_table()
@@ -1804,7 +1810,8 @@ class LaminarModel:
         _model_table, model_controls = self.draw_model_table(cds_m, cds_lf)
 
         # Create log plot object
-        plotter = LogPlotter(width=900, height=600)
+        # 900 pixels for the AI, VpVs and synthetic columns (relative widths 0.5 + 0.4 + 1 + 1), plus the layers
+        plotter = LogPlotter(width=int(900 * (2.9 + self.layers_width) / 2.9), height=600)
 
         # Create controller widgets
         freq_slider = Slider(title='Wavelet central freq. [Hz]', start=10, end=40, step=5, value=self.freq)
@@ -1886,12 +1893,21 @@ class LaminarModel:
         synth_base_column = LogColumn('SYNTH_BASE', seismic_traces=traces_base, rel_width=1.)
         synth_variation_column = LogColumn('SYNTH_VARIATION', seismic_traces=traces_variation, rel_width=1.)
 
-        plotter.columns = [ai_column, vpvs_column, synth_base_column, synth_variation_column]
+        # Column with the names of the model layers
+        layers_cds = ColumnDataSource(layer_names_data(self.model))
+        if self.layers_width > 0:
+            plotter.columns = [ai_column, vpvs_column, LogColumn('LAYERS', rel_width=self.layers_width),
+                               synth_base_column, synth_variation_column]
+        else:
+            plotter.columns = [ai_column, vpvs_column, synth_base_column, synth_variation_column]
         # end of draw_plot()
 
         self.previous_cases = self.model.case_names
         # grid = plotter.draw()
         grid = plotter.draw_ext_toolbar()
+        if self.layers_width > 0:
+            add_layer_names(select_column(grid, 'LAYERS'), layers_cds)
+            link_layer_names(cds_m, layers_cds)
 
         def update_m_function():
             update_1d_model_function(
@@ -1910,6 +1926,7 @@ class LaminarModel:
                 self.previous_cases,
                 column_names = ['SYNTH_BASE', 'SYNTH_VARIATION']
             )
+            layers_cds.data = layer_names_data(self.model_table.model)
 
         model_controls.children[2].on_click(update_m_function)
         # update_m.on_click(update_m_function)
@@ -1937,7 +1954,8 @@ class LaminarModel:
         _model_table, model_controls = self.draw_model_table(cds_m, cds_lf)
 
         # Create log plot object
-        plotter = LogPlotter(width=1100, height=600)
+        # 1100 pixels for the AI, VpVs and synthetic columns (relative widths 0.3 + 0.25 + 1.4), plus the layers
+        plotter = LogPlotter(width=int(1100 * (1.95 + self.layers_width) / 1.95), height=600)
 
         # Create controller widgets
         trace_selector = Select(
@@ -2035,10 +2053,19 @@ class LaminarModel:
 
         synth_2d_column = LogColumn('SYNTH_2D', seismic_traces=traces_base, rel_width=1.4)
 
-        plotter.columns = [ai_column, vpvs_column, synth_2d_column]
+        # Column with the names of the model layers, at the selected trace
+        layers_cds = ColumnDataSource(layer_names_data(self.model, int(trace_selector.value)))
+        if self.layers_width > 0:
+            plotter.columns = [ai_column, vpvs_column, LogColumn('LAYERS', rel_width=self.layers_width),
+                               synth_2d_column]
+        else:
+            plotter.columns = [ai_column, vpvs_column, synth_2d_column]
 
         self.previous_cases = self.model.case_names
         grid = plotter.draw_ext_toolbar()
+        if self.layers_width > 0:
+            add_layer_names(select_column(grid, 'LAYERS'), layers_cds)
+            link_layer_names(cds_m, layers_cds)
 
         # Add vertical line indicating where the 1D model is extracted
         v_line = Span(
@@ -2068,6 +2095,7 @@ class LaminarModel:
                 grid,
                 self.previous_cases
             )
+            layers_cds.data = layer_names_data(self.model_table.model, int(trace_selector.value))
 
         def update_trace_function(attr, old, new):
             print('Trace: ', attr, old, new)
@@ -2075,8 +2103,9 @@ class LaminarModel:
             # Update the elastic properties based on the new trace index
             _elastics_dict = self.model_table.realize(self.resolution, int(new))
 
-            # Update the ColumnDataSource of the lines
+            # Update the ColumnDataSource of the lines, and the layer names
             cds_lines.data = dict(self.model_table.line_cds(_elastics_dict).data)
+            layers_cds.data = layer_names_data(self.model_table.model, int(new))
 
         def update_case_function(attr, old, new):
             print('Case: ', attr, old, new)
@@ -2980,6 +3009,88 @@ def find_extremes(cds: ColumnDataSource) -> dict:
         _dict[_type].append(_last_min)
         _dict[_type].append(_last_max)
     return _dict
+
+def layer_names_data(model: Model, index: int | None = None) -> dict:
+    """
+    Returns the name, color, top, base, middle and thickness [m] of each base case layer of the model, at the given
+    lateral index. Used as data for the column that shows the layer names, see add_layer_names()
+    :param model:
+        Model object, in depth
+    :param index:
+        int
+        The 'lateral' index which is used when the thickness is given as a function
+    :return:
+        dict
+    """
+    if index is None:
+        index = model.trace_index
+    _dict = {'name': [], 'color': [], 'top': [], 'base': [], 'mid': [], 'thickness': []}
+    _top = float(model.depth_to_top.to('m').magnitude)
+    for _j in model.base_case_layers:
+        _layer = model.layers[_j]
+        if isinstance(_layer.thickness, Callable):
+            _thickness = float(_layer.thickness(index).to('m').magnitude)
+        else:
+            _thickness = float(_layer.thickness.to('m').magnitude)
+        _dict['name'].append(_layer.name)
+        _dict['color'].append(_layer.color)
+        _dict['top'].append(_top)
+        _dict['base'].append(_top + _thickness)
+        _dict['mid'].append(_top + 0.5 * _thickness)
+        _dict['thickness'].append(_thickness)
+        _top += _thickness
+    return _dict
+
+
+def add_layer_names(_p, layers_cds: ColumnDataSource):
+    """
+    Draws each model layer as a colored box with its name written vertically, in the same way as the working intervals
+    are drawn by add_strat_table()
+    :param _p:
+        bokeh figure, typically an empty LogColumn of a LogPlotter
+    :param layers_cds:
+        ColumnDataSource with the data from layer_names_data()
+    """
+    from bokeh.models import Range1d, Rect, Text
+
+    _p.x_range = Range1d(0., 1.)
+    _p.xgrid.grid_line_color = None
+    _p.add_glyph(layers_cds, Rect(x=0.5, y='mid', width=1., height='thickness', fill_color='color',
+                                  line_color='black', line_width=0.5))
+    _p.add_glyph(layers_cds, Text(x=0.5, y='mid', text='name', text_font_size='10px', text_font_style='bold',
+                                  text_align='center', text_baseline='middle', angle=90., angle_units='deg'))
+
+
+def link_layer_names(model_cds: ColumnDataSource, layers_cds: ColumnDataSource):
+    """
+    Lets a change of the color, or name, of a base case layer in the model table update the boxes in the column of
+    layer names directly in the browser, in the same way as the working intervals table controls its boxes (see
+    add_strat_table()). A change of thickness is first shown after the model is updated, as for the logs and synthetics
+    :param model_cds:
+        ColumnDataSource of the ModelTable
+    :param layers_cds:
+        ColumnDataSource with the data from layer_names_data(), used by add_layer_names()
+    """
+    from bokeh.models import CustomJS
+
+    code = """
+        const m = model.data;
+        const colors = [];
+        const names = [];
+        for (let i = 0; i < m['case'].length; i++) {
+            if (String(m['case'][i]).toLowerCase() === base_case) {
+                colors.push(m['color'][i]);
+                names.push(m['name'][i]);
+            }
+        }
+        // A changed number of base case layers needs a model update, which redraws the layers
+        if (colors.length === layers.data['name'].length) {
+            layers.data = Object.assign({}, layers.data, {'color': colors, 'name': names});
+        }
+        """
+    model_cds.js_on_change('patching', CustomJS(
+        args=dict(model=model_cds, layers=layers_cds, base_case=global_base_case_name.lower()), code=code))
+
 
 def total_cds_thickness(cds: ColumnDataSource) -> float:
     # Returns the total thickness of the model based on the models CDS, in the units of the CDS

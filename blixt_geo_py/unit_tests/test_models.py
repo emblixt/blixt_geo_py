@@ -18,7 +18,8 @@ output_file(os.path.join(project_dir, 'blixt_geo_py', 'test_data','plot.html'))
 
 from blixt_geo_py.core.models import (Model, Layer, ModelTable, LaminarModel, WedgeModel, FaultModel,
                                   plot_wiggles, build_layered_model, laminar_model_analysis,
-                                  build_saturation_wedge, detect_change_in_cases, build_wedge)
+                                  build_saturation_wedge, detect_change_in_cases, build_wedge,
+                                  layer_names_data)
 from blixt_geo_py.core.core import LithoFluid
 import blixt_geo_py.core.wavelets as bumw
 from blixt_geo_py import Q_
@@ -374,7 +375,7 @@ class TestCase(unittest.TestCase):
         from bokeh.plotting import show, row, column
 
         # Create the laminar model
-        lm = LaminarModel(resolution=Q_(0.1, 'm'), avo_or_eei='avo')
+        lm = LaminarModel(resolution=Q_(0.1, 'm'), layers_width=0., avo_or_eei='avo')
 
         (title, lf_table, lf_controls, model_table, model_controls, grid,
          controls, seismic_cds) = lm.draw()
@@ -415,6 +416,89 @@ class TestCase(unittest.TestCase):
         # The table has built a new Model
         self.assertIsNot(lm.model_table.model.layers, layers_before)
         self.assertEqual(lm.model_table.model.name, 'Default model')
+
+    def test_layer_names_data(self):
+        # Only the base case layers are listed, stacked from the top of the model
+        model = Model(layers=[layer1, layer2, layer3, layer5])
+        top = model.depth_to_top.to('m').magnitude
+        data = layer_names_data(model)
+        self.assertEqual(['Top', 'Reservoir', 'Basement'], data['name'])
+        np.testing.assert_allclose([top, top + 50., top + 70.], data['top'])
+        np.testing.assert_allclose([top + 50., top + 70., top + 120.], data['base'])
+        np.testing.assert_allclose([top + 25., top + 60., top + 95.], data['mid'])
+
+        # In a quasi 2D model, the layers follow the given lateral index
+        wedge = Layer('Wedge', 'Base', thickness=lambda _i: Q_(20. - _i, 'm'), litho_fluid=l2)
+        q2d_model = Model(layers=[layer1, wedge, layer5], trace_index_range=np.arange(5))
+        np.testing.assert_allclose([50., 17., 50.], layer_names_data(q2d_model, 3)['thickness'])
+
+    def test_laminar_model_layer_names(self):
+        from bokeh.models import Rect, Text, DataTable
+        from blixt_geo_py.plotting.log_plotter import select_column
+
+        def layer_glyph_sources(_grid):
+            # Returns the data sources of the boxes and the names in the LAYERS column
+            _p = select_column(_grid, 'LAYERS')
+            self.assertIsNotNone(_p)
+            _sources = {type(_r.glyph): _r.data_source for _r in _p.renderers}
+            self.assertIs(_sources[Rect], _sources[Text])
+            return _sources[Rect]
+
+        lm = LaminarModel(resolution=Q_(0.1, 'm'), avo_or_eei='avo')
+        draw_output = lm.draw()
+        layers_cds = layer_glyph_sources(draw_output[5])
+        self.assertEqual(['Top', 'Reservoir', 'Bottom'], layers_cds.data['name'])
+
+        # An edit of the model table (a 'patching' event) updates the colors and names of the layers in the browser,
+        # like the working intervals table does
+        model_cds = draw_output[3].select_one({'type': DataTable}).source
+        callbacks = [_c for _c in model_cds.js_property_callbacks.get('patching', []) if _c.args.get('layers') is not None]
+        self.assertEqual(1, len(callbacks))
+        self.assertIs(layers_cds, callbacks[0].args['layers'])
+        self.assertIs(model_cds, callbacks[0].args['model'])
+        # The names are still there after the model is updated from the table
+        for _callback in draw_output[4].children[2]._event_callbacks['button_click']:
+            _callback()
+        self.assertEqual(['Top', 'Reservoir', 'Bottom'], layers_cds.data['name'])
+
+        # In the quasi 2D model, the layer boxes follow the selected trace
+        wedge = Layer('Wedge', 'Base', thickness=lambda _i: Q_(20. - _i, 'm'), litho_fluid=l2)
+        lm_2d = LaminarModel(
+            model=Model(layers=[layer1, wedge, layer5], name='Q2D model', trace_index_range=np.arange(5)),
+            resolution=Q_(0.1, 'm'), avo_or_eei='avo')
+        draw_output = lm_2d.draw_2d()
+        layers_cds = layer_glyph_sources(draw_output[5])
+        np.testing.assert_allclose([50., 20., 50.], layers_cds.data['thickness'])
+        trace_selector = draw_output[6].children[0]
+        trace_selector.value = '3'
+        np.testing.assert_allclose([50., 17., 50.], layers_cds.data['thickness'])
+
+    def test_laminar_model_layers_width(self):
+        from blixt_geo_py.plotting.log_plotter import select_column
+
+        # The width of the layer names column is relative to a synthetic column, and the synthetic columns keep their
+        # width
+        widths = {}
+        for _layers_width in [0.25, 0.5]:
+            grid = LaminarModel(resolution=Q_(0.1, 'm'), layers_width=_layers_width).draw()[5]
+            synth_width = select_column(grid, 'SYNTH_BASE').width
+            self.assertAlmostEqual(_layers_width, select_column(grid, 'LAYERS').width / synth_width, delta=0.01)
+            widths[_layers_width] = synth_width
+        self.assertAlmostEqual(widths[0.25], widths[0.5], delta=2)
+
+        wedge = Layer('Wedge', 'Base', thickness=lambda _i: Q_(20. - _i, 'm'), litho_fluid=l2)
+        grid = LaminarModel(
+            model=Model(layers=[layer1, wedge, layer5], trace_index_range=np.arange(5)),
+            resolution=Q_(0.1, 'm'), layers_width=0.5).draw_2d()[5]
+        self.assertAlmostEqual(0.5 / 1.4, select_column(grid, 'LAYERS').width / select_column(grid, 'SYNTH_2D').width,
+                               delta=0.01)
+
+        # A width of 0 leaves the column out
+        self.assertIsNone(select_column(LaminarModel(resolution=Q_(0.1, 'm'), layers_width=0).draw()[5], 'LAYERS'))
+        grid = LaminarModel(
+            model=Model(layers=[layer1, wedge, layer5], trace_index_range=np.arange(5)),
+            resolution=Q_(0.1, 'm'), layers_width=0).draw_2d()[5]
+        self.assertIsNone(select_column(grid, 'LAYERS'))
 
     def test_model_name_survives_taking_a_trace(self):
         model = Model(layers=[layer1, layer2, layer5], name='Q2D model', trace_index_range=np.arange(3))

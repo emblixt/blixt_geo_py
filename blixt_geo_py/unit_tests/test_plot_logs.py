@@ -428,6 +428,29 @@ class TestPlot(unittest.TestCase):
         case_selector.value = 'Base'
         np.testing.assert_allclose(base_synthetic, image.data_source.data['value'][0])
 
+        # The model layers are named in their own column, just left of the model synthetic
+        column_names = [_c[0].name for _c in grid.children]
+        self.assertEqual(column_names.index('MODEL_SYNTH') - 1, column_names.index('LAYERS'))
+        layers_column = grid.children[column_names.index('LAYERS')][0]
+        layer_names = [_r.data_source.data['name'] for _r in layers_column.renderers
+                       if isinstance(_r, GlyphRenderer)][0]
+        self.assertEqual(['Top', 'Reservoir', 'Bottom'], layer_names)
+
+        # A layers_width of 0 leaves the column out, and the model synthetic still follows the case
+        output = bupp.compare_synth_with_seismic(
+            well,
+            LogTable({'Volume': 'vcl'}),
+            LogTable({'Density': 'rho_dry', 'P velocity': 'vp_dry', 'S velocity': 'vs_dry'}),
+            model=model, layers_width=0)
+        grid, case_selector = output[0], output[-1]
+        self.assertNotIn('LAYERS', [_c[0].name for _c in grid.children])
+        model_column = [_c[0] for _c in grid.children if _c[0].name == 'MODEL_SYNTH'][0]
+        image = [_r for _r in model_column.renderers
+                 if isinstance(_r, GlyphRenderer) and isinstance(_r.glyph, Image)][0]
+        base_synthetic = np.array(image.data_source.data['value'][0])
+        case_selector.value = 'Oil'
+        self.assertFalse(np.array_equal(base_synthetic, image.data_source.data['value'][0]))
+
     def test_plot_trends(self):
         # Only have Well A active in the project table
         log_table = LogTable({'Density': 'rho_dry', 'P velocity': 'vp_dry', 'S velocity': 'vs_dry',
