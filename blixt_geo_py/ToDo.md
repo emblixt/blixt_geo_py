@@ -32,7 +32,7 @@ Many functions could use a mask, and its description, as input. See blixt_rp.rp_
 ~~Add a "write_las" function to both LogCurves, Blocks, and Wells (one lasfile per block)~~
 
 #### 2025-11-10 
-Move rp_core.py functions to rp_core_new and let them use Pint instead of params
+~~Move rp_core.py functions to rp_core_new and let them use Pint instead of params~~ The fix is now in rp_core.py
 
 Figure out why the LithoFluidsTable doesnt work in avo_chi_plotter.py
 
@@ -169,3 +169,8 @@ Collected on 2026-11-03. Each item gives the file (relative to this folder), the
 - ~~Create a similar plot as plot_gardner() but which plots acoustic impedance (Vp*Rho) against Vp/Vs. No regression is needed, only plot the data~~ (StatsCalculation.plot_elastics())
 - ~~Is the "Update" button in the LithoFluidsTable really necessary?~~  Edited cell values still need "Update"
 - ~~The title of the 1D model synthetic in compare_synth_with_seismic() doesn't update when shifting the model Case~~ (the synthetic now also follows the Case, without pressing "Update")
+
+### 2026-11-05
+- When plotting rdep & rmed in PL1294S.py (plot_well_logs()), they don't show up! Could it be a weakness in WellPlotter?
+- In WellPlotter, add the title centered over all columns, instead of one at each column
+- Plot model layer names (f.ex. in compare_synth_with_seismic() and LaminarModel) in separate plot column just like the working intervals are plottet

@@ -709,7 +709,7 @@ class StatsCalculation:
         return figs
 
     def plot_logs_vs_burial_depth(self, results: dict, file_name: str | None = 'logs_vs_burial_depth.png',
-                                  max_intervals: int = 5) -> list:
+                                  max_intervals: int = 4) -> list:
         """
         QC plot of how much the statistics of each interval are affected by its burial depth varying between the
         wells. Plots each log versus burial depth (TVD below the sea floor), one row per interval, with:
@@ -794,7 +794,7 @@ class StatsCalculation:
                         n_wells = len([_w for _w, _d in stats.per_well.items()
                                        if _w in stats.burial_depth and _log_in_well(_d, log_name)])
                         ax.set_title(
-                            '{} well{}, {:+.3g} {} per 100 m, R2 = {:.2f}\nStd {:.3g}, without trend {:.3g}'.format(
+                            '{} well{}, {:+.3g} {} per 100 m, R2 = {:.2f}\nStd {:.3g}, after de-trend {:.3g}'.format(
                                 n_wells, '' if n_wells == 1 else 's', 100. * trend['slope'], units, trend['r2'],
                                 trend['std'], trend['std_detrended']),
                             fontsize=7, loc='left')
