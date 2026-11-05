@@ -6,13 +6,13 @@ import blixt_geo_py.unit_tests.plot_settings  # noqa: F401
 from copy import deepcopy
 
 import numpy as np
-from bokeh.models import ColumnDataSource, Div
+from bokeh.models import ColumnDataSource, Div, GridPlot
 from bokeh.plotting import figure, show, row, column
 
 from blixt_geo_py import Q_
 from blixt_geo_py.core.seismic import SeismicTraces, test_data_length
 from blixt_geo_py.plotting.log_plotter import (LogPlotter, LogColumn, Line, WellPlotter, create_column_figure,
-                                               add_strat_table)
+                                               add_strat_table, get_grid_plot, find_figures)
 
 test_file_dir = str(os.path.dirname(__file__).replace(
     'blixt_geo_py\\unit_tests',
@@ -195,7 +195,7 @@ class TestCases(unittest.TestCase):
         well, cutoffs = make_well_data()
         column_content = [['vsh'], ['phie'], ['vp_dry', 'vp_sg08']]
         well_plot = WellPlotter(well, column_content)
-        grid = well_plot.draw()
+        grid = well_plot.draw(title=well.name)
         settings_table = well_plot.add_settings(grid)
         show(row(grid, settings_table))
 
@@ -216,6 +216,25 @@ class TestCases(unittest.TestCase):
         grid = well_plot.draw(title=well.name)
         show(grid)
 
+    def test_well_plotter_title(self):
+        well = make_well_d_data()
+        well_plot = WellPlotter(well, [['den', 'neu'], ['rdep', 'rmed', 'rsha']], scales=['linear', 'log'])
+        # Without a title, draw() returns the gridplot
+        self.assertIsInstance(well_plot.draw(), GridPlot)
+        # With a title, it is one Div centered over all columns, and the columns themselves have no title
+        layout = well_plot.draw(title=well.name)
+        title_div, grid = layout.children
+        self.assertIsInstance(title_div, Div)
+        self.assertIn(well.name, title_div.text)
+        self.assertIn('text-align:center', title_div.text)
+        self.assertIs(grid, get_grid_plot(layout))
+        figures = find_figures(grid)
+        self.assertEqual(2, len(figures))
+        self.assertEqual(sum([_f.width for _f in figures]), title_div.width)
+        for _f in figures:
+            self.assertTrue(_f.title is None or _f.title.text in [None, ''])
+        show(layout)
+
     def test_well_plotter_ext_toolbar(self):
         well, cutoffs = make_well_data()
         column_content = [['vsh'], ['phie'], ['vp_dry', 'vp_sg08']]
@@ -231,8 +250,8 @@ class TestCases(unittest.TestCase):
         # Create a four-column plot
         column_content = [['vsh'], [], ['phie'], ['vp_dry', 'vp_sg08']]
         well_plot = WellPlotter(well, column_content, rel_widths=[1., 0.3, 1., 1.])
-        grid = well_plot.draw()
-        data_table = add_strat_table(grid,
+        # The title is centered over all columns, and add_strat_table() finds the gridplot below it
+        layout = well_plot.draw(title=well.name)
+        data_table = add_strat_table(layout,
                                      stratigraphy=wis.get_intervals_dict(well.name), width=800, column_index=1)
-        title = Div(text='<h2>{}</h2>'.format(well.name))
-        show(column(title, grid, data_table))
+        show(column(layout, data_table))

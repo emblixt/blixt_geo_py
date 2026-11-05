@@ -9,7 +9,7 @@ import numpy as np
 from bokeh.io import output_file
 from bokeh.layouts import gridplot
 from bokeh.layouts import row, column, Spacer
-from bokeh.models import BoxSelectTool, GridBox, GridPlot, Row, Column
+from bokeh.models import BoxSelectTool, GridBox, GridPlot, Row, Column, Div
 from bokeh.models import (DataTable, NumberEditor, SelectEditor, StringEditor, StringFormatter,
                           IntEditor, TableColumn, CheckboxEditor, Rect, HTMLTemplateFormatter, Tool)
 from bokeh.models import PanTool, WheelZoomTool, ResetTool, SaveTool, CrosshairTool, HoverTool, ColorBar, LogColorMapper
@@ -164,6 +164,9 @@ class LogPlotter:
     def add_settings(self, grid: gridplot, width=None):
         from blixt_geo_py.core.core import TemplatesTable
 
+        # grid can be the column layout returned by draw() when it is given a title
+        grid = get_grid_plot(grid)
+
         code = """
             const data = source.data;
             const cols = Object.keys(data);
@@ -289,7 +292,16 @@ class LogPlotter:
 
         return table, table_buttons, apply_mask, reset_mask
 
-    def draw(self, title: str | None = None) -> gridplot:
+    def draw(self, title: str | None = None) -> GridPlot | Column:
+        """
+        Draws the columns side by side, with a common y-axis
+        :param title:
+            str
+            Title shown centered over all columns
+        :return:
+            The gridplot of the columns, or, if a title is given, a column layout with the title above the gridplot.
+            Use get_grid_plot() to get the gridplot out of the column layout
+        """
         children = []
         lines = []
         _w = Span(dimension="width", line_dash="dashed", line_width=1)
@@ -299,8 +311,7 @@ class LogPlotter:
                                       _y_range_flipped=i==0,
                                       _x_axis_visible=len(_column) > 0,
                                       _y_axis_visible=i==0,
-                                      _tools=self._tools,
-                                      _title=title)
+                                      _tools=self._tools)
             _p.name = _column.name
             _p.output_backend = 'svg'
             children.append(_p)
@@ -313,7 +324,18 @@ class LogPlotter:
         _grid_plot = gridplot([[_child for _child in children]],
                         toolbar_location='right', merge_tools=True)
 
-        return _grid_plot
+        if title is None:
+            return _grid_plot
+        return column(self.title_div(title), _grid_plot)
+
+    def title_div(self, title: str) -> Div:
+        """
+        Returns a Div with the title, centered over the width of all the columns
+        """
+        _width = sum([int(_column.rel_width * self.column_width) for _column in self.columns])
+        title_txt = '<div style="font-size:16px; font-weight:600; margin-bottom:0px; text-align:center; '
+        title_txt += 'width:{}px">{}</div>'.format(_width, title)
+        return Div(text=title_txt, width=_width)
 
     def draw_ext_toolbar(self, title: str | None = None):
         """
@@ -334,8 +356,7 @@ class LogPlotter:
                 _y_range_flipped = i==0,
                 _x_axis_visible = len(_column) > 0,
                 _y_axis_visible = i==0,
-                _tools = self._tools,
-                _title = title
+                _tools = self._tools
             )
             _p.name = _column.name
             children.append(_p)
@@ -378,7 +399,9 @@ class LogPlotter:
 
         final_layout = row(grid, master_fig.toolbar)
 
-        return final_layout
+        if title is None:
+            return final_layout
+        return column(self.title_div(title), final_layout)
 
 
 class LogColumn:
@@ -906,6 +929,8 @@ def add_strat_table(_p: bokeh.plotting.figure,
         visualization of intervals (colored rectangles) in this column
     :return:
     """
+    # _p can be the column layout returned by LogPlotter.draw() when it is given a title
+    _p = get_grid_plot(_p)
     if width is None:
         width = 600
     code = """
@@ -1086,6 +1111,21 @@ def add_strat_table(_p: bokeh.plotting.figure,
         index_width=60)
 
 
+def get_grid_plot(layout: LayoutDOM) -> GridPlot | LayoutDOM:
+    """
+    Returns the first GridPlot found in the layout, e.g. the gridplot in the column layout returned by
+    LogPlotter.draw() when it is given a title. Returns the layout itself if it contains no GridPlot
+    """
+    if isinstance(layout, GridPlot):
+        return layout
+    if isinstance(layout, (Row, Column)):
+        for child in layout.children:
+            _grid = get_grid_plot(child)
+            if isinstance(_grid, GridPlot):
+                return _grid
+    return layout
+
+
 def select_column(grid: gridplot, column_name: str) -> figure:
     """
     Return the figure (column) named column_name of the gridplot grid
@@ -1112,6 +1152,7 @@ def select_line(grid: gridplot, line_name: str) -> bokeh.models.Line | None:
         Line or None if not found
     """
     from bokeh.models import Line
+    grid = get_grid_plot(grid)
     _line = None
     for _i, _child in enumerate(grid.children):
         _line = _child[0].select_one({'name': line_name})
