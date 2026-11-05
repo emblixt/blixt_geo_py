@@ -6,7 +6,7 @@ import blixt_geo_py.unit_tests.plot_settings  # noqa: F401
 from copy import deepcopy
 
 import numpy as np
-from bokeh.models import ColumnDataSource
+from bokeh.models import ColumnDataSource, Div
 from bokeh.plotting import figure, show, row, column
 
 from blixt_geo_py import Q_
@@ -17,6 +17,7 @@ from blixt_geo_py.plotting.log_plotter import (LogPlotter, LogColumn, Line, Well
 test_file_dir = str(os.path.dirname(__file__).replace(
     'blixt_geo_py\\unit_tests',
     'test_data'))
+project_table = os.path.join(test_file_dir.replace('test_data', 'excels'), 'project_table.xlsx')
 
 
 def make_test_data():
@@ -32,7 +33,6 @@ def make_test_data():
 def make_well_data():
     from blixt_geo_py.core.well import Well
     from blixt_geo_py.core.core import LogTable, CutoffRule, Cutoffs
-    project_table = os.path.join(test_file_dir.replace('test_data', 'excels'), 'project_table.xlsx')
     las_file3 = os.path.join(test_file_dir, "Well F.las")
     log_table = LogTable({
         'P velocity': ['Vp_dry', 'Vp_Sg08'],
@@ -184,3 +184,31 @@ class TestCases(unittest.TestCase):
         grid = well_plot.draw()
         settings_table = well_plot.add_settings(grid)
         show(row(grid, settings_table))
+
+    def test_well_plotter_columns(self):
+        well, cutoffs = make_well_data()
+        # One column of log names for each column in the plot
+        well_plot = WellPlotter(well, [['vsh'], ['phie'], ['vp_dry', 'vp_sg08']], buffer=50.)
+        self.assertIsInstance(well_plot, WellPlotter)
+        self.assertEqual(3, len(well_plot.columns))
+
+    def test_well_plotter_ext_toolbar(self):
+        well, cutoffs = make_well_data()
+        column_content = [['vsh'], ['phie'], ['vp_dry', 'vp_sg08']]
+        well_plot = WellPlotter(well, column_content, rel_widths=[1., 1., 1.])
+        show(well_plot.draw_ext_toolbar())
+
+    def test_well_plotter_with_strat_table(self):
+        from blixt_geo_py.core.core import Intervals
+        well, cutoffs = make_well_data()
+        wis = Intervals()
+        wis.read_blixt_tops(project_table)
+
+        # Create a four-column plot
+        column_content = [['vsh'], [], ['phie'], ['vp_dry', 'vp_sg08']]
+        well_plot = WellPlotter(well, column_content, rel_widths=[1., 0.3, 1., 1.])
+        grid = well_plot.draw()
+        data_table = add_strat_table(grid,
+                                     stratigraphy=wis.get_intervals_dict(well.name), width=800, column_index=1)
+        title = Div(text='<h2>{}</h2>'.format(well.name))
+        show(column(title, grid, data_table))

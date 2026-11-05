@@ -7,11 +7,9 @@ from blixt_geo_py.unit_tests.plot_settings import show_or_close
 import blixt_geo_py.io.io as uio
 import matplotlib.pyplot as plt
 from blixt_geo_py.plotting.helpers import header_plot, axis_plot
-from blixt_geo_py.plotting.log_plotter import LogPlotter
 from blixt_geo_py.plotting.plot_logs import plot_logs
 
-from blixt_geo_py import Q_
-from blixt_geo_py.core.core import Interval, Intervals, LogTable, StratUnit
+from blixt_geo_py.core.core import LogTable
 from blixt_geo_py.core.project import Project
 from blixt_geo_py.core.well import Well
 
@@ -27,17 +25,6 @@ class PlotTestCase(unittest.TestCase):
         'Resistivity': ['rdep', 'rmed', 'rsha'],
         'Neutron density': 'neu'})
 
-    # Working intervals, as top and base in meters MD
-    working_intervals = {
-        'SAND C': [1585.0, 1826.0],
-        'SHALE C': [1585.0, 1826.0],
-        'SAND D': [1826.0, 1878.0],
-        'SAND E': [1878.0, 1984.0],
-        'SAND F': [1984.0, 2158.0],
-        'SHALE G': [2158.0, 2211.0],
-        'SAND H': [2211.0, 2365.0]
-    }
-
     @classmethod
     def setUpClass(cls):
         cls.wp = Project(name='MyProject')
@@ -45,9 +32,6 @@ class PlotTestCase(unittest.TestCase):
         cls.w.read_las(os.path.join(cls.wp.working_dir, 'test_data', 'Well D.las'), log_table=cls.log_table)
         # The md log is used as the depth axis
         cls.w.create_md_log()
-        cls.wis = Intervals(intervals=[
-            Interval(cls.w.name, Q_(top, 'm'), Q_(base, 'm'), StratUnit(wi_name, 1))
-            for wi_name, (top, base) in cls.working_intervals.items()])
 
     def test_axis_header(self):
         templ = uio.project_templates(PlotTestCase.wp.project_table)
@@ -80,10 +64,9 @@ class PlotTestCase(unittest.TestCase):
 
         show_or_close()
 
-    def test_plot_logs(self):
-        # One column of log names for each column in the plot
-        plotter = plot_logs(PlotTestCase.w, [['ac', 'acs'], ['den', 'neu'], ['rdep', 'rmed', 'rsha']],
-                            PlotTestCase.wis, ['SAND E'], buffer=50.)
-        with self.subTest():
-            self.assertIsInstance(plotter, LogPlotter)
-            self.assertEqual(3, len(plotter.columns))
+    def test_plot_logs_is_retired(self):
+        # plot_logs() only warns about its replacement, and plots nothing
+        with self.assertLogs('blixt_geo_py.plotting.plot_logs', level='WARNING') as logs:
+            result = plot_logs(PlotTestCase.w, [['ac', 'acs']])
+        self.assertIsNone(result)
+        self.assertIn('Use WellPlotter instead', logs.output[0])

@@ -55,85 +55,9 @@ def plot_logs(well: cw.Well,
               scales: list | None = None,
               rel_widths: list | None = None):
     """
-    Attempts to plot logs side by side, or together, in different "columns", utilizing the interactive plotting
-    possibilities in bokeh
-    :param well:
-        well object, new format from well.py
-    :param log_columns:
-        list
-        List  of lists that contain the names of the logs to plot in each column
-        E.G.
-            [['rhob', 'neu'], ['vp', 'vs']]
-    :param wis:
-        Intervals
-        Container of working intervals,
-    :param wi_names:
-        optional list of strings
-        Name of working intervals to use in this plot
-        set to None to plot whole well
-    :param buffer:
-        float
-        distance in meters
-        Log is plotted from top of working interval - buffer to base of working interval + buffer
-        Default is 50 m
-    :param width:
-    :param height:
-    :param scales:
-        list of strings determining the x scale of each column
-        ['log', 'linear'
-    :param rel_widths:
-        list of floats determining the relative width of each column
-        [1., 2., 1.
-    :return:
+    Retired, use the WellPlotter class in log_plotter.py instead. This function only issues a warning, and plots nothing
     """
-    from bokeh.models import BooleanFilter, CDSView
-
-    # This is necessary if we want to be able to use cutoffs to mask out data
-    data_source = well.data_source()
-    common_cds = data_source.cds
-    print_info('Please consider using the WellPlotter class instead, which will replace this function',
-               'warning', logger)
-
-    # Check that the requested logs exists in the well
-    for _col in log_columns:
-        # Iterate over a copy of the list by slicing!
-        for _log in _col[:]:
-            if _log not in well.get_log_names:
-                print_info('Log {} does not exist in {}'.format(_log, well.name), 'warning', logger)
-                # flat_list.remove(_log)
-                _col.remove(_log)
-
-    if scales is None:
-        scales = ['linear'] * len(log_columns)
-    if rel_widths is None:
-        rel_widths = [1.] * len(log_columns)
-    if buffer is None:
-        buffer = 50.
-    if width is None:
-        width = 800.
-    if height is None:
-        height = 1000.
-
-    if isinstance(wi_names, str):
-        wi_names = list(wi_names)
-
-    # Gather data that should be plotted in each of the columns
-    plot_columns = []
-    for _i, _c in enumerate(log_columns):
-        plot_columns.append(
-            LogColumn(
-                'column_{}'.format(str(_i)),
-                rel_width=rel_widths[_i],
-                # lines=[well.get_log_curve(_l).get_line() for _l in _c],
-                lines=[Line(x=_l, y='depth', cds=common_cds, style=data_source.templates[_l]) for _l in _c],
-                scale=scales[_i])
-        )
-    # for i, _c in enumerate(plot_columns):
-    #     print(i)
-    #     for _l in _c.lines:
-    #         print(_l.x_range)
-    plotter = LogPlotter(width=800, height=1000, columns = plot_columns)
-    return plotter
+    print_info('Use WellPlotter instead', 'warning', logger)
 
 def plot_chi_rotation(well: cw.Well,
                       brine_log_table: LogTable,
@@ -1160,7 +1084,6 @@ def interactive_edits(well: cw.Well,
     save_result = Button(label='Save to .las file', button_type='success')
 
     # Create a column plot with the requested logs
-    # plotter = plot_logs(well, log_columns)
     plotter = WellPlotter(well, log_columns)
 
     # add the smoothened data to each column

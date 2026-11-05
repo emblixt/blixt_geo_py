@@ -81,7 +81,7 @@ pint units into use.~~
 - ~~Let LogTable handle mixed single log names and lists of log names, so that read_las() can read them~~
 - ~~Cutoffs.use_log_table() does not support multi log LogTables~~
 - test_well and test_plot_logs read las files from T:\ and OneDrive, and one test waits for input()
-- LogPlotter.add_cutoffs_table() is called with a 'rules' argument it does not have (test_plot_logs)
+- ~~LogPlotter.add_cutoffs_table() is called with a 'rules' argument it does not have (test_plot_logs)~~
 - unit_tests/main.py imports test_models, which it can't find
 
 ### 2026-11-02

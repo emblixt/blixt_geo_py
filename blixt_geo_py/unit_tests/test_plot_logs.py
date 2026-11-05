@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pint.errors
 from bokeh.io import output_file
-from bokeh.models import ColumnDataSource, Spinner, Select, Button, Slider, CheckboxGroup, Div
+from bokeh.models import ColumnDataSource, Spinner, Select, Button, Slider, CheckboxGroup
 from bokeh.plotting import show, row, column
 
 from .. import Q_
@@ -19,11 +19,11 @@ from .. import Q_
 
 # from AkerBP_PL932.PL923_AVO import cutoffs
 from blixt_geo_py.core.log_curve import read_las, read_general_ascii
-from blixt_geo_py.core.core import Template, LogTable, Intervals, Cutoffs, CutoffRule
+from blixt_geo_py.core.core import Template, LogTable, Intervals
 from blixt_geo_py.core.well import Well
 from blixt_geo_py.core.project import Project
 import blixt_geo_py.plotting.plot_logs as bupp
-from blixt_geo_py.plotting.log_plotter import LogColumn, Line, add_lines, add_strat_table, LogPlotter
+from blixt_geo_py.plotting.log_plotter import LogColumn, Line, add_lines, LogPlotter, WellPlotter
 from blixt_geo_py.core.seismic import SeismicTraces, interpolate_along_offset
 
 test_file_dir = str(os.path.dirname(__file__).replace(
@@ -39,7 +39,6 @@ project_table2 = "C:\\Users\\emb\\OneDrive - Petrolia NOCO AS\\Technical work\\P
 
 las_file1 = os.path.join(test_file_dir, "L-30.las")
 las_file2 = "T:\\ROKDOC\\PL936\\To Partners from Ikon\\To Partners\\las files\\6406_11_1s.las"
-las_file3 = os.path.join(test_file_dir, "Well F.las")
 data_file2 = "S:\\Well\\UTM32_Mid_Norway_All\\Q-6406\\6406_11_1_S\\6406_11_1_S___checkshot.txt"
 
 n = 1500
@@ -58,69 +57,6 @@ log_table3 = LogTable({'Density': 'rho_brine', 'P velocity': 'vp_brine', 'S velo
 
 
 class TestPlot(unittest.TestCase):
-
-    def test_plot_logs(self):
-
-        log_table = LogTable({
-            'P velocity': ['Vp_dry', 'Vp_Sg08'],
-            'Porosity': ['PHIE'],
-            'Volume': ['VSH']
-        })
-        well1 = Well()
-        well1.read_las(las_file3, log_table=log_table, template_file=project_table)
-        print(well1.name)
-        column_content = [['vsh'], ['phie'], ['vp_dry', 'vp_sg08']]
-        plotter = bupp.plot_logs(well1, column_content, rel_widths=[1., 1., 1.])
-        grid = plotter.draw_ext_toolbar()
-        # _p_one = select_column(grid, 'column_1')
-        # print(_p_one)
-        # _p_none = select_column(grid, 'XXX')
-        # print(_p_none)
-        # _line_vp_dry = select_line(grid, 'vp_dry')
-        # print(_line_vp_dry)
-        show(grid)
-
-    def test_plot_logs_with_settings(self):
-        log_table = LogTable({
-            'P velocity': ['Vp_dry', 'Vp_Sg08'],
-            'Porosity': ['PHIE'],
-            'Volume': ['VSH']
-        })
-        well1 = Well()
-        well1.read_las(las_file3, log_table=log_table, template_file=project_table)
-        print(well1.name)
-        column_content = [['vsh'], ['phie'], ['vp_dry', 'vp_sg08']]
-        plotter = bupp.plot_logs(well1, column_content, rel_widths=[1., 1., 1.])
-        grid = plotter.draw()
-        settings = plotter.add_settings(grid)
-        show(row(grid, settings))
-
-    def test_plot_logs_with_cutoffs(self, unit_test=True):
-        rule1 = CutoffRule('vp_dry', '>', Q_(3000, 'm/s'))
-        rule2 = CutoffRule('phie', '<', Q_(0.1, ''))
-        rule3 = CutoffRule('vsh', '>', Q_(0.4, ''))
-
-        log_table = LogTable({
-            'P velocity': ['Vp_dry', 'Vp_Sg08'],
-            'Porosity': ['PHIE'],
-            'Volume': ['VSH']
-        })
-        well1 = Well()
-        well1.read_las(las_file3, log_table=log_table, template_file=project_table)
-        print(well1.name)
-        column_content = [['vsh'], ['phie'], ['vp_dry', 'vp_sg08']]
-        plotter = bupp.plot_logs(well1, column_content, rel_widths=[1., 1., 1.])
-        grid = plotter.draw()
-        table, add_row, delete_row, update, apply_mask, reset_mask = plotter.add_cutoffs_table(grid, rules=[rule1, rule2, rule3])
-        if unit_test:
-            show(
-                row(
-                    grid, column(
-                        table,
-                        row(add_row, delete_row, update, apply_mask, reset_mask)
-                    )
-                )
-            )
 
     def test_plot_with_backus(self):
         log_table = LogTable({
@@ -146,8 +82,8 @@ class TestPlot(unittest.TestCase):
                 curve.style = Template(**{'min': 40., 'max': 180., 'line_color': 'red'})
 
         # Create a two-column plot
-        plotter = bupp.plot_logs(well1, [['rdep', 'rmed', 'rmic'], ['vp_brine', 'vp_oil70', 'vp_gas70']],
-                                 scales=['log', 'linear'])
+        plotter = WellPlotter(well1, [['rdep', 'rmed', 'rmic'], ['vp_brine', 'vp_oil70', 'vp_gas70']],
+                              scales=['log', 'linear'])
         # Add a new column
         ai_column = LogColumn('AI plots')
         plotter.add_column(ai_column, keep_column_width=False)
@@ -210,7 +146,7 @@ class TestPlot(unittest.TestCase):
 
         # Create a three-column plot
         column_content = [['vp_brine'], ['vs_brine'], ['rho_brine']]
-        plotter = bupp.plot_logs(well1, column_content)
+        plotter = WellPlotter(well1, column_content)
 
         # add the smoothened data to each column
         line_cdss = []
@@ -298,27 +234,6 @@ class TestPlot(unittest.TestCase):
         wis.read_blixt_tops(project_table)
 
         return bupp.interactive_edits(well1, log_columns, wis=wis)
-
-    def test_add_strat_table(self):
-        log_table = LogTable({
-            'P velocity': ['Vp_dry', 'Vp_Sg08'],
-            'Porosity': ['PHIE'],
-            'Volume': ['VSH']
-        })
-        well1 = Well()
-        well1.read_las(las_file3, log_table=log_table, template_file=project_table)
-        print(well1.name)
-        wis = Intervals()
-        wis.read_blixt_tops(project_table)
-
-        # Create a four-column plot
-        column_content = [['vsh'], [], ['phie'], ['vp_dry', 'vp_sg08']]
-        plotter = bupp.plot_logs(well1, column_content, rel_widths=[1., 0.3, 1., 1.])
-        grid = plotter.draw()
-        data_table = add_strat_table(grid,
-                                     stratigraphy=wis.get_intervals_dict(well1.name), width=800, column_index=1)
-        title = Div(text='<h2>{}</h2>'.format(well1.name))
-        show(column(title, grid, data_table))
 
     def test_get_wiggles(self):
         log_curves, well_info = read_las(las_file2, log_table=log_table3)
