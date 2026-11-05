@@ -171,6 +171,6 @@ Collected on 2026-11-03. Each item gives the file (relative to this folder), the
 - ~~The title of the 1D model synthetic in compare_synth_with_seismic() doesn't update when shifting the model Case~~ (the synthetic now also follows the Case, without pressing "Update")
 
 ### 2026-11-05
-- When plotting rdep & rmed in PL1294S.py (plot_well_logs()), they don't show up! Could it be a weakness in WellPlotter?
+- ~~When plotting rdep & rmed in PL1294S.py (plot_well_logs()), they don't show up! Could it be a weakness in WellPlotter?~~ (unit_tests/test_log_plotter.py, test_well_plotter_resistivity_log_scale() plots den & neu, and rdep, rmed & rsha on a log scale, from Well D)
 - In WellPlotter, add the title centered over all columns, instead of one at each column
 - Plot model layer names (f.ex. in compare_synth_with_seismic() and LaminarModel) in separate plot column just like the working intervals are plottet

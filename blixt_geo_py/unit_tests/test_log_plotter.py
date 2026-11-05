@@ -46,6 +46,20 @@ def make_well_data():
     well.read_las(las_file3, log_table=log_table, template_file=project_table)
     return well, Cutoffs([rule1, rule2, rule3])
 
+def make_well_d_data():
+    # Well D has density, neutron and resistivity (deep, medium & shallow) logs
+    from blixt_geo_py.core.well import Well
+    from blixt_geo_py.core.core import LogTable
+    las_file = os.path.join(test_file_dir, "Well D.las")
+    log_table = LogTable({
+        'Density': 'den',
+        'Neutron density': 'neu',
+        'Resistivity': ['rdep', 'rmed', 'rsha']
+    })
+    well = Well()
+    well.read_las(las_file, log_table=log_table, template_file=project_table)
+    return well
+
 
 class TestCases(unittest.TestCase):
     def test_log_plotter1(self):
@@ -191,6 +205,16 @@ class TestCases(unittest.TestCase):
         well_plot = WellPlotter(well, [['vsh'], ['phie'], ['vp_dry', 'vp_sg08']], buffer=50.)
         self.assertIsInstance(well_plot, WellPlotter)
         self.assertEqual(3, len(well_plot.columns))
+
+    def test_well_plotter_resistivity_log_scale(self):
+        well = make_well_d_data()
+        # Density & neutron in the first column, the resistivity logs in the second column on a logarithmic scale
+        column_content = [['den', 'neu'], ['rdep', 'rmed', 'rsha']]
+        well_plot = WellPlotter(well, column_content, scales=['linear', 'log'])
+        self.assertEqual(2, len(well_plot.columns))
+        self.assertEqual(['linear', 'log'], [_c.scale for _c in well_plot.columns])
+        grid = well_plot.draw(title=well.name)
+        show(grid)
 
     def test_well_plotter_ext_toolbar(self):
         well, cutoffs = make_well_data()
