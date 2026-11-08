@@ -277,6 +277,7 @@ class IntervalStats:
     per_well: dict = field(default_factory=dict)  # well name -> {log name: pint.Quantity}
     depth_from_top: dict = field(default_factory=dict)  # well name -> pint.Quantity
     burial_depth: dict = field(default_factory=dict)  # well name -> pint.Quantity in meter, for wells where it's known
+    project_to_burial_depth: pint.Quantity | None = None  # see StatsCalculation
 
     @property
     def label(self) -> str:
@@ -315,6 +316,41 @@ class IntervalStats:
         _units = self.per_well[_wells[0]][log_name].units
         return (Q_(np.concatenate([self.per_well[_w][log_name].to(_units).magnitude for _w in _wells]), _units),
                 np.concatenate([self.burial_depth[_w].to('m').magnitude for _w in _wells]))
+
+    @property
+    def projected_label(self) -> str:
+        return 'Projected to {:g} m'.format(self.project_to_burial_depth.to('m').magnitude)
+
+    def burial_depth_trend(self, log_name: str) -> dict | None:
+        """
+        Returns the linear trend of the given log versus burial depth, through the samples of all wells where the
+        burial depth is known, see linear_depth_trend(). None if the trend can't be calculated
+        """
+        values, depth = self.samples_with_burial_depth(log_name)
+        return None if values is None else linear_depth_trend(values.magnitude, depth)
+
+    def projected(self) -> dict:
+        """
+        Returns the data of all wells where the burial depth is known, for each log, where each sample is moved along
+        the linear trend of its log to the burial depth project_to_burial_depth. It is otherwise like combined(), so
+        that the mean is the value of the trend at that depth, and the standard deviation is the one around the trend
+
+        :return:
+            dict
+            {log name: pint.Quantity}
+            Only holds the logs with a linear trend, and is empty if project_to_burial_depth is None
+        """
+        if self.project_to_burial_depth is None:
+            return {}
+        target = self.project_to_burial_depth.to('m').magnitude
+        _projected = {}
+        for _log in self.log_table.log_names:
+            trend = self.burial_depth_trend(_log)
+            if trend is None:
+                continue
+            values, depth = self.samples_with_burial_depth(_log)
+            _projected[_log] = Q_(values.magnitude + trend['slope'] * (target - depth), values.units)
+        return _projected
 
     def vp_and_rho(self) -> dict:
         """
@@ -382,10 +418,14 @@ class IntervalStats:
     def summary(self) -> pd.DataFrame:
         """
         Returns the number of samples, mean, median, standard deviation, P10 and P90 of each log,
-        per well and for all wells together ('All')
+        per well, for all wells together ('All') and, with project_to_burial_depth, for all wells projected to that
+        burial depth ('Projected to ... m')
         """
         rows = []
         sources = list(self.per_well.items()) + [('All', self.combined())]
+        _projected = self.projected()
+        if len(_projected) > 0:
+            sources.append((self.projected_label, _projected))
         for _well_name, _data in sources:
             for _log_type, _log in self.log_table.items():
                 if _log not in _data:
@@ -491,7 +531,8 @@ class StatsCalculation:
                  log_table: LogTable | dict | list,
                  cutoffs: Cutoffs | str | dict | list | None = None,
                  suffix: str | list = '',
-                 working_dir: str | None = None):
+                 working_dir: str | None = None,
+                 project_to_burial_depth: pint.Quantity | None = None):
         """
         :param wells:
             list of Well, or dict of Well
@@ -520,7 +561,18 @@ class StatsCalculation:
         :param working_dir:
             str
             Folder where the figures are saved
+        :param project_to_burial_depth:
+            pint.Quantity of length
+            If given, there is one extra set of statistics per interval, similar to 'All': The samples of all wells
+            where the burial depth is known are moved along the linear trend of each log versus burial depth, to this
+            burial depth, before the statistics are calculated. See IntervalStats.projected().
+            It is included in summary(), plot_averages() and save_rokdoc_output(), and
+            plot_logs_vs_burial_depth() marks where the trends cross this burial depth
         """
+        if project_to_burial_depth is not None and not (isinstance(project_to_burial_depth, pint.Quantity)
+                                                        and project_to_burial_depth.check('[length]')):
+            raise ValueError('project_to_burial_depth must be a pint Quantity of length, not {}'.format(
+                project_to_burial_depth))
         if isinstance(wells, dict):
             wells = list(wells.values())
         for _well in wells:
@@ -552,6 +604,7 @@ class StatsCalculation:
             raise ValueError('The working intervals {} are repeated with the same suffix. Give each a different '
                              'suffix, e.g. suffix=["sand", "shale"]'.format(', '.join(_repeated)))
         self.working_dir = working_dir
+        self.project_to_burial_depth = project_to_burial_depth
 
     def run(self) -> dict:
         """
@@ -564,6 +617,7 @@ class StatsCalculation:
         for wi_name, cutoffs, log_table, suffix in zip(self.wi_names, self.cutoffs, self.log_tables, self.suffixes):
             print_info('Interval: {}. Cutoffs: {}'.format(wi_name, cutoffs), 'info', logger)
             stats = collect_interval_stats(self.wells, self.intervals, wi_name, log_table, cutoffs, suffix)
+            stats.project_to_burial_depth = self.project_to_burial_depth
             results[wi_name if self.wi_names.count(wi_name) == 1 else stats.label] = stats
         return results
 
@@ -698,6 +752,13 @@ class StatsCalculation:
                     mn, std = np.nanmean(combined[log_name].magnitude), np.nanstd(combined[log_name].magnitude)
                     ax.errorbar(mn, j, xerr=std, fmt='none', capsize=20, capthick=3, elinewidth=3, ecolor='pink')
                     ax.scatter(mn, j, marker='*', s=360, c='pink', label='All' if j == 0 else None)
+                projected = stats.projected()
+                if log_name in projected:
+                    mn, std = np.nanmean(projected[log_name].magnitude), np.nanstd(projected[log_name].magnitude)
+                    ax.errorbar(mn, j, xerr=std, fmt='none', capsize=20, capthick=2, elinewidth=2, ecolor='skyblue')
+                    ax.scatter(mn, j, marker='*', s=240, c='skyblue', edgecolors='k',
+                               label=stats.projected_label if stats.projected_label not in plotted_wells else None)
+                    plotted_wells.append(stats.projected_label)
             ax.grid(True)
             ax.legend(prop={'size': 10})
             ax.set_yticks(range(len(results)))
@@ -719,6 +780,7 @@ class StatsCalculation:
             - the standard deviation of all wells together, with and without the trend. When these differ, part of
               the spread of the combined statistics follows depth
             - the number of wells behind the trend. With one well it says nothing about the differences between wells
+            - with project_to_burial_depth, thin dashed lines where the trend crosses that burial depth
 
         The burial depth needs a TVD log, and the kelly bushing and water depth from the project table. Wells lacking
         any of these can't be included, they are listed in the title of the figure
@@ -788,6 +850,16 @@ class StatsCalculation:
                     trend = linear_depth_trend(x, depth)
                     if trend is not None:
                         y = np.array([np.min(depth[valid]), np.max(depth[valid])])
+                        if stats.project_to_burial_depth is not None:
+                            # Mark where the trend, extended if necessary, crosses the burial depth
+                            target = stats.project_to_burial_depth.to('m').magnitude
+                            y = np.array([min(y[0], target), max(y[1], target)])
+                            ax.axvline(trend['slope'] * target + trend['intercept'], color='k', ls='--', lw=0.7,
+                                       zorder=3)
+                            legend_items[stats.projected_label] = ax.axhline(target, color='k', ls='--', lw=0.7,
+                                                                             zorder=3)
+                            ax.text(0.98, target, '{:g} m'.format(target), transform=ax.get_yaxis_transform(),
+                                    ha='right', va='bottom', fontsize=7, zorder=6)
                         legend_items['Linear trend'] = ax.plot(trend['slope'] * y + trend['intercept'], y, 'k-', lw=1.5,
                                                                zorder=3)[0]
                         # With one well, the trend only shows the variation within that well
@@ -955,6 +1027,14 @@ class StatsCalculation:
                            for _log in stats.log_table.log_names}
                 write_rokdoc_sums_and_averages(file_name, _arrays, stats.wi_name, stats.log_table,
                                                str(stats.cutoffs), suffix, well_name=well_name)
+            projected = stats.projected()
+            if len(projected) > 0:
+                # Like the line of all wells, but its name tells the burial depth
+                _arrays = {_log: projected[_log].magnitude if _log in projected else np.array([np.nan])
+                           for _log in stats.log_table.log_names}
+                write_rokdoc_sums_and_averages(
+                    file_name, _arrays, stats.wi_name, stats.log_table, str(stats.cutoffs),
+                    '{}_projected_{:g}m'.format(suffix, stats.project_to_burial_depth.to('m').magnitude))
 
     def _save(self, fig, file_name: str | None):
         if self.working_dir is not None and file_name is not None:

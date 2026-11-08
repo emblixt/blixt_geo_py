@@ -793,6 +793,63 @@ class TestCases(unittest.TestCase):
         for _key in ['VpMean', 'VsMedian', 'RhoStdDev', 'PorosityMean', 'ShaleVolumeMean', 'VpVsCorrCoef']:
             self.assertEqual(-999.25, empty[_key])
 
+    def test_project_to_burial_depth(self):
+        """
+        With project_to_burial_depth, there are extra statistics of the samples moved along the linear trends, and
+        the burial depth plot marks where the trends cross that depth
+        """
+        _cutoffs = {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}
+        target = Q_(2., 'km')
+        stats = StatsCalculation(self.wells, self.wis, 'Sand F', log_table, _cutoffs, project_to_burial_depth=target)
+        results = stats.run()
+        interval = results['Sand F']
+        self.assertEqual('Projected to 2000 m', interval.projected_label)
+
+        # The mean is where the trend crosses the depth, and the spread is the one around the trend
+        summary = stats.summary(results)
+        rows = summary[summary['well'] == interval.projected_label].set_index('log')
+        self.assertEqual(len(log_table), len(rows))
+        for _log in log_table.values():
+            trend = interval.burial_depth_trend(_log)
+            self.assertAlmostEqual(trend['slope'] * 2000. + trend['intercept'], rows.loc[_log, 'mean'], places=6)
+            self.assertAlmostEqual(trend['std_detrended'], rows.loc[_log, 'std'], places=6)
+            self.assertEqual(trend['n'], rows.loc[_log, 'n'])
+
+        # Without the input, everything is as before
+        plain_stats = StatsCalculation(self.wells, self.wis, 'Sand F', log_table, _cutoffs)
+        plain_results = plain_stats.run()
+        self.assertEqual({}, plain_results['Sand F'].projected())
+        pd.testing.assert_frame_equal(plain_stats.summary(plain_results),
+                                      summary[summary['well'] != interval.projected_label].reset_index(drop=True))
+
+        # One extra line in the RokDoc output
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_name = os.path.join(tmp_dir, 'SumsAndAverages.xlsx')
+            stats.save_rokdoc_output(results, file_name)
+            lines = {_l['Name']: _l for _l in read_rokdoc_lines(file_name)}
+        line = lines['Sand F_projected_2000m']
+        self.assertEqual(2 + len(interval.per_well), len(lines))
+        self.assertEqual('NONE', line['Well'])
+        self.assertAlmostEqual(rows.loc[log_table['P velocity'], 'mean'], line['VpMean'], places=6)
+
+        # A vertical and a horizontal dashed line, for each log
+        fig = stats.plot_logs_vs_burial_depth(results, file_name=None)
+        fig = fig[0] if isinstance(fig, list) else fig
+        for _ax, _log in zip(fig.axes, interval.log_table.log_names):
+            dashed = [_l for _l in _ax.get_lines() if _l.get_linestyle() == '--']
+            self.assertEqual(2, len(dashed))
+            vertical, horizontal = dashed
+            self.assertAlmostEqual(rows.loc[_log, 'mean'], vertical.get_xdata()[0], places=6)
+            self.assertAlmostEqual(2000., horizontal.get_ydata()[0])
+            self.assertIn('2000 m', [_t.get_text() for _t in _ax.texts])
+        stats.plot_averages(results)
+        show_or_close()
+
+    def test_project_to_burial_depth_must_be_a_length(self):
+        for _wrong in [2000., Q_(2000., 'm/s')]:
+            with self.assertRaises(ValueError):
+                StatsCalculation(self.wells, self.wis, 'Sand F', log_table, project_to_burial_depth=_wrong)
+
     def test_save_rokdoc_output_lacking_logs(self):
         """
         An interval lacking some of the logs RokDoc needs is skipped, so no file is created here
