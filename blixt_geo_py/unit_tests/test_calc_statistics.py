@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -19,6 +20,7 @@ from blixt_geo_py.analysis.calc_statistics import (IntervalStats, StatsCalculati
 
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
 project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx')
+results_folder = os.path.join(project_dir, 'blixt_geo_py\\results_folder')
 
 log_table = {'P velocity': 'vp_dry', 'S velocity': 'vs_dry', 'Density': 'rho_dry', 'Porosity': 'phie',
              'Volume': 'vcl'}
@@ -44,6 +46,23 @@ def read_rokdoc_lines(file_name):
     header_index = [_r[0] for _r in rows].index('Name')
     columns = rows[header_index]
     return [dict(zip(columns, _r)) for _r in rows[header_index + 1:]]
+
+
+def open_for_inspection(file_name, inspection_name):
+    """
+    If show_plots is True (see plot_settings.py), copies a file written to a temporary folder by a test to the results
+    folder, under the name inspection_name, and opens it in the default program for that file type (e.g. Excel)
+    """
+    if not show_plots:
+        return
+    target = os.path.join(results_folder, inspection_name)
+    try:
+        shutil.copyfile(file_name, target)
+    except PermissionError:
+        print('Could not update {}. Close it in Excel and run the test again'.format(target))
+        return
+    print('File for inspection: {}'.format(target))
+    os.startfile(target)
 
 
 class TestCases(unittest.TestCase):
@@ -746,6 +765,7 @@ class TestCases(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             file_name = os.path.join(tmp_dir, 'SumsAndAverages.xlsx')
             stats.save_rokdoc_output(results, file_name)
+            open_for_inspection(file_name, 'SumsAndAverages_unit_test.xlsx')
             lines = {_l['Name']: _l for _l in read_rokdoc_lines(file_name)}
             # The file is read back as litho fluids, where a lack of samples must not give a velocity of -999.25
             lf_data = LithoFluid()
