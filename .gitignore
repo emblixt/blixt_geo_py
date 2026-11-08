@@ -14,3 +14,5 @@ plot.html
 # PyCharm settings that are specific to each machine
 /.idea/blixt_geo_py.iml
 /.idea/vcs.xml
+# Local files of Claude Code
+/.claude/
