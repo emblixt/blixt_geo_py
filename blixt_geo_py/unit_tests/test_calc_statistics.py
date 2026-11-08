@@ -759,7 +759,7 @@ class TestCases(unittest.TestCase):
         The cutoffs leave no samples of Sand D in WELL_B
         """
         stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand D'], log_table,
-                                 {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]})
+                                 {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}, project_to_burial_depth=None)
         results = stats.run()
 
         with tempfile.TemporaryDirectory() as tmp_dir:
