@@ -224,7 +224,8 @@ def read_gardner(file_name: str, wi_name: str, suffix: str = '', well: str = 'Al
         The suffix used for the working interval. Leave out if it had none
     :param well:
         str
-        Name of the well, or 'All' for all wells together
+        Name of the well, 'All' for all wells together, or e.g. 'Projected to 2000 m' for all wells projected to that
+        burial depth (see StatsCalculation, project_to_burial_depth)
     :return:
         a, b
         float, float
@@ -340,23 +341,49 @@ class IntervalStats:
             {log name: pint.Quantity}
             Only holds the logs with a linear trend, and is empty if project_to_burial_depth is None
         """
+        _per_well = self.projected_per_well()
+        _projected = {}
+        for _log in self.log_table.log_names:
+            _parts = [_data[_log] for _data in _per_well.values() if _log in _data]
+            if len(_parts) == 0:
+                continue
+            _units = _parts[0].units
+            _projected[_log] = Q_(np.concatenate([_p.to(_units).magnitude for _p in _parts]), _units)
+        return _projected
+
+    def projected_per_well(self) -> dict:
+        """
+        Returns the data of each well where the burial depth is known, where each sample is moved along the linear
+        trend of its log to the burial depth project_to_burial_depth, like projected() but kept per well. The trends
+        are the ones through the samples of all these wells together, see burial_depth_trend()
+
+        :return:
+            dict
+            {well name: {log name: pint.Quantity}}
+            Only holds the logs with a linear trend, and is empty if project_to_burial_depth is None
+        """
         if self.project_to_burial_depth is None:
             return {}
         target = self.project_to_burial_depth.to('m').magnitude
-        _projected = {}
-        for _log in self.log_table.log_names:
-            trend = self.burial_depth_trend(_log)
-            if trend is None:
+        trends = {_log: self.burial_depth_trend(_log) for _log in self.log_table.log_names}
+        _per_well = {}
+        for _well, _data in self.per_well.items():
+            if _well not in self.burial_depth:
                 continue
-            values, depth = self.samples_with_burial_depth(_log)
-            _projected[_log] = Q_(values.magnitude + trend['slope'] * (target - depth), values.units)
-        return _projected
+            depth = self.burial_depth[_well].to('m').magnitude
+            _per_well[_well] = {
+                _log: Q_(_data[_log].magnitude + trends[_log]['slope'] * (target - depth), _data[_log].units)
+                for _log in self.log_table.log_names if trends[_log] is not None and _log_in_well(_data, _log)}
+        return _per_well
 
-    def vp_and_rho(self) -> dict:
+    def vp_and_rho(self, projected: bool = False) -> dict:
         """
         Returns the P velocity in m/s and the density in g/cm3, for each well that has both, and for these wells
         together ('All')
 
+        :param projected:
+            bool
+            If True, the data projected to project_to_burial_depth is used, see projected_per_well()
         :return:
             dict
             {well name: (np.ndarray, np.ndarray)}
@@ -366,18 +393,22 @@ class IntervalStats:
             return {}
         vp_log, rho_log = self.log_table['P velocity'], self.log_table['Density']
         # Only wells with both logs, so that the samples of 'All' still belong together
+        source = self.projected_per_well() if projected else self.per_well
         samples = {_well: (_data[vp_log].to('m/s').magnitude, _data[rho_log].to('g/cm**3').magnitude)
-                   for _well, _data in self.per_well.items() if vp_log in _data and rho_log in _data}
+                   for _well, _data in source.items() if vp_log in _data and rho_log in _data}
         if len(samples) > 0:
             samples['All'] = (np.concatenate([_vp for _vp, _ in samples.values()]),
                               np.concatenate([_rho for _, _rho in samples.values()]))
         return samples
 
-    def ai_and_vpvs(self) -> dict:
+    def ai_and_vpvs(self, projected: bool = False) -> dict:
         """
         Returns the acoustic impedance (Vp * Rho) in km/s*g/cm3 and Vp/Vs, for each well that has the P velocity, S
         velocity and density, and for these wells together ('All'). A zero S velocity gives a non-finite Vp/Vs
 
+        :param projected:
+            bool
+            If True, the data projected to project_to_burial_depth is used, see projected_per_well()
         :return:
             dict
             {well name: (np.ndarray, np.ndarray)}
@@ -388,7 +419,8 @@ class IntervalStats:
         vp_log, vs_log, rho_log = [self.log_table[_x] for _x in ['P velocity', 'S velocity', 'Density']]
         samples = {}
         # Only wells with all logs, so that the samples of 'All' still belong together
-        for _well, _data in self.per_well.items():
+        source = self.projected_per_well() if projected else self.per_well
+        for _well, _data in source.items():
             if vp_log in _data and vs_log in _data and rho_log in _data:
                 _vp = _data[vp_log].to('km/s').magnitude
                 with np.errstate(divide='ignore', invalid='ignore'):
@@ -403,10 +435,16 @@ class IntervalStats:
         """
         Returns the Gardner coefficients, rho = a * vp ** b with vp in m/s and rho in g/cm3, per well and for all
         wells together ('All'). They are NaN where there are too few samples, see fit_gardner().
-        Note that 'All' mixes wells where the interval may lie at different burial depths
+        Note that 'All' mixes wells where the interval may lie at different burial depths.
+        With project_to_burial_depth, there is also a line for all wells projected to that burial depth, named e.g.
+        'Projected to 2000 m', like in summary()
         """
         rows = []
-        for _well_name, (_vp, _rho) in self.vp_and_rho().items():
+        sources = list(self.vp_and_rho().items())
+        _projected = self.vp_and_rho(projected=True)
+        if 'All' in _projected:
+            sources.append((self.projected_label, _projected['All']))
+        for _well_name, (_vp, _rho) in sources:
             _fit = fit_gardner(_vp, _rho) or {'a': np.nan, 'b': np.nan, 'r2': np.nan}
             rows.append({'interval': self.wi_name, 'suffix': self.suffix, 'cutoffs': str(self.cutoffs),
                          'well': _well_name, 'n': int(np.sum(_valid_vp_and_rho(_vp, _rho))),
@@ -903,6 +941,10 @@ class StatsCalculation:
               color and marker of the well
             - the calibrated Gardner equation and the mean of all wells together
 
+        With project_to_burial_depth, there is a second figure of the same, after the data is projected to the burial
+        depth of each interval (see IntervalStats.projected_per_well()), for the intervals that have one. Its file
+        name ends with '_projected', e.g. gardner_projected.png
+
         :param results:
             dict
             {working interval name: IntervalStats}, as returned by run()
@@ -913,13 +955,35 @@ class StatsCalculation:
             int
             The maximum number of panels per row
         :return:
-            Figure
+            Figure, as before, when no interval is projected
+            list of two Figures, [not projected, projected], when some interval is projected
         """
+        return self._with_projected_figure(self._plot_gardner_figure, results, file_name, n_columns)
+
+    def _with_projected_figure(self, plot_function, results: dict, file_name: str | None, n_columns: int):
+        """
+        Calls plot_function for the results as they are, and, if any interval has a projected burial depth, once more
+        for the projected data of these intervals
+        """
+        fig = plot_function(results, file_name, n_columns, False)
+        projected = {_k: _s for _k, _s in results.items() if _s.project_to_burial_depth is not None}
+        if len(projected) == 0:
+            return fig
+        if file_name is not None:
+            _root, _extension = os.path.splitext(file_name)
+            file_name = '{}_projected{}'.format(_root, _extension)
+        return [fig, plot_function(projected, file_name, n_columns, True)]
+
+    @staticmethod
+    def _panel_title(stats: IntervalStats, projected: bool) -> str:
+        return '{}, {}'.format(stats.label, stats.projected_label.lower()) if projected else stats.label
+
+    def _plot_gardner_figure(self, results: dict, file_name: str | None, n_columns: int, projected: bool):
         fig, axes = self._panels(len(results), n_columns)
         all_wells = [_w.name for _w in self.wells]
         legend_items = {}
         for ax, stats in zip(axes.flat, results.values()):
-            samples = stats.vp_and_rho()
+            samples = stats.vp_and_rho(projected)
             for well_name, (vp, rho) in samples.items():
                 valid = _valid_vp_and_rho(vp, rho)
                 if not np.any(valid):
@@ -940,10 +1004,11 @@ class StatsCalculation:
                     ax.plot(vp_range, trend['a'] * vp_range ** trend['b'], '-', c=color, lw=1, zorder=3)
             trend = fit_gardner(*samples['All']) if 'All' in samples else None
             ax.set_title('{}\n{}'.format(
-                stats.label, 'No fit' if trend is None else 'All wells: a = {:.3f}, b = {:.3f}, R2 = {:.2f}'.format(
+                self._panel_title(stats, projected), 'No fit' if trend is None else 'All wells: a = {:.3f}, b = {:.3f}, R2 = {:.2f}'.format(
                     trend['a'], trend['b'], trend['r2'])), fontsize=9, loc='left')
             ax.grid(True)
-        self._finish_panels(fig, axes, len(results), 'Vp [m/s]', 'Density [g/cm3]', legend_items, file_name)
+        self._finish_panels(fig, axes, len(results), 'Vp [m/s]', 'Density [g/cm3]', legend_items, file_name,
+                            projected)
         return fig
 
     def plot_elastics(self, results: dict, file_name: str | None = 'elastics.png', n_columns: int = 3):
@@ -951,6 +1016,10 @@ class StatsCalculation:
         Plots Vp/Vs versus acoustic impedance (Vp * Rho), one panel per interval, with the samples, the mean and the
         standard deviation of each well, in the color and marker of the well, and the mean of all wells together.
         Only wells with P velocity, S velocity and density are included
+
+        With project_to_burial_depth, there is a second figure of the same, after the data is projected to the burial
+        depth of each interval (see IntervalStats.projected_per_well()), for the intervals that have one. Its file
+        name ends with '_projected', e.g. elastics_projected.png
 
         :param results:
             dict
@@ -962,19 +1031,22 @@ class StatsCalculation:
             int
             The maximum number of panels per row
         :return:
-            Figure
+            Figure, as before, when no interval is projected
+            list of two Figures, [not projected, projected], when some interval is projected
         """
         lacking = [_s.label for _s in results.values() if
                    any(_x not in _s.log_table for _x in ['P velocity', 'S velocity', 'Density'])]
         if len(lacking) > 0:
             print_info('The log table lacks P velocity, S velocity or density, so there are no elastics to plot for: '
                        '{}'.format(', '.join(lacking)), 'warning', logger)
+        return self._with_projected_figure(self._plot_elastics_figure, results, file_name, n_columns)
 
+    def _plot_elastics_figure(self, results: dict, file_name: str | None, n_columns: int, projected: bool):
         fig, axes = self._panels(len(results), n_columns)
         all_wells = [_w.name for _w in self.wells]
         legend_items = {}
         for ax, stats in zip(axes.flat, results.values()):
-            for well_name, (ai, vpvs) in stats.ai_and_vpvs().items():
+            for well_name, (ai, vpvs) in stats.ai_and_vpvs(projected).items():
                 valid = np.isfinite(ai) & np.isfinite(vpvs) & (ai > 0.) & (vpvs > 0.)
                 if not np.any(valid):
                     continue
@@ -983,9 +1055,10 @@ class StatsCalculation:
                     continue
                 color, marker = self.well_style(well_name, all_wells.index(well_name))
                 legend_items[well_name] = _plot_samples_of_well(ax, ai[valid], vpvs[valid], color, marker)
-            ax.set_title(stats.label, fontsize=9, loc='left')
+            ax.set_title(self._panel_title(stats, projected), fontsize=9, loc='left')
             ax.grid(True)
-        self._finish_panels(fig, axes, len(results), 'Acoustic impedance [km/s*g/cm3]', 'Vp/Vs', legend_items, file_name)
+        self._finish_panels(fig, axes, len(results), 'Acoustic impedance [km/s*g/cm3]', 'Vp/Vs', legend_items, file_name,
+                            projected)
         return fig
 
     @staticmethod
@@ -999,10 +1072,13 @@ class StatsCalculation:
                             figsize=(5 * n_columns, 4 * n_rows + 0.5), layout='constrained')
 
     def _finish_panels(self, fig, axes, n_panels: int, x_label: str, y_label: str, legend_items: dict,
-                       file_name: str | None):
+                       file_name: str | None, projected: bool = False):
         """
         Hides the unused panels, adds the axis labels and the legend of a figure from _panels(), and saves it
         """
+        if projected:
+            fig.suptitle('Projected along the linear trends versus burial depth. Only wells where the burial depth is '
+                         'known', fontsize=10)
         for ax in axes.flat[n_panels:]:
             ax.set_visible(False)
         for ax in axes[:, 0]:

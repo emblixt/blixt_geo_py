@@ -846,6 +846,81 @@ class TestCases(unittest.TestCase):
         stats.plot_averages(results)
         show_or_close()
 
+    def test_projected_per_well(self):
+        """
+        Each sample of a well is moved along the trend through all wells, and together they make up projected()
+        """
+        stats = StatsCalculation(self.wells, self.wis, 'Sand F', log_table, {'Volume': ['<', 0.5]},
+                                 project_to_burial_depth=Q_(2000., 'm'))
+        interval = stats.run()['Sand F']
+        per_well = interval.projected_per_well()
+        self.assertEqual(sorted(interval.burial_depth), sorted(per_well))
+        vp_log = log_table['P velocity']
+        trend = interval.burial_depth_trend(vp_log)
+        for _well, _data in per_well.items():
+            depth = interval.burial_depth[_well].to('m').magnitude
+            np.testing.assert_allclose(interval.per_well[_well][vp_log].magnitude + trend['slope'] * (2000. - depth),
+                                       _data[vp_log].magnitude)
+        np.testing.assert_allclose(np.concatenate([_d[vp_log].magnitude for _d in per_well.values()]),
+                                   interval.projected()[vp_log].magnitude)
+
+    def test_plot_gardner_and_elastics_projected(self):
+        """
+        With project_to_burial_depth, plot_gardner() and plot_elastics() also plot the projected data, of the
+        intervals that have a burial depth to project to
+        """
+        _cutoffs = {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand E'], log_table, _cutoffs,
+                                 project_to_burial_depth=[Q_(2000., 'm'), None])
+        results = stats.run()
+        interval = results['Sand F']
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            stats.working_dir = tmp_dir
+            gardner_figs = stats.plot_gardner(results)
+            elastics_figs = stats.plot_elastics(results)
+            self.assertEqual(['elastics.png', 'elastics_projected.png', 'gardner.png', 'gardner_projected.png'],
+                             sorted(os.listdir(tmp_dir)))
+
+        for figs in [gardner_figs, elastics_figs]:
+            self.assertEqual(2, len(figs))
+            # Both intervals in the first figure, and only the projected one in the second
+            self.assertEqual(2, len([_ax for _ax in figs[0].axes if _ax.get_visible()]))
+            projected_axes = [_ax for _ax in figs[1].axes if _ax.get_visible()]
+            self.assertEqual(1, len(projected_axes))
+            self.assertIn('Sand F, projected to 2000 m', projected_axes[0].get_title(loc='left'))
+            self.assertNotIn('projected', figs[0].axes[0].get_title(loc='left'))
+
+        # The calibration in the projected figure is that of the projected data
+        vp, rho = interval.vp_and_rho(projected=True)['All']
+        fit = fit_gardner(vp, rho)
+        self.assertIn('a = {:.3f}, b = {:.3f}'.format(fit['a'], fit['b']),
+                      gardner_figs[1].axes[0].get_title(loc='left'))
+        self.assertNotEqual(fit_gardner(*interval.vp_and_rho()['All'])['a'], fit['a'])
+
+        # The Gardner table holds the same calibration, only for the projected interval, and it can be read back
+        table = stats.gardner(results)
+        projected_rows = table[table['well'].str.startswith('Projected')]
+        self.assertEqual(['Sand F'], list(projected_rows['interval']))
+        self.assertEqual(['Projected to 2000 m'], list(projected_rows['well']))
+        self.assertAlmostEqual(fit['a'], projected_rows['a'].iloc[0])
+        self.assertAlmostEqual(fit['b'], projected_rows['b'].iloc[0])
+        self.assertEqual(int(np.sum(np.isfinite(vp) & np.isfinite(rho) & (vp > 0.) & (rho > 0.))),
+                         projected_rows['n'].iloc[0])
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_name = os.path.join(tmp_dir, 'gardner.xlsx')
+            stats.save_gardner(results, file_name)
+            a, b = read_gardner(file_name, 'Sand F', well='Projected to 2000 m')
+        self.assertAlmostEqual(fit['a'], a)
+        self.assertAlmostEqual(fit['b'], b)
+
+        # Without any projection, a single figure as before
+        plain_stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand E'], log_table, _cutoffs)
+        plain_results = plain_stats.run()
+        self.assertIsInstance(plain_stats.plot_gardner(plain_results, file_name=None), plt.Figure)
+        self.assertIsInstance(plain_stats.plot_elastics(plain_results, file_name=None), plt.Figure)
+        show_or_close()
+
     def test_project_to_burial_depth_per_interval(self):
         """
         Each working interval has its own burial depth, and None leaves the projection out for that interval
