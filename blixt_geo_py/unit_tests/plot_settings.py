@@ -18,8 +18,8 @@ import warnings
 
 import matplotlib
 
-# show_plots = os.environ.get('BLIXT_SHOW_PLOTS', '0') == '1'
-show_plots = True
+show_plots = os.environ.get('BLIXT_SHOW_PLOTS', '0') == '1'
+# show_plots = True
 
 if not show_plots:
     matplotlib.use('Agg')

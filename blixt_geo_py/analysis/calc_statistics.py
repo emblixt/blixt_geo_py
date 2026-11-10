@@ -277,7 +277,7 @@ class IntervalStats:
     per_well: dict = field(default_factory=dict)  # well name -> {log name: pint.Quantity}
     depth_from_top: dict = field(default_factory=dict)  # well name -> pint.Quantity
     burial_depth: dict = field(default_factory=dict)  # well name -> pint.Quantity in meter, for wells where it's known
-    project_to_burial_depth: pint.Quantity | None = None  # see StatsCalculation
+    project_to_burial_depth: pint.Quantity | None = None  # of this interval, see StatsCalculation
 
     @property
     def label(self) -> str:
@@ -532,7 +532,7 @@ class StatsCalculation:
                  cutoffs: Cutoffs | str | dict | list | None = None,
                  suffix: str | list = '',
                  working_dir: str | None = None,
-                 project_to_burial_depth: pint.Quantity | None = None):
+                 project_to_burial_depth: pint.Quantity | list | None = None):
         """
         :param wells:
             list of Well, or dict of Well
@@ -562,17 +562,16 @@ class StatsCalculation:
             str
             Folder where the figures are saved
         :param project_to_burial_depth:
-            pint.Quantity of length
-            If given, there is one extra set of statistics per interval, similar to 'All': The samples of all wells
-            where the burial depth is known are moved along the linear trend of each log versus burial depth, to this
-            burial depth, before the statistics are calculated. See IntervalStats.projected().
+            pint.Quantity of length, or a list of these (or None), one per working interval, e.g.
+                [Q_(2000., 'm'), Q_(2500., 'm'), None]
+            A single value is used in all working intervals. A pint Quantity array, e.g. Q_([2000., 2500.], 'm'), is
+            taken as a list.
+            For each interval with a burial depth, there is one extra set of statistics, similar to 'All': The samples
+            of all wells where the burial depth is known are moved along the linear trend of each log versus burial
+            depth, to this burial depth, before the statistics are calculated. See IntervalStats.projected().
             It is included in summary(), plot_averages() and save_rokdoc_output(), and
             plot_logs_vs_burial_depth() marks where the trends cross this burial depth
         """
-        if project_to_burial_depth is not None and not (isinstance(project_to_burial_depth, pint.Quantity)
-                                                        and project_to_burial_depth.check('[length]')):
-            raise ValueError('project_to_burial_depth must be a pint Quantity of length, not {}'.format(
-                project_to_burial_depth))
         if isinstance(wells, dict):
             wells = list(wells.values())
         for _well in wells:
@@ -597,6 +596,16 @@ class StatsCalculation:
         self.log_tables = [(_lt if isinstance(_lt, LogTable) else LogTable(dict(_lt))).single_log()
                            for _lt in _per_interval(log_table, n, 'log_tables', (LogTable, dict))]
         self.suffixes = [_s or '' for _s in _per_interval(suffix, n, 'suffixes', (str,))]
+        if isinstance(project_to_burial_depth, pint.Quantity) and np.ndim(project_to_burial_depth.magnitude) > 0:
+            project_to_burial_depth = [_d for _d in project_to_burial_depth]
+        if not isinstance(project_to_burial_depth, (pint.Quantity, list, type(None))):
+            raise ValueError('project_to_burial_depth must be a pint Quantity of length, or a list of these, not '
+                             '{}'.format(project_to_burial_depth))
+        self.project_to_burial_depths = _per_interval(project_to_burial_depth, n, 'project_to_burial_depth',
+                                                      (pint.Quantity,))
+        for _depth in self.project_to_burial_depths:
+            if _depth is not None and not (isinstance(_depth, pint.Quantity) and _depth.check('[length]')):
+                raise ValueError('project_to_burial_depth must be pint Quantities of length, not {}'.format(_depth))
         # The results, and the lines in the RokDoc output, of these could not be told apart
         _runs = list(zip(wi_names, self.suffixes))
         _repeated = sorted({_wi for _wi, _s in _runs if _runs.count((_wi, _s)) > 1})
@@ -604,7 +613,6 @@ class StatsCalculation:
             raise ValueError('The working intervals {} are repeated with the same suffix. Give each a different '
                              'suffix, e.g. suffix=["sand", "shale"]'.format(', '.join(_repeated)))
         self.working_dir = working_dir
-        self.project_to_burial_depth = project_to_burial_depth
 
     def run(self) -> dict:
         """
@@ -614,10 +622,11 @@ class StatsCalculation:
             The key of a repeated interval also holds the suffix (IntervalStats.label), e.g. 'Sand F, sand'
         """
         results = {}
-        for wi_name, cutoffs, log_table, suffix in zip(self.wi_names, self.cutoffs, self.log_tables, self.suffixes):
+        for wi_name, cutoffs, log_table, suffix, burial_depth in zip(
+                self.wi_names, self.cutoffs, self.log_tables, self.suffixes, self.project_to_burial_depths):
             print_info('Interval: {}. Cutoffs: {}'.format(wi_name, cutoffs), 'info', logger)
             stats = collect_interval_stats(self.wells, self.intervals, wi_name, log_table, cutoffs, suffix)
-            stats.project_to_burial_depth = self.project_to_burial_depth
+            stats.project_to_burial_depth = burial_depth
             results[wi_name if self.wi_names.count(wi_name) == 1 else stats.label] = stats
         return results
 
@@ -757,8 +766,8 @@ class StatsCalculation:
                     mn, std = np.nanmean(projected[log_name].magnitude), np.nanstd(projected[log_name].magnitude)
                     ax.errorbar(mn, j, xerr=std, fmt='none', capsize=20, capthick=2, elinewidth=2, ecolor='skyblue')
                     ax.scatter(mn, j, marker='*', s=240, c='skyblue', edgecolors='k',
-                               label=stats.projected_label if stats.projected_label not in plotted_wells else None)
-                    plotted_wells.append(stats.projected_label)
+                               label='Projected burial depth' if 'Projected burial depth' not in plotted_wells else None)
+                    plotted_wells.append('Projected burial depth')
             ax.grid(True)
             ax.legend(prop={'size': 10})
             ax.set_yticks(range(len(results)))
@@ -856,8 +865,8 @@ class StatsCalculation:
                             y = np.array([min(y[0], target), max(y[1], target)])
                             ax.axvline(trend['slope'] * target + trend['intercept'], color='k', ls='--', lw=0.7,
                                        zorder=3)
-                            legend_items[stats.projected_label] = ax.axhline(target, color='k', ls='--', lw=0.7,
-                                                                             zorder=3)
+                            legend_items['Projected burial depth'] = ax.axhline(target, color='k', ls='--',
+                                                                                lw=0.7, zorder=3)
                             ax.text(0.98, target, '{:g} m'.format(target), transform=ax.get_yaxis_transform(),
                                     ha='right', va='bottom', fontsize=7, zorder=6)
                         legend_items['Linear trend'] = ax.plot(trend['slope'] * y + trend['intercept'], y, 'k-', lw=1.5,

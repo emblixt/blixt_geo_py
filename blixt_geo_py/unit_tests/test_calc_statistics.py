@@ -675,7 +675,8 @@ class TestCases(unittest.TestCase):
 
     def test_plot_logs_vs_burial_depth_many_intervals(self):
         """
-        With more than max_intervals intervals, the plot is split into several figures, keeping the order
+        With more than max_intervals intervals, the plot is split into several figures, keeping the order.
+        max_intervals is given explicitly, so that the test doesn't depend on its default
         """
         names = wi_sands + wi_shales + ['Sand F']
         suffixes = ['first', '', '', '', '', 'last']
@@ -689,7 +690,7 @@ class TestCases(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             stats.working_dir = tmp_dir
             # Six intervals: five in the first figure, and one in the second
-            figs = stats.plot_logs_vs_burial_depth(results)
+            figs = stats.plot_logs_vs_burial_depth(results, max_intervals=5)
             self.assertEqual(['logs_vs_burial_depth_1.png', 'logs_vs_burial_depth_2.png'], sorted(os.listdir(tmp_dir)))
             self.assertEqual([5 * n_logs, n_logs], [len(_f.axes) for _f in figs])
             self.assertIn('Sand F, first', y_labels(figs[0])[0])
@@ -700,7 +701,7 @@ class TestCases(unittest.TestCase):
             stats.working_dir = tmp_dir
             # Exactly five intervals fit in one figure, whose file name has no number
             five = dict(list(results.items())[:5])
-            self.assertEqual(1, len(stats.plot_logs_vs_burial_depth(five)))
+            self.assertEqual(1, len(stats.plot_logs_vs_burial_depth(five, max_intervals=5)))
             self.assertEqual(['logs_vs_burial_depth.png'], os.listdir(tmp_dir))
             # No empty figure when the intervals fill up the last one
             self.assertEqual([2 * n_logs, 2 * n_logs, n_logs],
@@ -845,10 +846,43 @@ class TestCases(unittest.TestCase):
         stats.plot_averages(results)
         show_or_close()
 
+    def test_project_to_burial_depth_per_interval(self):
+        """
+        Each working interval has its own burial depth, and None leaves the projection out for that interval
+        """
+        _cutoffs = {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]}
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand E'], log_table, _cutoffs,
+                                 project_to_burial_depth=[Q_(2000., 'm'), None])
+        results = stats.run()
+        self.assertEqual(Q_(2000., 'm'), results['Sand F'].project_to_burial_depth)
+        self.assertIsNone(results['Sand E'].project_to_burial_depth)
+        self.assertEqual({}, results['Sand E'].projected())
+        summary = stats.summary(results)
+        projected_rows = summary[summary['well'].str.startswith('Projected')]
+        self.assertEqual({'Sand F'}, set(projected_rows['interval']))
+        self.assertEqual({'Projected to 2000 m'}, set(projected_rows['well']))
+
+        # A pint Quantity array is taken as a list
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand E'], log_table, _cutoffs,
+                                 project_to_burial_depth=Q_([2.0, 2.1], 'km'))
+        results = stats.run()
+        self.assertEqual(['Projected to 2000 m', 'Projected to 2100 m'],
+                         [_r.projected_label for _r in results.values()])
+
+        # A single value is used in all intervals
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand E'], log_table, _cutoffs,
+                                 project_to_burial_depth=Q_(2000., 'm'))
+        self.assertEqual([Q_(2000., 'm')] * 2, stats.project_to_burial_depths)
+
     def test_project_to_burial_depth_must_be_a_length(self):
-        for _wrong in [2000., Q_(2000., 'm/s')]:
+        for _wrong in [2000., Q_(2000., 'm/s'), [Q_(2000., 'm'), 2000.]]:
             with self.assertRaises(ValueError):
-                StatsCalculation(self.wells, self.wis, 'Sand F', log_table, project_to_burial_depth=_wrong)
+                StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand E'], log_table,
+                                 project_to_burial_depth=_wrong)
+        # One burial depth per working interval
+        with self.assertRaises(ValueError):
+            StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand E'], log_table,
+                             project_to_burial_depth=[Q_(2000., 'm')])
 
     def test_save_rokdoc_output_lacking_logs(self):
         """
