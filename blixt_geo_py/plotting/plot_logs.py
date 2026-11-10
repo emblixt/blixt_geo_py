@@ -526,6 +526,9 @@ def plot_chi_rotation(well: cw.Well,
 
     return title, grid,chi_slider, backus_slider, freq_slider, data_table, xplot, hplot, cc_fluid_fig, cc_litho_fig
 
+def compare_model_with_well():
+    pass
+
 def compare_synth_with_seismic(
         well: cw.Well,
         ref_log_table: LogTable,
