@@ -227,7 +227,8 @@ def run_fluid_substitution(
                 mod_history += ' -MD data now covers: {} to  {}\n'.format(well_dict_wo_units[_key][0], well_dict_wo_units[_key][-1])
 
         # Extract the burial depth to this specific substitution case
-        bd = working_intervals.get_interval(fsc.interval, fsc.well).mid
+        # When the interval occurs more than once in the well, it is the thickness weighted mean of their mid depths
+        bd = working_intervals.get_mid(fsc.interval, fsc.well)
 
         # Calculate the fluid elastic properties ('well_dict_wo_units' is not used in this calculation)
         mod_history += fsc.calc_elastics(well_dict_wo_units, bd, pvt_table=pvt_table, verbose=verbose)

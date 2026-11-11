@@ -34,6 +34,8 @@ def create_mask(data, operator, limits):
         '!=': masked_not_equal
     :param limits:
         float, or list of floats
+        For '><' it is a list of two values, [low, high], or of several such pairs, [low1, high1, low2, high2, ...],
+        where the mask is True inside any of the ranges
     :return:
         numpy boolean mask array
         True values indicate that this data point fulfills the operator with the given limits
@@ -84,7 +86,17 @@ def create_mask(data, operator, limits):
     elif operator == '>=':
         mask = np.ma.masked_greater_equal(data, limits[0]).mask
     elif operator == '><':
-        mask = np.ma.masked_inside(data, *limits).mask
+        if len(limits) == 2:
+            mask = np.ma.masked_inside(data, *limits).mask
+        elif len(limits) > 2 and len(limits) % 2 == 0:
+            # Several ranges, [top1, base1, top2, base2, ...], e.g. a working interval that occurs more than once
+            # in a well. True when inside any of the ranges
+            mask = np.zeros(np.shape(data), dtype=bool)
+            for _low, _high in zip(limits[0::2], limits[1::2]):
+                mask |= np.ma.getmaskarray(np.ma.masked_inside(data, _low, _high))
+        else:
+            raise OSError("The '><' operator needs an even number of limits (pairs of [low, high]), "
+                          "not {}".format(len(limits)))
     elif operator == '==':
         mask = np.ma.masked_equal(data, limits[0]).mask
     elif operator == '!=':

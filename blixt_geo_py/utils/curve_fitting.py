@@ -365,8 +365,8 @@ def calculate_blocking(
 def calculate_one_block(
         y: np.ndarray,
         z: np.ndarray,
-        z0: float,
-        z1: float,
+        z0: float | list,
+        z1: float | list,
         down_weight_outliers: bool,
         verbose: bool
 ):
@@ -376,7 +376,12 @@ def calculate_one_block(
     :param y:
     :param z:
     :param z0:
+        float, or list of floats
+        Top of the block. A list gives one block over several depth ranges, e.g. a working interval that occurs
+        more than once in a well, and then z1 must be a list of the same length
     :param z1:
+        float, or list of floats
+        Base of the block
     :param down_weight_outliers
     :param verbose:
     :return:
@@ -390,8 +395,14 @@ def calculate_one_block(
         print('Calculating one blocked value for z between {} and {} (z covers: {}-{})'.format(
             z0, z1, np.nanmin(z), np.nanmax(z)
         ))
-    # Create mask for the requested interval
-    _mask = msks.create_mask( z, '><', [z0, z1])
+    # Create mask for the requested interval, or intervals: [top1, base1, top2, base2, ...]
+    if isinstance(z0, (list, tuple, np.ndarray)):
+        if len(z0) != len(z1):
+            raise ValueError('z0 and z1 must have the same length, not {} and {}'.format(len(z0), len(z1)))
+        _limits = [_z for _pair in zip(z0, z1) for _z in _pair]
+    else:
+        _limits = [z0, z1]
+    _mask = msks.create_mask(z, '><', _limits)
 
     # Test if there are NaN values in input data, which needs to be masked out
     if np.any(np.isnan(y[_mask])):

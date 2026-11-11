@@ -10,7 +10,7 @@ from matplotlib.colors import to_hex
 from matplotlib.font_manager import FontProperties
 from matplotlib.lines import Line2D
 
-from blixt_geo_py.core.core import CutoffRule, Cutoffs, LogTable
+from blixt_geo_py.core.core import Cutoffs, LogTable
 import blixt_geo_py.rp.rp_core as rp
 
 logger = logging.getLogger(__name__)
@@ -158,9 +158,9 @@ def plot_rp(wells, log_table, wis, wi_name, cutoffs=None, legend_items=None,
         print_info('Plotting well {}'.format(_well.name), 'info', logger)
         # create a deep copy of the well so that the original is not altered
         well = deepcopy(_well)
-        # Don't use Intervals.get_cutoff_rule(), which falls back to the whole well when the interval is missing
-        interval = wis.get_interval(wi_name, well.name)
-        if interval is None:
+        # Intervals.get_cutoff_rule() falls back to the whole well when the interval is missing, so check first.
+        # The interval may occur more than once in the well, and the rule then covers all occurrences
+        if len(wis.get_intervals(wi_name, well.name)) == 0:
             warn_txt = 'Working interval {} does not exist in well {}'.format(wi_name, well.name)
             print_info(warn_txt, 'warning', logger)
             continue  # this working interval does not exist in current well
@@ -189,8 +189,7 @@ def plot_rp(wells, log_table, wis, wi_name, cutoffs=None, legend_items=None,
 
         # Build new Cutoffs for each well, so the interval rule is not added to the users cutoffs.
         # Keep all samples, and the mask, so that the Backus averaging is done on evenly sampled logs
-        well_cutoffs = Cutoffs(cutoffs=deepcopy(rules) +
-                               [CutoffRule('md', '><', [interval.top, interval.base])])
+        well_cutoffs = Cutoffs(cutoffs=deepcopy(rules) + [wis.get_cutoff_rule(wi_name, well.name)])
         data = well.dict(cutoffs=well_cutoffs, use_cutoffs=False)
         mask = data['mask']
 

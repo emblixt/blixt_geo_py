@@ -908,80 +908,62 @@ class Well(object):
                 ax[i].set_title('{}: {}'.format(nlt, log_table[nlt]))
 
 
-        for interval in wis.get_well_intervals(self.name):
-            if verbose:
-                print(' - Working on interval {}, spanning from {} to {}'.format(
-                    interval.name, interval.top, interval.base ))
-                for i, nlt in enumerate(necessary_log_types):
-                    ax[i].axhline(interval.top.magnitude, 0, 1, ls='--')
-                    ax[i].axhline(interval.base.magnitude, 0, 1, ls='--')
+        # One LithoFluid per working interval. An interval that occurs more than once in the well, e.g. repeated by
+        # a fault, is blocked over all its occurrences together, and gets one shared LithoFluid
+        interval_names = []
+        for interval in wis.get_well_intervals(self.name, sorted_by_top=True):
+            if interval.name not in interval_names:
+                interval_names.append(interval.name)
 
+        for interval_name in interval_names:
+            occurrences = wis.get_intervals(interval_name, self.name)
+            tops = [_int.top.to('m').magnitude for _int in occurrences]
+            bases = [_int.base.to('m').magnitude for _int in occurrences]
+            if verbose:
+                print(' - Working on interval {}, spanning from {}'.format(
+                    interval_name, ', '.join(['{} to {}'.format(_int.top, _int.base) for _int in occurrences])))
+                for i, nlt in enumerate(necessary_log_types):
+                    for _top, _base in zip(tops, bases):
+                        ax[i].axhline(_top, 0, 1, ls='--')
+                        ax[i].axhline(_base, 0, 1, ls='--')
 
             if False:
                 print('  Vp: {} : {} : {}'.format(len(vp), np.nanmin(vp.values), np.nanmax(vp.values)))
-            vp_block = calculate_one_block(
-                vp.values,
-                vp.depth.depth.to('m').magnitude,
-                interval.top.to('m').magnitude,
-                interval.base.to('m').magnitude,
-                down_weight_outliers,
-                verbose
-            )
             if False:
                 print('  Vs: {} : {} : {}'.format(len(vs), np.nanmin(vs.values), np.nanmax(vs.values)))
                 _mask = np.isnan(vs.values)
                 print('  Vs covers a z range from {} to {}'.format(np.nanmin(vs.depth.values[~_mask]),
                                                                          np.nanmax(vs.depth.values[~_mask])))
-            vs_block = calculate_one_block(
-                vs.values,
-                vs.depth.depth.to('m').magnitude,
-                interval.top.to('m').magnitude,
-                interval.base.to('m').magnitude,
-                down_weight_outliers,
-                verbose
-            )
             if False:
                 print('  Rho: {} : {} : {}'.format(len(rho), np.nanmin(rho.values), np.nanmax(rho.values)))
-            rho_block = calculate_one_block(
-                rho.values,
-                rho.depth.depth.to('m').magnitude,
-                interval.top.to('m').magnitude,
-                interval.base.to('m').magnitude,
-                down_weight_outliers,
-                verbose
-            )
+            vp_block, vs_block, rho_block = [
+                calculate_one_block(
+                    _log.values,
+                    _log.depth.depth.to('m').magnitude,
+                    tops,
+                    bases,
+                    down_weight_outliers,
+                    verbose
+                ) for _log in (vp, vs, rho)]
 
             # Skip this LithoFluid if not all values are calculated
             if vp_block['median'] is None or vs_block['median'] is None or rho_block['median'] is None:
-                print_info('Skip {} {} because failed block calculation'.format(interval.name, self.name),
+                print_info('Skip {} {} because failed block calculation'.format(interval_name, self.name),
                            'warning', logger)
                 continue
 
             if verbose:
                 for i, block in enumerate([vp_block, vs_block, rho_block]):
-                    ax[i].plot(
-                        [block['median'], block['median']],
-                        [interval.top.magnitude, interval.base.magnitude],
-                        c='r'
-                    )
-                    ax[i].plot(
-                        [block['mean'], block['mean']],
-                        [interval.top.magnitude, interval.base.magnitude],
-                        c='b'
-                    )
-                    ax[i].plot(
-                        [block['mean'] + block['std'], block['mean'] + block['std']],
-                        [interval.top.magnitude, interval.base.magnitude],
-                        c='b', ls='--'
-                    )
-                    ax[i].plot(
-                        [block['mean'] - block['std'], block['mean'] - block['std']],
-                        [interval.top.magnitude, interval.base.magnitude],
-                        c='b', ls='--'
-                    )
+                    for _top, _base in zip(tops, bases):
+                        ax[i].plot([block['median'], block['median']], [_top, _base], c='r')
+                        ax[i].plot([block['mean'], block['mean']], [_top, _base], c='b')
+                        ax[i].plot([block['mean'] + block['std'], block['mean'] + block['std']], [_top, _base],
+                                   c='b', ls='--')
+                        ax[i].plot([block['mean'] - block['std'], block['mean'] - block['std']], [_top, _base],
+                                   c='b', ls='--')
 
             _this_litho_fluid = LithoFluid(
-                name = '{} {}'.format(interval.name, self.name),
+                name = '{} {}'.format(interval_name, self.name),
                 vp = vp_block['median'],
                 vs = vs_block['median'],
                 rho = rho_block['median'],

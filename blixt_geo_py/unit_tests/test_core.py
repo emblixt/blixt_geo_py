@@ -619,6 +619,141 @@ class IntervalTests(unittest.TestCase):
         print(overlaps)
 
 
+class RepeatedIntervalsTests(unittest.TestCase):
+    """
+    A working interval can occur more than once in a well, e.g. when it is repeated by a fault.
+    In test_data/RepeatedIntervals.xlsx, Sand F occurs twice in Well_F, at 1900 - 1950 m and 2000 - 2060 m,
+    and Shale G twice, at 1950 - 2000 m and 2060 - 2100 m. Sand F occurs once in Well_A, at 1984 - 2158 m.
+    Using a working interval selects the data inside any of its occurrences
+    """
+    intervals_file = os.path.join(test_file_dir, 'RepeatedIntervals.xlsx')
+    las_file = os.path.join(test_file_dir, 'Well F.las')
+
+    def setUp(self):
+        self.wis = Intervals()
+        self.wis.read_blixt_tops(self.intervals_file)
+
+    def test_read(self):
+        self.assertEqual(6, len(self.wis))
+        self.assertEqual(['Shale C', 'Sand F', 'Shale G', 'Sand F', 'Shale G'],
+                         [_i.name for _i in self.wis.get_well_intervals('WELL_F', sorted_by_top=True)])
+
+    def test_get_intervals(self):
+        """ get_intervals() returns all occurrences, sorted by top """
+        sand_f = self.wis.get_intervals('sand f', 'Well_F')
+        self.assertEqual([1900., 2000.], [_i.top.to('m').magnitude for _i in sand_f])
+        self.assertEqual([1950., 2060.], [_i.base.to('m').magnitude for _i in sand_f])
+        self.assertEqual(1, len(self.wis.get_intervals('Sand F', 'WELL_A')))
+        self.assertEqual([], self.wis.get_intervals('No such interval', 'WELL_F'))
+
+    def test_get_interval(self):
+        """ get_interval() returns the shallowest occurrence, and warns that there are more """
+        with self.assertLogs('blixt_geo_py.core.core', level='WARNING') as logs:
+            interval = self.wis.get_interval('Sand F', 'WELL_F')
+        self.assertEqual(1900., interval.top.to('m').magnitude)
+        self.assertTrue(any('occurs 2 times' in _msg for _msg in logs.output))
+        with self.assertNoLogs('blixt_geo_py.core.core', level='WARNING'):
+            self.assertEqual(1984., self.wis.get_interval('Sand F', 'WELL_A').top.to('m').magnitude)
+        self.assertIsNone(self.wis.get_interval('No such interval', 'WELL_F'))
+
+    def test_cutoff_rule(self):
+        """ The cutoff rule keeps the data inside any of the occurrences """
+        md = Q_(np.array([1880., 1900., 1925., 1975., 2000., 2030., 2060., 2080.]), 'm')
+        rule = self.wis.get_cutoff_rule('Sand F', 'WELL_F')
+        self.assertEqual([1900., 1950., 2000., 2060.], [_l.to('m').magnitude for _l in rule.limit])
+        self.assertEqual([False, True, True, False, True, True, True, False],
+                         list(rule.create_mask({'md': md})))
+        # Only one occurrence gives the same rule as before
+        rule = self.wis.get_cutoff_rule('Sand F', 'WELL_A')
+        self.assertEqual([1984., 2158.], [_l.to('m').magnitude for _l in rule.limit])
+        # A rule with several ranges can be written to, and read from, a string
+        rule = self.wis.get_cutoff_rule('Sand F', 'WELL_F')
+        from_string = CutoffRule(from_string=str(rule))
+        self.assertEqual(list(rule.create_mask({'md': md})), list(from_string.create_mask({'md': md})))
+
+    def test_cutoff_rule_needs_pairs(self):
+        """ The '><' operator needs pairs of limits """
+        with self.assertRaises(IOError):
+            CutoffRule('md', '><', [Q_(1900., 'm'), Q_(1950., 'm'), Q_(2000., 'm')])
+
+    def test_get_mid(self):
+        """ The mid depth of a repeated interval is the mean of the mid depths, weighted by their thickness """
+        self.assertAlmostEqual((1925. * 50. + 2030. * 60.) / 110.,
+                               self.wis.get_mid('Sand F', 'WELL_F').to('m').magnitude)
+        self.assertAlmostEqual(2071., self.wis.get_mid('Sand F', 'WELL_A').to('m').magnitude)
+        self.assertIsNone(self.wis.get_mid('No such interval', 'WELL_F'))
+
+    def test_distance_to_top(self):
+        """ The distance is to the top of the occurrence that contains the depth, and NaN outside all of them """
+        distance = self.wis.distance_to_top('Sand F', 'WELL_F', Q_(np.array([1910., 1975., 2010., 2060.]), 'm'))
+        np.testing.assert_allclose([10., np.nan, 10., 60.], distance.to('m').magnitude)
+        # With only one occurrence, it is the same as Interval.distance_to_top(), also outside the interval
+        distance = self.wis.distance_to_top('Sand F', 'WELL_A', Q_(np.array([1974., 1994.]), 'm'))
+        np.testing.assert_allclose([-10., 10.], distance.to('m').magnitude)
+
+    def test_overlapping_intervals(self):
+        """ Occurrences of the same interval at different depths do not overlap, but at the same depth they do """
+        self.assertEqual([], self.wis.check_for_overlapping_intervals('WELL_F', Q_(1., 'm')))
+        self.wis.add_interval(Interval('WELL_F', Q_(2000.5, 'm'), Q_(2060., 'm'), interval_info=StratUnit('Sand F', 1)))
+        self.assertEqual(['Sand F overlaps with Sand F in WELL_F'],
+                         self.wis.check_for_overlapping_intervals('WELL_F', Q_(1., 'm')))
+
+    def test_intervals_table(self):
+        """ The mask of the interactive working intervals table covers all occurrences """
+        from blixt_geo_py.core.core import WorkingIntervalsTable
+        wis_table = WorkingIntervalsTable(self.wis, set_all_active=False)
+        cds = wis_table.cds
+        cds.data['use'] = [_name == 'Sand F' for _name in cds.data['name']]
+        self.assertEqual(['WELL_A, WELL_F'], [', '.join(sorted(_w.split(', '))) for _n, _w in
+                                              zip(cds.data['name'], cds.data['wells']) if _n == 'Sand F'])
+        md = Q_(np.array([1880., 1925., 1975., 2030., 2080.]), 'm')
+        mask = wis_table.create_mask(cds, md=md, wells=['WELL_F'] * len(md))
+        self.assertEqual([False, True, False, True, False], list(mask))
+
+    def test_blocked_litho_fluids(self):
+        """
+        A repeated interval gets one LithoFluid, blocked over all its occurrences,
+        and the 1D model has one layer per occurrence, which share that LithoFluid
+        """
+        from blixt_geo_py.core.well import Well
+        from blixt_geo_py.utils.curve_fitting import calculate_one_block
+        w = Well()
+        w.read_las(self.las_file)
+        log_table = LogTable({'P velocity': 'vp_dry', 'S velocity': 'vs_dry', 'Density': 'rho_dry'})
+
+        lfs, model = w.one_d_model(log_table, self.wis)
+        self.assertEqual(['Shale C WELL_F', 'Sand F WELL_F', 'Shale G WELL_F'], [_lf.name for _lf in lfs.litho_fluids])
+        self.assertEqual(['Shale C', 'Sand F', 'Shale G', 'Sand F', 'Shale G'], [_l.name for _l in model.layers])
+        self.assertIs(model.layers[1].litho_fluid, model.layers[3].litho_fluid)
+
+        # The Vp of Sand F is the median of all its samples, which differs from the median in each occurrence
+        vp = w.get_log_curve('vp_dry')
+        z = vp.depth.depth.to('m').magnitude
+        both = calculate_one_block(vp.values, z, [1900., 2000.], [1950., 2060.], False, False)['median']
+        first = calculate_one_block(vp.values, z, 1900., 1950., False, False)['median']
+        second = calculate_one_block(vp.values, z, 2000., 2060., False, False)['median']
+        sand_f_vp = lfs['Sand F WELL_F'].vp.to('m/s').magnitude
+        self.assertAlmostEqual(both, sand_f_vp)
+        self.assertNotAlmostEqual(first, sand_f_vp, places=0)
+        self.assertNotAlmostEqual(second, sand_f_vp, places=0)
+        sand_f = (z >= 1900.) & (z <= 1950.) | (z >= 2000.) & (z <= 2060.)
+        self.assertAlmostEqual(np.nanmedian(vp.values[sand_f]), sand_f_vp)
+
+    def test_interval_stats(self):
+        """ The statistics of a repeated interval use the samples of all occurrences """
+        from blixt_geo_py.core.well import Well
+        from blixt_geo_py.analysis.calc_statistics import collect_interval_stats
+        w = Well()
+        w.read_las(self.las_file)
+        stats = collect_interval_stats([w], self.wis, 'Sand F', LogTable({'P velocity': 'vp_dry'}), Cutoffs())
+        md = w.get_log_curve('vp_dry').depth.depth.to('m').magnitude
+        n_samples = np.sum((md >= 1900.) & (md <= 1950.) | (md >= 2000.) & (md <= 2060.))
+        self.assertEqual(n_samples, len(stats.per_well['WELL_F']['vp_dry']))
+        depth_from_top = stats.depth_from_top['WELL_F'].to('m').magnitude
+        self.assertTrue(np.all((depth_from_top >= 0.) & (depth_from_top <= 60.)))
+        self.assertGreater(np.sum(depth_from_top < 1.), 1)  # samples at the top of both occurrences
+
+
 class HeaderTestCase(unittest.TestCase):
 
     def test_Header(self):

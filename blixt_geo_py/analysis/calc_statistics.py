@@ -524,11 +524,12 @@ def collect_interval_stats(wells: list,
     stats = IntervalStats(wi_name=wi_name, log_table=log_table, cutoffs=cutoffs, suffix=suffix)
 
     for well in wells:
-        # Don't use Intervals.get_cutoff_rule(), which falls back to the whole well when the interval is missing
-        interval = intervals.get_interval(wi_name, well.name)
-        if interval is None:
+        # Intervals.get_cutoff_rule() falls back to the whole well when the interval is missing, so check first.
+        # The interval may occur more than once in the well, and the rule then covers all occurrences
+        if len(intervals.get_intervals(wi_name, well.name)) == 0:
             print_info('Interval {} not present in {}'.format(wi_name, well.name), 'info', logger)
             continue
+        interval_rule = intervals.get_cutoff_rule(wi_name, well.name)
 
         missing = [_log for _log in log_table.log_names if _log not in well.get_log_names]
         if len(missing) > 0:
@@ -542,18 +543,18 @@ def collect_interval_stats(wells: list,
             well.create_tvd_ml_log()
 
         # Build a new Cutoffs for each well, so the interval rule is not added to the users cutoffs
-        well_cutoffs = Cutoffs(cutoffs=deepcopy(rules) +
-                               [CutoffRule('md', '><', [interval.top, interval.base])])
+        well_cutoffs = Cutoffs(cutoffs=deepcopy(rules) + [interval_rule])
         _data = well.dict(cutoffs=well_cutoffs, use_cutoffs=True)
 
         stats.per_well[well.name] = {_log: _data[_log] for _log in log_table.log_names if _log in _data}
-        stats.depth_from_top[well.name] = interval.distance_to_top(_data['md'])
+        # Distance to the top of the occurrence of the interval that contains each sample
+        stats.depth_from_top[well.name] = intervals.distance_to_top(wi_name, well.name, _data['md'])
         # The burial depth is NaN when the kelly bushing or water depth is lacking in the project table.
         # An interval without samples says nothing about that
         if 'tvd_ml' in _data and (len(_data['tvd_ml']) == 0 or np.any(np.isfinite(_data['tvd_ml'].magnitude))):
             stats.burial_depth[well.name] = _data['tvd_ml'].to('m')
-        print_info('Interval {} in well {}: {} samples within {:.1f} - {:.1f}'.format(
-            wi_name, well.name, len(_data['md']), interval.top, interval.base), 'info', logger)
+        print_info('Interval {} in well {}: {} samples within {}'.format(
+            wi_name, well.name, len(_data['md']), interval_rule), 'info', logger)
 
     return stats
 

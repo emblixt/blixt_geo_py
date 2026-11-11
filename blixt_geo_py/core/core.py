@@ -346,6 +346,8 @@ class CutoffRule:
             '>':  masked_greater
             '>=': masked_greater_equal
             '><': masked_inside
+                The limit is [low, high], or several ranges [low1, high1, low2, high2, ...] where the data is kept
+                inside any of them. E.G. Intervals.get_cutoff_rule() for an interval that occurs twice in a well
             '==': masked_equal
             '!=': masked_not_equal
 
@@ -395,6 +397,10 @@ class CutoffRule:
                 for _item in limit:
                     if not isinstance(_item, pint.Quantity):
                         raise_unit_error = True
+                if operator == '><' and (len(limit) < 2 or len(limit) % 2 != 0):
+                    error_txt = ("The '><' operator needs pairs of limits, [low, high] or [low1, high1, low2, high2, "
+                                 "...], not {} limits".format(len(limit)))
+                    print_info(error_txt, 'error', logger=logger, raiser='IOError')
             elif isinstance(limit, str):
                 self.interval_cutoff = True
             elif not isinstance(limit, pint.Quantity):
@@ -1357,11 +1363,72 @@ class Intervals(object):
     def well_names(self) -> list:
         return list(set([_x.well for _x in self.intervals]))
 
-    def get_interval(self, interval_name, well_name):
-        for _interval in self.intervals:
-            if _interval.name.lower() == interval_name.lower() and _interval.well.lower() == well_name.lower():
-                return _interval
-        return None
+    def get_intervals(self, interval_name: str, well_name: str) -> list:
+        """
+        Returns all occurrences of the interval in the well, sorted by their top.
+        An interval can occur more than once in a well, e.g. when it is repeated by a fault.
+        Empty list if the interval is not in the well
+        """
+        _intervals = [_interval for _interval in self.intervals
+                      if _interval.name.lower() == interval_name.lower() and _interval.well.lower() == well_name.lower()]
+        return sorted(_intervals, key=lambda _int: _int.top)
+
+    def get_interval(self, interval_name: str, well_name: str) -> Interval | None:
+        """
+        Returns the interval in the well, or None if it is not in the well.
+        When the interval occurs more than once in the well, the shallowest is returned, with a warning.
+        Use get_intervals(), get_cutoff_rule(), get_mid() or distance_to_top() to take all occurrences into account
+        """
+        _intervals = self.get_intervals(interval_name, well_name)
+        if len(_intervals) == 0:
+            return None
+        if len(_intervals) > 1:
+            print_info('Interval {} occurs {} times in {}. Only the shallowest is returned by get_interval()'.format(
+                interval_name, len(_intervals), well_name), 'warning', logger)
+        return _intervals[0]
+
+    def get_mid(self, interval_name: str, well_name: str) -> pint.Quantity | None:
+        """
+        Returns the mid depth of the interval in the well, or None if it is not in the well.
+        When the interval occurs more than once, it is the mean of the mid depths of all occurrences, weighted by
+        their thickness. That is the mean depth of the samples inside the interval, for evenly sampled data
+        """
+        _intervals = self.get_intervals(interval_name, well_name)
+        if len(_intervals) == 0:
+            return None
+        if len(_intervals) == 1:
+            return _intervals[0].mid
+        _thickness = sum([_int.thickness for _int in _intervals], Q_(0., 'm'))
+        if _thickness.magnitude == 0:
+            return _intervals[0].mid
+        return sum([_int.mid * _int.thickness for _int in _intervals], Q_(0., 'm**2')) / _thickness
+
+    def distance_to_top(self, interval_name: str, well_name: str, this_depth: pint.Quantity) -> pint.Quantity:
+        """
+        Distance from the top of the interval to each depth in this_depth, positive when this_depth is deeper.
+        When the interval occurs more than once in the well, the distance is to the top of the occurrence that
+        contains the depth. Depths outside all occurrences are NaN.
+        When the interval only occurs once, it is the same as Interval.distance_to_top(), also outside the interval
+
+        :param this_depth:
+            pint.Quantity
+            Depth (md), a single value or an array
+        """
+        _intervals = self.get_intervals(interval_name, well_name)
+        if len(_intervals) == 0:
+            raise IOError('Interval {} is not in {}'.format(interval_name, well_name))
+        if len(_intervals) == 1:
+            return _intervals[0].distance_to_top(this_depth)
+        _depth = np.atleast_1d(this_depth.to('m').magnitude).astype(float)
+        _distance = np.full(_depth.shape, np.nan)
+        for _int in _intervals:
+            _inside = (_depth >= _int.top.to('m').magnitude) & (_depth <= _int.base.to('m').magnitude)
+            # A depth at the base of one occurrence and the top of the next belongs to the shallowest
+            _inside &= np.isnan(_distance)
+            _distance[_inside] = _depth[_inside] - _int.top.to('m').magnitude
+        if np.ndim(this_depth.magnitude) == 0:
+            _distance = _distance[0]
+        return Q_(_distance, 'm').to(_intervals[0].top.units)
 
     def get_well_depth_range(self,  well_name):
         min_top = 1E6
@@ -1407,10 +1474,11 @@ class Intervals(object):
 
         overlaps = []
         for _well in _wells:
-            for i, _interval_a in enumerate(self.get_well_intervals(_well)):
-                for j, _interval_b in enumerate(self.get_well_intervals(_well)):
-                    if _interval_a.name == _interval_b.name:
-                        continue
+            _well_intervals = self.get_well_intervals(_well)
+            # Compare each pair of intervals once. Two occurrences of the same interval are compared too, as an
+            # interval may occur more than once in a well, but not at the same depth
+            for i, _interval_a in enumerate(_well_intervals):
+                for _interval_b in _well_intervals[i + 1:]:
                     if np.abs(_interval_a.top.to('m').magnitude - _interval_b.top.to('m').magnitude) < tolerance.to('m').magnitude:
                         overlaps.append('{} overlaps with {} in {}'.format(_interval_b.name, _interval_a.name, _well))
 
@@ -1479,11 +1547,17 @@ class Intervals(object):
         return intervals_dict
 
     def get_cutoff_rule(self, interval_name: str, well_name: str) -> CutoffRule:
-        _interval = self.get_interval(interval_name, well_name)
-        if _interval is None:
+        """
+        Returns a CutoffRule on md that keeps the data inside the interval in the well.
+        When the interval occurs more than once in the well, the data inside any of the occurrences is kept:
+            md><[top1, base1, top2, base2, ...]
+        When the interval is not in the well, the rule covers the depth range of all intervals in the well
+        """
+        _intervals = self.get_intervals(interval_name, well_name)
+        if len(_intervals) == 0:
             _top, _base = self.get_well_depth_range(well_name)
             return CutoffRule('md', '><', [Q_(_top, 'm'), Q_(_base, 'm')])
-        return CutoffRule('md', '><', [_interval.top, _interval.base])
+        return CutoffRule('md', '><', [_depth for _int in _intervals for _depth in (_int.top, _int.base)])
 
     def write_to_excel(self, file_name, intervals_sheet, interval_info_sheet, append: bool = False):
         import openpyxl
@@ -1633,7 +1707,7 @@ class WorkingIntervalsTable:
         for _name in _dict['name']:
             _wl = []
             for _wn in _well_names:
-                if self.intervals.get_interval(_name, _wn) is not None:
+                if len(self.intervals.get_intervals(_name, _wn)) > 0:
                     _wl.append(_wn)
             _wells.append(_wl)
 
@@ -1675,6 +1749,7 @@ class WorkingIntervalsTable:
 
         :return:
         {'interval': [...], 'well': [...], 'top': [...], 'base': [...], 'active': [...]}
+        An interval that occurs more than once in a well has one item per occurrence
         """
         _dict = dict(
             interval=[],
@@ -1685,8 +1760,7 @@ class WorkingIntervalsTable:
         )
         for _int_name in self.intervals.interval_names():
             for _wname in self.intervals.well_names():
-                _int = self.intervals.get_interval(_int_name, _wname)
-                if _int is not None:
+                for _int in self.intervals.get_intervals(_int_name, _wname):
                     _dict['interval'].append(_int_name)
                     _dict['well'].append(_wname)
                     _dict['top'].append(_int.top.to('m').magnitude)
