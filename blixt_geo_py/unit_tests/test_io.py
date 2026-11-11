@@ -127,6 +127,34 @@ class LasTestCase(unittest.TestCase):
         log_curves, _ = read_log_curves(_las_file, rename_logs={'depth': ['DEPTH', 'DEPT']})
         self.assertEqual(len(data['cald']), len(log_curves['cald'].depth))
 
+    def test_two_depth_curves(self):
+        """
+        WellWithTwoDeptCurves.las contains the DEPTH curve twice, in column 1 and 4.
+        Only the first DEPTH is kept, with a warning, and the curves after the second DEPTH are not shifted
+        """
+        _las_file = os.path.join(test_data_dir, 'WellWithTwoDeptCurves.las')
+        w = Well()
+        with self.assertLogs('blixt_geo_py.io.io', level='WARNING') as logs:
+            w.read_las(_las_file)
+        self.assertTrue(any('DEPTH occurs more than once' in _msg for _msg in logs.output))
+
+        self.assertEqual(['depth', 'phie', 'rho_dry', 'rho_sg08', 'rho_so08', 'sw', 'vp_dry', 'vp_sg08', 'vp_so08',
+                          'vs_dry', 'vs_sg08', 'vs_so08', 'vsh'], sorted(w.get_log_names))
+        logs = {_log.name: _log for _log in w.logs}
+        for _name, _log in logs.items():
+            with self.subTest(_name):
+                self.assertEqual(100, len(_log.values))
+                self.assertEqual(100, len(_log.depth))
+        depth = logs['vp_so08'].depth.values
+        self.assertAlmostEqual(2200., depth[0])
+        self.assertAlmostEqual(2215.0876, depth[-1])
+        np.testing.assert_allclose(logs['depth'].values, depth)
+        # Values in the columns after the second DEPTH
+        self.assertAlmostEqual(3631.9007, logs['vp_so08'].values[0])
+        self.assertAlmostEqual(4013.0207, logs['vp_so08'].values[-3])
+        self.assertAlmostEqual(2387.5609, logs['vs_dry'].values[-3])
+        self.assertAlmostEqual(0.2, logs['sw'].values[-1])
+
     def test_las_3(self):
         """ LAS 3.0 files are read too """
         null_value, gen_keys, well_dict, data = read_las(os.path.join(test_data_dir, 'Well E_CPI.las'))

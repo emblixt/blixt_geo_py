@@ -2027,7 +2027,7 @@ def read_las_file(file_name: str, encoding: str | None = None,
             if mnem in well_dict[section]:
                 # lasio keeps duplicates as 'WELL:1', 'WELL:2'. We keep the first one
                 if section == 'curve':
-                    print_info('{}: Curve {} is a duplicate of a curve read before it, after renaming. '
+                    print_info('{}: Curve {} occurs more than once (after any renaming). '
                                'Only the first is kept'.format(os.path.basename(file_name), item.original_mnemonic),
                                'warning', logger)
                 continue
