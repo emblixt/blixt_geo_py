@@ -178,3 +178,6 @@ Collected on 2026-11-03. Each item gives the file (relative to this folder), the
 
 ### 2026-11-11
 - ~~I need a 'compare_model_with_well()' plot, which is similar to the 'compare_synth_with_seismic()', but it has no seismic plot columns. It should plot one column for the working intervals, one plot column per selected variable (Vp, Vs, Rho, AI or Vp/Vs, user selects) in the middle where the well log data is plotted together with the model data using the same scale, and then the model layers on the far right~~ (plot_logs.compare_model_with_well(), the variables are selected with its 'variables' argument)
+- Rewrite Intervals object so that it can contain multiple intervals with the same name. Need to add test data for it. Also make sure that to fix the code that uses Intervals if there are changes in the API.
+- Move all the bokeh tests in unit_tests/main.py to the main.py in the folder of the function being tested. Just like plotting/main.py. It tests the functionality in the plotting folder using the unit tests in unit_tests 
+- When a las file has one log (at least the DEPTH log) occurring twice in a file, my las reader misinterprets it. Either raise an Error when this happens, or make it work for that case too
