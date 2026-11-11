@@ -433,17 +433,18 @@ class Well(object):
                                           template=template_file, rename_logs=rename_logs, only_md=True)
 
         if self.header.name is None:
-            self.header.name = well_dict['well_info']['well']['value']
+            self.header.name = well_dict['well_info'].get('well', {}).get('value')
         if self.header.orig_filename is None:
             self.header.orig_filename = file_name
 
-        for _key, _value in log_curves.items():
+        for _value in log_curves.values():
             _value.style.well = self.header.name
 
         if self.logs is None:
-            self.logs = list(log_curves.values())
+            # Keep logs as None when nothing could be read, so that an empty well isn't added to a project
+            self.logs = list(log_curves.values()) or None
         else:
-            for _val in list(log_curves.values()):
+            for _val in log_curves.values():
                 self.add_log(_val, if_log_exists=if_log_exists)
 
         if not ignore_header:

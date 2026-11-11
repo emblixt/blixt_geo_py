@@ -9,7 +9,8 @@ project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\
 import blixt_geo_py.io.io as uio
 from blixt_geo_py.core.core import AttributeDict, Header, LogTable
 from blixt_geo_py.core.well import Well
-from blixt_geo_py.io.io import well_reader
+from blixt_geo_py.io.io import read_las_file
+from blixt_geo_py.core.log_curve import read_las as read_log_curves
 
 
 import numpy as np
@@ -28,24 +29,21 @@ las_files = [os.path.join(test_data_dir, _las) for _las in ['Well A.las',
                                                              'WrongWellInfo.las']]
 
 
-def read_las(lfile):
-    with open(lfile, 'r') as f:
-        lines = f.readlines()
-    null_value, gen_keys, well_dict = well_reader(lines)
-    return null_value, gen_keys, well_dict
+def read_las(lfile, rename_logs=None):
+    well_dict, data = read_las_file(lfile, rename_logs=rename_logs)
+    null_value = well_dict['well_info']['null']['value']
+    return null_value, list(data.keys()), well_dict, data
 
 
 class LasTestCase(unittest.TestCase):
 
     def test_read_las(self):
         for _las_file in las_files:
-            null_value, gen_keys, well_dict = read_las(_las_file)
-            with self.subTest():
-                print('\n', os.path.basename(_las_file))
-                print(gen_keys)
-                print(list(well_dict['well_info'].keys()))
-                print(len(gen_keys), len(list(well_dict['data'].keys())))
-                self.assertEqual(len(gen_keys), len(list(well_dict['data'].keys())))
+            null_value, gen_keys, well_dict, data = read_las(_las_file)
+            with self.subTest(os.path.basename(_las_file)):
+                # every curve in the header has data, of the same length as all the other curves
+                self.assertEqual(gen_keys, list(well_dict['curve'].keys()))
+                self.assertEqual(1, len({len(_d) for _d in data.values()}))
 
     def test_header_types(self):
         """
@@ -82,9 +80,9 @@ class LasTestCase(unittest.TestCase):
         When reading in a las file, any 'null values' should be replaced with np.nan
         :return:
         """
-        null_value, gen_keys, well_dict = read_las(las_file)
+        null_value, gen_keys, well_dict, all_data = read_las(las_file)
         var_name = gen_keys[1]
-        data = np.array(well_dict['data'][var_name])
+        data = np.array(all_data[var_name])
         # data should not contain explicit 'null_value's, so below null_data should have length zero
         null_data = data[data == float(null_value)]
         with self.subTest():
@@ -97,10 +95,73 @@ class LasTestCase(unittest.TestCase):
             self.assertTrue(any(t))
 
     def test_well_info(self):
+        """
+        Header values are cleaned: well names harmonized, empty values are None, a unit given after the value
+        is moved to the unit, and text after a ':' in the value is kept
+        """
         _las_file = os.path.join(test_data_dir, 'WrongWellInfo.las')
-        null_value, gen_keys, well_dict = read_las(_las_file)
-        for key in list(well_dict['well_info'].keys()):
-            print(well_dict['well_info'][key]['value'], type(well_dict['well_info'][key]['value']))
+        null_value, gen_keys, well_dict, data = read_las(_las_file)
+        well_info = well_dict['well_info']
+        self.assertEqual('6507_5_8', well_info['well']['value'])
+        self.assertEqual(-999., null_value)
+        self.assertIsNone(well_info['loc']['value'])
+        self.assertEqual((30., 'm'), (well_info['apdat']['value'], well_info['apdat']['unit']))
+        self.assertEqual((100., 'FT'), (well_info['kb']['value'], well_info['kb']['unit']))
+        self.assertEqual('Original database: PL1057_1069', well_info['com1']['value'])
+
+    def test_duplicate_well_name(self):
+        """ Well F.las has two WELL lines. The first is used """
+        null_value, gen_keys, well_dict, data = read_las(os.path.join(test_data_dir, 'Well F.las'))
+        self.assertEqual('WELL_F', well_dict['well_info']['well']['value'])
+
+    def test_rename_to_existing_name(self):
+        """
+        L-30.las contains both DEPTH and DEPT. When both are renamed to 'depth', only the first is kept,
+        and its data is not mixed with the data of the second
+        """
+        _las_file = os.path.join(test_data_dir, 'L-30.las')
+        null_value, gen_keys, well_dict, data = read_las(_las_file, rename_logs={'depth': ['DEPTH', 'DEPT']})
+        self.assertEqual(1, gen_keys.count('depth'))
+        self.assertNotIn('dept', gen_keys)
+        self.assertEqual(len(data['cald']), len(data['depth']))
+        log_curves, _ = read_log_curves(_las_file, rename_logs={'depth': ['DEPTH', 'DEPT']})
+        self.assertEqual(len(data['cald']), len(log_curves['cald'].depth))
+
+    def test_las_3(self):
+        """ LAS 3.0 files are read too """
+        null_value, gen_keys, well_dict, data = read_las(os.path.join(test_data_dir, 'Well E_CPI.las'))
+        self.assertEqual(['depth', 'phie', 'phit', 'sw', 'vsh'], gen_keys)
+        self.assertEqual('WELL_E', well_dict['well_info']['well']['value'])
+
+    def test_quoted_names(self):
+        """
+        Quoted names containing spaces are read correctly, both in the header and in the data section.
+        Curves with text data are skipped
+        """
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            _las_file = os.path.join(tmp_dir, 'quoted.las')
+            with open(_las_file, 'w') as f:
+                f.write('~V\nVERS. 2.0 :\nWRAP. NO :\n~W\nNULL. -999.25 :\nWELL. "35/4-3 A" : WELL\n'
+                        '~C\nDEPT.M :\nZONE. : zone\nGR.GAPI :\n~A\n1 "Upper Zone" 50\n2 "Lower Zone" -999.25\n')
+            null_value, gen_keys, well_dict, data = read_las(_las_file)
+        self.assertEqual('35_4_3A', well_dict['well_info']['well']['value'])
+        self.assertEqual(['dept', 'gr'], gen_keys)
+        self.assertEqual(50., data['gr'][0])
+        self.assertTrue(np.isnan(data['gr'][1]))
+
+    def test_no_depth(self):
+        """ A las file without a depth curve gives no logs, and no error """
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            _las_file = os.path.join(tmp_dir, 'no_depth.las')
+            with open(_las_file, 'w') as f:
+                f.write('~V\nVERS. 2.0 :\nWRAP. NO :\n~W\nNULL. -999.25 :\nWELL. W-1 : WELL\n'
+                        '~C\nTIME.S :\nGR.GAPI :\n~A\n1 50\n2 -999.25\n')
+            log_curves, well_dict = read_log_curves(_las_file)
+            w = Well()
+            w.read_las(_las_file)
+        self.assertEqual({}, log_curves)
+        self.assertEqual('W_1', well_dict['well_info']['well']['value'])
+        self.assertIsNone(w.logs)
 
 
 class UtilsTestCase(unittest.TestCase):

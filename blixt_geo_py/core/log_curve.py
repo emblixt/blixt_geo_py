@@ -1349,26 +1349,21 @@ def _interpolate(x: np.ndarray, y: np.ndarray, x_new: np.ndarray, **kwargs):
 
 
 def find_depth_parameter(parameters, only_md=False):
-    accepted_depth_keys = rud.rename_well_logs['depth']
-    # Find depth parameter
-    depth_key = None
-    depth_type = None
+    """
+    Returns the name and type ('md', 'tvd', 'owt' or 'twt') of the depth (or time) parameter,
+    or (None, None) if there is none.
+    Any name in rud.rename_well_logs['depth'] counts as 'md', and the first MD parameter is preferred.
+    'tvd', 'owt' and 'twt' are only accepted when only_md is False, and there is no MD parameter
+    """
+    md_keys = [_x.lower() for _x in rud.rename_well_logs['depth']]
     for _key in parameters:
-        # for _key, _units in zip(log_names, log_units):
-        if _key.lower() in [_x.lower() for _x in accepted_depth_keys]:
-            depth_key = _key
-            depth_type = 'md'
-        elif _key.lower() == 'tvd' and not only_md:
-            depth_key = _key
-            depth_type = 'tvd'
-        elif _key.lower() == 'owt' and not only_md:
-            depth_key = _key
-            depth_type = 'owt'
-        elif _key.lower() == 'twt' and not only_md:
-            depth_key = _key
-            depth_type = 'twt'
-
-    return depth_key, depth_type
+        if _key.lower() in md_keys:
+            return _key, 'md'
+    if not only_md:
+        for _key in parameters:
+            if _key.lower() in ('tvd', 'owt', 'twt'):
+                return _key, _key.lower()
+    return None, None
 
 
 def read_las(file_name: str, verbose: bool = False, encoding: str = 'UTF8',
@@ -1377,10 +1372,16 @@ def read_las(file_name: str, verbose: bool = False, encoding: str = 'UTF8',
              only_md: bool = True) -> (dict, dict):
     """
     Returns a LogCurve object for each, or selected, log in las file, packed in a dict
+    The las file is parsed with lasio, see blixt_geo_py.io.io.read_las_file()
+
+    If no depth curve, or no depth unit, is found, a warning is given and the first dict is empty
 
     :param file_name:
     :param verbose:
+        Not used, kept for backwards compatibility
     :param encoding:
+        str
+        If reading with this encoding fails, lasio tries to detect the encoding
     :param log_table:
             LogTable
             Object which contains which log types, and associated and which log(s) to use for each log type
@@ -1402,95 +1403,51 @@ def read_las(file_name: str, verbose: bool = False, encoding: str = 'UTF8',
         first dict contains a log_name: LogCurve "key: value" pair for log in the las file
         second dict contains the standard info about the well and curves extracted from the las file
     """
-    import pandas as pd
-    from blixt_geo_py.utils.utils import fix_well_name
     from blixt_geo_py.utils.utils import print_info
-    from blixt_geo_py.io.io import well_reader
-    from blixt_geo_py.core.core import Template, templates_from_table
+    from blixt_geo_py.io.io import read_las_file
 
-    with open(file_name, "r", encoding=encoding) as f:
-        lines = f.readlines()
-    # null_val, generated_keys, well_dict = well_reader(lines, file_format='las')
-    null_val, generated_keys, well_dict = well_reader(lines, file_format='las', rename_logs=rename_logs)
+    base_name = os.path.basename(file_name)
+    well_dict, data = read_las_file(file_name, encoding=encoding, rename_logs=rename_logs)
+    well_name = well_dict['well_info'].get('well', {}).get('value')
 
-    well_name = fix_well_name(well_dict['well_info']['well']['value'])
-
-    # Find depth parameter
-    depth_key, depth_type = find_depth_parameter(generated_keys, only_md=only_md)
-
-    depth_units = well_dict['curve'][depth_key]['unit']
-
+    # Find the depth curve, and its units
+    depth_key, depth_type = find_depth_parameter(list(data.keys()), only_md=only_md)
     if depth_key is None:
-        warn_txt = 'No valid depth parameter was found in {}, which contains: {}'.format(
-            # os.path.basename(file_name), ', '.join(log_names)
-            os.path.basename(file_name), ', '.join(generated_keys)
-        )
-        print_info(warn_txt, 'warning', logger)
-    if (depth_units is None) or (depth_units == ''):
-        warn_txt = 'No valid depth unit was found in {} for depth {}'.format(
-            os.path.basename(file_name), depth_key
-        )
-        print_info(warn_txt, 'warning', logger)
+        print_info('No valid depth parameter was found in {}, which contains: {}. Skipping the file'.format(
+            base_name, ', '.join(data.keys())), 'warning', logger)
+        return {}, well_dict
+    depth_units = well_dict['curve'][depth_key]['unit']
+    if depth_units == '':
+        # Fall back on the units of the start depth in the well info section
+        depth_units = well_dict['well_info'].get('strt', {}).get('unit', '')
+        if depth_units == '':
+            print_info('No valid depth unit was found in {} for depth {}. Skipping the file'.format(
+                base_name, depth_key), 'warning', logger)
+            return {}, well_dict
     depth_units = fix_units_for_pint(depth_units)
 
-    # Only read those logs we requested in the log_table
-    only_these_logs = generated_keys  # This contains all the logs
-    log_types = [None] * len(only_these_logs)
-    if log_table is not None:
-        only_these_logs = log_table.log_names
-        log_types = log_table.log_types
-
-    # Find and extract data
-    data = well_dict.pop('data')
-    output = {}
-    if isinstance(template, str):
-        if verbose:
-            print('read_las(): Template is given as a string')
-        table = pd.read_excel(template, header=1, sheet_name='Templates', engine='openpyxl')
-        template_dict = templates_from_table(table)
-    elif isinstance(template, Template):
-        print('read_las(): Template is given as a Template object')
-        template_dict = template.dict()
+    # Read all logs, or only those requested in the log_table
+    if log_table is None:
+        log_names, log_types = list(data.keys()), [None] * len(data)
     else:
-        print('read_las(): No Template is given')
-        template_dict = None
-    for _key, _log_type in zip(only_these_logs, log_types):
+        log_names, log_types = log_table.log_names, log_table.log_types
+
+    template_dict = _template_dict(template)
+
+    output = {}
+    for _key, _log_type in zip(log_names, log_types):
+        _key = _key.lower()
+        if _key not in data:
+            print_info('Log {} is not found in {}'.format(_key, base_name), 'warning', logger)
+            continue
         style = None
-        if template_dict is not None:
-            if _log_type in list(template_dict.keys()):
-                style = Template(**template_dict[_log_type])
-                style.name = _key
-        try:
-            data_units = well_dict['curve'][_key.lower()]['unit']
-        except KeyError as e:
-            warn_txt = '{}: Log {} is not found in {}'.format(
-                e, _key, os.path.basename(file_name)
-            )
-            print_info(warn_txt, 'warning', logger)
-            continue
-        # if (data_units is None) or (data_units == ''):
-        if data_units is None:
-            warn_txt = 'No valid data unit was found in {} for data key {}. Skipping reading it'.format(
-                os.path.basename(file_name), _key
-            )
-            print_info(warn_txt, 'warning', logger)
-            continue
-        data_units = fix_units_for_pint(data_units)
+        if template_dict is not None and _log_type in template_dict:
+            style = Template(**template_dict[_log_type])
+            style.name = _key
 
-        # # Rename logs
-        # log_name = None
-        # if rename_logs is not None:
-        #     for new_log_name in list(rename_logs.keys()):
-        #         if _key.lower() in [_l.lower() for _l in rename_logs[new_log_name]]:
-        #             log_name = new_log_name
-        # if log_name is None:
-        #     log_name = _key.lower()
-
-        output[_key.lower()] = LogCurve(
-        # output[log_name] = LogCurve(
-            _key.lower(),
-            # log_name,
-            Q_(data[_key.lower()], data_units),
+        output[_key] = LogCurve(
+            _key,
+            Q_(data[_key], fix_units_for_pint(well_dict['curve'][_key]['unit'])),
             Depth(Q_(data[depth_key], depth_units), depth_type=depth_type),
             _log_type,
             well_name,
@@ -1498,6 +1455,25 @@ def read_las(file_name: str, verbose: bool = False, encoding: str = 'UTF8',
             header={'orig_filename': file_name})
 
     return output, well_dict
+
+
+def _template_dict(template: Template | str | None) -> dict | None:
+    """
+    Returns a dictionary with log types as keys, and the template (style) of each log type as values
+
+    :param template:
+        str or Template object
+        if str, it is the full filename of .xlsx file that contains templates of each log type
+        (the 'Templates' sheet of the project table)
+    """
+    import pandas as pd
+    from blixt_geo_py.core.core import templates_from_table
+    if isinstance(template, str):
+        table = pd.read_excel(template, header=1, sheet_name='Templates', engine='openpyxl')
+        return templates_from_table(table)
+    if isinstance(template, Template):
+        return template.dict()
+    return None
 
 
 def read_general_ascii(file_name: str,

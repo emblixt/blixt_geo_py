@@ -129,8 +129,8 @@ Collected on 2026-11-03. Each item gives the file (relative to this folder), the
 - `io/io.py:1684`, read_petrel_checkshots(): Build in a check to see what the time units are! Now we assume it is in ms. If we correct this, then make sure every usage of read_petrel_checkshots is updated
 - `io/io.py:1764`, read_well_headers(): Handle the replaced xml code too (the '<key AAAA> BBBB </key>' sections are now replaced and ignored)
 - `io/io.py:1768`, read_well_headers(): Find any strings specifying a lat / lon (e.g 65°55'1.6900"N) and replace with deg, min, sec. A commented out regular expression is still in the code here
-- `io/io.py:2225`, well_reader(): well_dict.add_section() will probably fail. Test and compare with 'original' converter
-- `io/io.py:2295`, well_reader(): Some las files contain names enclosed in " ", and these names can contain spaces (see S:\Well\Wells_Norway\QUAD_35\35_4-3\Petrophysics\Interpretation\35_4-3_CPI_OUT_2022-11-06.las). And we need to be smart to separate out these somehow. It is done in not-so-smart way in read_petrel_checkshots()
+- ~~`io/io.py:2225`, well_reader(): well_dict.add_section() will probably fail. Test and compare with 'original' converter~~ well_reader() is replaced by read_las_file(), which uses lasio
+- ~~`io/io.py:2295`, well_reader(): Some las files contain names enclosed in " ", and these names can contain spaces (see S:\Well\Wells_Norway\QUAD_35\35_4-3\Petrophysics\Interpretation\35_4-3_CPI_OUT_2022-11-06.las). And we need to be smart to separate out these somehow. It is done in not-so-smart way in read_petrel_checkshots()~~ well_reader() is replaced by read_las_file(), which uses lasio
 - `io/io.py:2375`, well_excel_reader(): Make it possible to add units and description to data read from Excel files too
 - `io/io.py:2433`, interpret_cutoffs_string(): This function can be *REMOVED* because the new CutoffRule and Cutoffs can be generated directly from a string
 - `plotting/avo_chi_plotter.py:246`, create_mc_avo_plot(): Do a complete re-write of this function utilizing a 2 layer LaminarModel instead. And after AvoAnalyzer is ready, use that functionality to plot the AVO curves
