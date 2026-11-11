@@ -414,7 +414,8 @@ class LogColumn:
                  rel_header_height: float = 0.,
                  lines: list | None = None,
                  seismic_traces: SeismicTraces | None = None,
-                 scale: Literal['linear', 'log'] = 'linear'
+                 scale: Literal['linear', 'log'] = 'linear',
+                 shared_x_scale: bool = False
                  ):
         """
         :param name:
@@ -435,10 +436,14 @@ class LogColumn:
         :param scale:
             str
             'linear' or 'log'
+        :param shared_x_scale:
+            bool
+            If True, all lines are plotted against the x axis of the first line. If False, each line gets its own x axis
         """
         if lines is None:
             lines = []
         self._lines = lines
+        self.shared_x_scale = shared_x_scale
         self._seismic_traces = seismic_traces
         self._rel_width = rel_width
         self._rel_header_height = rel_header_height
@@ -819,6 +824,8 @@ def add_lines(_p: bokeh.plotting.figure,
             _p.xaxis.axis_label = '{} [{}]'.format(_legend_label, _line.units)
             _p.x_range = Range1d(*_line.x_range(from_style=True))
             # print('XXX', _p.x_range.start, _p.x_range.end)
+        elif _column.shared_x_scale and _line.cds is not None:
+            _p.line(x=_line.x, y=_line.y, source=_line.cds, name=_line.name, **_line.line_args)
         else:
             _p.extra_x_ranges[_legend_label] = Range1d(*_line.x_range(from_style=True))
             if _line.cds is None:
@@ -1068,10 +1075,12 @@ def add_strat_table(_p: bokeh.plotting.figure,
     # Tried to hide texts that overlap
     # _l = strati_cds.data['level']
     # _text_alpha = [float(_l[_i] != _l[_i + 1]) for _i in range(len(_l) - 1)] + [1.]
-    text_glyph = Text(x=_p.children[0][0].x_range.start, y='top',
-                      text='name', text_font_size='font_size', text_alpha='visible')
-                      # text='name', text_font_size='font_size', text_alpha=_text_alpha)  # This didn't work, need to modify cds!
-    _p.children[0][0].add_glyph(strati_cds, text_glyph)
+    # When the intervals are drawn in the first column, the names are written in their boxes below instead
+    if column_index != 0:
+        text_glyph = Text(x=_p.children[0][0].x_range.start, y='top',
+                          text='name', text_font_size='font_size', text_alpha='visible')
+                          # text='name', text_font_size='font_size', text_alpha=_text_alpha)  # This didn't work, need to modify cds!
+        _p.children[0][0].add_glyph(strati_cds, text_glyph)
     if column_index is not None:
         text_glyph = Text(x='level', y='mid',
                           text='name', text_font_size='font_size', text_font_style='bold',

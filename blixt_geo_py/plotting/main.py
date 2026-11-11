@@ -10,7 +10,8 @@ from bokeh.plotting import column, figure, show, curdoc, row
 # test = 'cross_plotter__test_working_intervals'
 # test = 'cross_plotter__test_both'
 # test = 'rp_plotter__test_well'
-test = 'rp_plotter__test_well_with_rpt'
+# test = 'rp_plotter__test_well_with_rpt'
+test = 'plot_logs__test_compare_model_with_well'
 
 
 if test == 'log_plotter__test_cutoffs':
@@ -106,6 +107,22 @@ elif test == 'rp_plotter__test_well_with_rpt':
                        rpt_dt, row(add_row, var_select, delete_row, update_table)
                    )
            )
+        )
+    )
+
+elif test == 'plot_logs__test_compare_model_with_well':
+    from blixt_geo_py.unit_tests import test_plot_logs
+    test = test_plot_logs.TestPlot()
+    layout, data_table, lf_table, lf_controls, model_table, model_controls = (
+        test.test_compare_model_with_well(unit_test=False))
+    curdoc().add_root(
+        column(
+            layout,
+            row(
+                column(model_table, model_controls),
+                column(lf_table, lf_controls)
+            ),
+            data_table
         )
     )
 

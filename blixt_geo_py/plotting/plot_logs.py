@@ -11,7 +11,7 @@ import numpy as np
 import pint
 from bokeh.events import RangesUpdate
 from bokeh.io import output_file
-from bokeh.models import ColumnDataSource, Span, Select, Button, Slider, CheckboxGroup, Div, CustomJS
+from bokeh.models import ColumnDataSource, Span, Select, Button, Slider, CheckboxGroup, Div, CustomJS, Range1d
 from bokeh.models import PanTool, WheelZoomTool, ResetTool, SaveTool, CrosshairTool, HoverTool, TextInput
 from bokeh.plotting import show, row, column, figure
 from matplotlib.font_manager import FontProperties
@@ -25,7 +25,7 @@ import blixt_geo_py.rp.rp_core as rp
 from blixt_geo_py.core.core import Intervals, LogTable, Template, Cutoffs, LithoFluids
 from blixt_geo_py.core.log_curve import LogCurve, _to_depth, replace_data
 from blixt_geo_py.plotting.log_plotter import (LogPlotter, LogColumn, Line, WellPlotter,  add_strat_table, add_color_amp,
-                                           select_column)
+                                           select_column, get_grid_plot)
 import blixt_geo_py.core.wavelets as bumw
 from blixt_geo_py.utils.utils import nan_corrcoef, print_info
 from blixt_geo_py.core.seismic import SeismicTraces, interpolate_along_offset
@@ -526,8 +526,227 @@ def plot_chi_rotation(well: cw.Well,
 
     return title, grid,chi_slider, backus_slider, freq_slider, data_table, xplot, hplot, cc_fluid_fig, cc_litho_fig
 
-def compare_model_with_well():
-    pass
+def compare_model_with_well(
+        well: cw.Well,
+        vp_vs_rho_table: LogTable,
+        model: Model,
+        litho_fluids: LithoFluids | None = None,
+        variables: list | None = None,
+        wis: Intervals | None = None,
+        width: int | None = None,
+        height: int | None = None,
+        layers_width: float = 0.3,
+        buffer: float | None = 50.
+):
+    """
+    Plots the elastic well logs together with the same variables of a 1D model, using the same x scale for the well and
+    the model, in order to compare them. From left to right, the columns are the working intervals, one column per
+    selected variable, and the model layers.
+
+    All cases of the model are plotted. The model lines, the layers and the scales follow the model when "Update" is
+    pressed in the model table. The scales are only widened by an update, so that a zoomed in view is kept.
+
+    The well logs are plotted against MD, as in compare_synth_with_seismic(), so the depth of the model must be in MD
+    :param well:
+        Well object
+    :param vp_vs_rho_table:
+        LogTable with the Vp, Vs and Rho logs. Only the logs that the selected variables depend on are required
+    :param model:
+        blixt_geo_py.core.models.Model object
+        This function only allows 1D models
+    :param litho_fluids:
+        LithoFluids object
+        Container of multiple LithoFluid objects
+    :param variables:
+        list of str
+        The variables to plot, one column each, in the given order. Any of 'Vp', 'Vs', 'Rho', 'AI' and 'Vp/Vs'.
+        If None, all of them are plotted
+    :param wis:
+        Intervals
+        If provided the working intervals in wis will be plotted
+    :param width:
+    :param height:
+    :param layers_width:
+        float
+        Width of the column with the names of the model layers, relative to the columns of the variables (which have
+        width 1). Use 0 to leave the column out
+    :param buffer:
+        float
+        Distance in meters. The plot opens from the top of the model - buffer to the base of the model + buffer, and the
+        x scales are set from the well data in this depth range, so well logs outside it can be clipped when zooming out.
+        If None, the whole well is shown
+    :return:
+        layout, data_table, lf_table, lf_controls, model_table, model_controls
+        layout is the gridplot of the columns, with a title above it with the names of the well and the model. Use
+        get_grid_plot() to get the gridplot out of it. data_table is the table of the working intervals
+    """
+    if width is None:
+        width = 1000
+    if height is None:
+        height = 800
+
+    # Plot label, units and the logs needed, of each variable. These units are the ones of the model realizations
+    known_variables = {
+        'vp': ('Vp', 'm/s', ['P velocity']),
+        'vs': ('Vs', 'm/s', ['S velocity']),
+        'rho': ('Rho', 'g/cm3', ['Density']),
+        'ai': ('AI', 'kPa s/m', ['P velocity', 'Density']),
+        'vpvs': ('Vp/Vs', '-', ['P velocity', 'S velocity'])
+    }
+    if variables is None:
+        variables = list(known_variables.keys())
+    if len(variables) == 0:
+        print_info('At least one variable must be selected', 'error', logger, raiser='IOError')
+    selected = [str(_var).lower().replace('/', '').replace(' ', '') for _var in variables]
+    for _var, _key in zip(variables, selected):
+        if _key not in known_variables:
+            err_txt = 'Unknown variable {}. Use any of Vp, Vs, Rho, AI and Vp/Vs'.format(_var)
+            print_info(err_txt, 'error', logger, raiser='IOError')
+
+    # Check that the required logs exists in the well
+    log_types = [_type for _key in selected for _type in known_variables[_key][2]]
+    log_types = list(dict.fromkeys(log_types))
+    vp_vs_rho_table = vp_vs_rho_table.single_log(log_types)
+    for _type in log_types:
+        if _type not in vp_vs_rho_table:
+            print_info('Log type {} is missing in the LogTable'.format(_type), 'error', logger, raiser='IOError')
+        if vp_vs_rho_table[_type] not in well.get_log_names:
+            err_txt = 'Log {} does not exist in well {}'.format(vp_vs_rho_table[_type], well.name)
+            print_info(err_txt, 'error', logger, raiser='IOError')
+
+    # AI and Vp/Vs are calculated sample by sample
+    if not (well.is_of_equal_length and well.is_evenly_spaced):
+        print_info('Well {} needs to be harmonized'.format(well.name), 'info', logger)
+        well.harmonize_logs()
+
+    # The well logs, in the same units as the model
+    def well_log(_log_type, _units):
+        return well.get_log_curve(vp_vs_rho_table[_log_type]).data.to(_units).magnitude
+
+    well_data = {'md': well.get_log_curve(vp_vs_rho_table[log_types[0]]).depth.values}
+    for _key in selected:
+        if _key == 'vp':
+            well_data[_key] = well_log('P velocity', 'm/s')
+        elif _key == 'vs':
+            well_data[_key] = well_log('S velocity', 'm/s')
+        elif _key == 'rho':
+            well_data[_key] = well_log('Density', 'grams/cm^3')
+        elif _key == 'ai':
+            well_data[_key] = (Q_(well_log('P velocity', 'm/s'), 'm/s') * Q_(well_log('Density', 'grams/cm^3'),
+                               'grams/cm^3')).to('kiloPa * s / m').magnitude
+        else:
+            with np.errstate(divide='ignore', invalid='ignore'):
+                well_data[_key] = well_log('P velocity', 'm/s') / well_log('S velocity', 'm/s')
+    well_cds = ColumnDataSource(well_data)
+
+    # Extract the model
+    laminar_model = LaminarModel(model, litho_fluids)
+    laminar_model.initiate_lf_table()
+    cds_lf = laminar_model.lf_table.cds
+    lf_table, lf_controls = laminar_model.draw_lf_table(cds_lf)
+    laminar_model.initiate_model_table()
+    cds_m = laminar_model.model_table.cds
+    _model_table, model_controls = laminar_model.draw_model_table(cds_m, cds_lf)
+    # The order of the case names varies, so sort them to keep the same legend from one run to the next
+    cases = sorted(laminar_model.model.case_names, key=lambda _case: (_case != global_base_case_name, _case))
+    cds_lines = laminar_model.model_table.line_cds(laminar_model.model_table.realize(laminar_model.resolution))
+
+    def depth_limits():
+        # The depth range the plot opens with, top first. None if the whole well is shown
+        if buffer is None:
+            return None
+        _depth = np.asarray(cds_lines.data['depth'], dtype=float)
+        return float(np.nanmin(_depth)) - buffer, float(np.nanmax(_depth)) + buffer
+
+    def x_limits(_key):
+        # The common x scale of the well log and all cases of the model
+        _well_values = np.asarray(well_data[_key], dtype=float)
+        _limits = depth_limits()
+        if _limits is not None:
+            _well_values = _well_values[(well_data['md'] >= _limits[0]) & (well_data['md'] <= _limits[1])]
+        _values = np.concatenate([_well_values] + [
+            np.asarray(cds_lines.data['{}_{}'.format(_key, _case)], dtype=float)
+            for _case in cases if '{}_{}'.format(_key, _case) in cds_lines.data])
+        _values = _values[np.isfinite(_values)]
+        _min, _max = float(np.min(_values)), float(np.max(_values))
+        _margin = 0.05 * (_max - _min) if _max > _min else max(0.05 * abs(_max), 1.)
+        return _min - _margin, _max + _margin
+
+    #
+    # create a grid plot with one column per variable
+    #
+    log_columns = []
+    if wis is not None:
+        # This is the first column, so it also has to hold the depth axis
+        log_columns.append(LogColumn('WIS', lines=[], rel_width=0.5))
+
+    for _key in selected:
+        _min, _max = x_limits(_key)
+        _lines = [Line(x=_key, y='md', cds=well_cds, style=Template(**{
+            'name': 'Well', 'line_color': 'black', 'line_width': 1., 'line_style': '-', 'min': _min, 'max': _max}))]
+        for _case in cases:
+            _is_base = _case == global_base_case_name
+            _lines.append(Line(x='{}_{}'.format(_key, _case), y='depth', cds=cds_lines, style=Template(**{
+                'name': _case,
+                'line_color': 'blue' if _is_base else 'red',
+                'line_width': 2.,
+                'line_style': '-' if _is_base else '--',
+                'min': _min,
+                'max': _max})))
+        log_columns.append(LogColumn(_key.upper(), lines=_lines, rel_width=1, shared_x_scale=True))
+
+    if layers_width > 0:
+        log_columns.append(LogColumn('LAYERS', lines=[], rel_width=layers_width))
+
+    plotter = LogPlotter(width=width, height=height)
+    plotter.columns = log_columns
+    title = well.name if model.name is None else '{}: {}'.format(well.name, model.name)
+    layout = plotter.draw(title=title)
+    grid = get_grid_plot(layout)
+
+    y_range = None
+    if buffer is not None:
+        # Depth increases downwards, so the range starts at the base
+        _top, _base = depth_limits()
+        y_range = Range1d(_base, _top)
+        for _child in grid.children:
+            _child[0].y_range = y_range
+
+    for _key in selected:
+        _label, _units, _ = known_variables[_key]
+        select_column(grid, _key.upper()).xaxis[0].axis_label = '{} [{}]'.format(_label, _units)
+
+    layers_cds = ColumnDataSource(layer_names_data(laminar_model.model))
+    if layers_width > 0:
+        add_layer_names(select_column(grid, 'LAYERS'), layers_cds)
+        link_layer_names(cds_m, layers_cds)
+
+    if wis is not None:
+        data_table = add_strat_table(grid, stratigraphy=wis.get_intervals_dict(well.name), column_index=0)
+    else:
+        data_table = Div(text='', width=10, height=10)
+
+    def update_m_function():
+        _elastics_dict = laminar_model.model_table.realize(laminar_model.resolution)
+        cds_lines.data = dict(laminar_model.model_table.line_cds(_elastics_dict).data)
+        cds_m.data = dict(laminar_model.model_table.cds.data)
+        layers_cds.data = layer_names_data(laminar_model.model_table.model)
+
+        for _key in selected:
+            _x_range = select_column(grid, _key.upper()).x_range
+            _min, _max = x_limits(_key)
+            _x_range.start = min(_x_range.start, _min)
+            _x_range.end = max(_x_range.end, _max)
+
+        if y_range is not None:
+            _top, _base = depth_limits()
+            y_range.start = max(y_range.start, _base)
+            y_range.end = min(y_range.end, _top)
+
+    model_controls.children[2].on_click(update_m_function)
+
+    return layout, data_table, lf_table, lf_controls, _model_table, model_controls
+
 
 def compare_synth_with_seismic(
         well: cw.Well,

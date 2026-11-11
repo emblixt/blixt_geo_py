@@ -451,6 +451,87 @@ class TestPlot(unittest.TestCase):
         case_selector.value = 'Oil'
         self.assertFalse(np.array_equal(base_synthetic, image.data_source.data['value'][0]))
 
+    def test_compare_model_with_well(self, unit_test=True):
+        # With unit_test=False, the widgets are returned so that they can be used in a bokeh server, see plotting/main.py
+        from bokeh.models import GlyphRenderer, Range1d
+        from bokeh.models.glyphs import Line as LineGlyph
+        from blixt_geo_py.core.core import LithoFluid
+        from blixt_geo_py.core.models import Model, Layer
+        from blixt_geo_py.plotting.log_plotter import get_grid_plot
+
+        wp = Project(name='MyProject', project_table=project_table)
+        wp.load_all_wells()
+        wis = wp.load_all_wis()
+        well = [_w for _w in wp.wells if _w.name == 'WELL_F'][0]
+        model = Model(depth_to_top=Q_(1780., 'm'), name='Test model', layers=[
+            Layer('Cap', 'Base', thickness=Q_(46., 'm'), litho_fluid=LithoFluid(default='shale')),
+            Layer('Reservoir', 'Base', thickness=Q_(52., 'm'), litho_fluid=LithoFluid(default='brine_sst')),
+            Layer('Reservoir', 'Oil', thickness=Q_(52., 'm'), litho_fluid=LithoFluid(default='oil_sst')),
+            Layer('Below', 'Base', thickness=Q_(60., 'm'), litho_fluid=LithoFluid(default='shale')),
+        ])
+        log_table = LogTable({'Density': 'rho_dry', 'P velocity': 'vp_dry', 'S velocity': 'vs_dry'})
+
+        output = bupp.compare_model_with_well(well, log_table, model, variables=['Vp', 'AI', 'Vp/Vs'], wis=wis)
+        if not unit_test:
+            return output
+        grid = get_grid_plot(output[0])
+
+        # The title above the columns names the well and the model
+        self.assertIn('WELL_F: Test model', output[0].children[0].text)
+
+        # Intervals to the far left, the selected variables in the given order, and the layers to the far right
+        self.assertEqual(['WIS', 'VP', 'AI', 'VPVS', 'LAYERS'], [_c[0].name for _c in grid.children])
+
+        # Well and all model cases share one x scale in each column
+        for _name in ['VP', 'AI', 'VPVS']:
+            _p = grid.select_one({'name': _name})
+            self.assertEqual(0, len(_p.extra_x_ranges))
+            self.assertIsInstance(_p.x_range, Range1d)
+            lines = [_r for _r in _p.renderers if isinstance(_r, GlyphRenderer) and isinstance(_r.glyph, LineGlyph)]
+            self.assertEqual(['Well', 'Base', 'Oil'], [_r.name for _r in lines])
+            for _r in lines:
+                self.assertEqual('default', _r.x_range_name)
+
+        layers_column = grid.select_one({'name': 'LAYERS'})
+        layer_names = [_r.data_source.data['name'] for _r in layers_column.renderers
+                       if isinstance(_r, GlyphRenderer)][0]
+        self.assertEqual(['Cap', 'Reservoir', 'Below'], layer_names)
+
+        # The model data has the same units as the well, also for the derived variables
+        ai_column = grid.select_one({'name': 'AI'})
+        well_ai = [_r for _r in ai_column.renderers if _r.name == 'Well'][0].data_source.data['ai']
+        vp = well.get_log_curve('vp_dry').values
+        rho = well.get_log_curve('rho_dry').values
+        np.testing.assert_allclose(well_ai, vp * rho)
+
+        # The plot opens on the model and the default buffer, with depth increasing downwards, in all columns
+        for _c in grid.children:
+            self.assertIs(grid.children[0][0].y_range, _c[0].y_range)
+        self.assertEqual((1780. + 158. + 50., 1780. - 50.),
+                         (round(grid.children[0][0].y_range.start), round(grid.children[0][0].y_range.end)))
+
+        # Only the logs of the selected variables are needed, and the layers column can be left out
+        # A model without a name gives a title with only the name of the well
+        model.name = None
+        output = bupp.compare_model_with_well(well, LogTable({'P velocity': 'vp_dry'}), model, variables=['vp'],
+                                              layers_width=0, buffer=None)
+        self.assertNotIn('None', output[0].children[0].text)
+        self.assertIn('WELL_F', output[0].children[0].text)
+        grid = get_grid_plot(output[0])
+        self.assertEqual(['VP'], [_c[0].name for _c in grid.children])
+        self.assertNotIsInstance(grid.children[0][0].y_range, Range1d)
+
+        # Pressing "Update" must also work with the shared scales. A thicker model widens the depth range
+        output = bupp.compare_model_with_well(well, log_table, model, variables=['vp'])
+        grid, model_controls = get_grid_plot(output[0]), output[-1]
+        model.layers[0].thickness = Q_(146., 'm')
+        update_callbacks = model_controls.children[2]._event_callbacks['button_click']
+        update_callbacks[-1]()
+        self.assertGreater(grid.children[0][0].y_range.start, 1780. + 158. + 50.)
+
+        with self.assertRaises(IOError):
+            bupp.compare_model_with_well(well, log_table, model, variables=['phie'])
+
     def test_plot_trends(self):
         # Only have Well A active in the project table
         log_table = LogTable({'Density': 'rho_dry', 'P velocity': 'vp_dry', 'S velocity': 'vs_dry',
