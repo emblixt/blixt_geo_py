@@ -82,7 +82,7 @@ pint units into use.~~
 - ~~Cutoffs.use_log_table() does not support multi log LogTables~~
 - test_well and test_plot_logs read las files from T:\ and OneDrive, and one test waits for input()
 - ~~LogPlotter.add_cutoffs_table() is called with a 'rules' argument it does not have (test_plot_logs)~~
-- unit_tests/main.py imports test_models, which it can't find
+- ~~unit_tests/main.py imports test_models, which it can't find~~ (unit_tests/main.py is deleted, its tests are moved to core/main.py)
 
 ### 2026-11-02
 - ~~Add a new Bokeh interactive tool that can do a "naiv" fluid substitution  on a selected LithoFLuid in a LithoFluidTable. It is actually initiated in InteractiveFluidSub in fluid_substitution.py~~ (the "Fluid sub" button of LithoFluidsTable)
@@ -179,5 +179,5 @@ Collected on 2026-11-03. Each item gives the file (relative to this folder), the
 ### 2026-11-11
 - ~~I need a 'compare_model_with_well()' plot, which is similar to the 'compare_synth_with_seismic()', but it has no seismic plot columns. It should plot one column for the working intervals, one plot column per selected variable (Vp, Vs, Rho, AI or Vp/Vs, user selects) in the middle where the well log data is plotted together with the model data using the same scale, and then the model layers on the far right~~ (plot_logs.compare_model_with_well(), the variables are selected with its 'variables' argument)
 - Rewrite Intervals object so that it can contain multiple intervals with the same name. Need to add test data for it. Also make sure that to fix the code that uses Intervals if there are changes in the API.
-- Move all the bokeh tests in unit_tests/main.py to the main.py in the folder of the function being tested. Just like plotting/main.py. It tests the functionality in the plotting folder using the unit tests in unit_tests 
+- ~~Move all the bokeh tests in unit_tests/main.py to the main.py in the folder of the function being tested. Just like plotting/main.py. It tests the functionality in the plotting folder using the unit tests in unit_tests~~ (all tested functionality in core, so they are moved to core/main.py, and unit_tests/main.py is deleted)
 - ~~When a las file has one log (at least the DEPTH log) occurring twice in a file, my las reader misinterprets it. Either raise an Error when this happens, or make it work for that case too~~ read_las_file() keeps the first, and warns (test_io.LasTestCase.test_two_depth_curves)

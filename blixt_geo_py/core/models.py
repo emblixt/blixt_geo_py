@@ -2530,7 +2530,8 @@ class FaultModel(LaminarModel):
             layers, dx, depth_to_top, throw, dip, n_traces, True
         )
 
-        super().__init__(model=model, litho_fluids=litho_fluids, resolution=resolution, **kwargs)
+        # dx must be passed on, otherwise LaminarModel.__init__() resets self.dx to None
+        super().__init__(model=model, litho_fluids=litho_fluids, resolution=resolution, dx=dx, **kwargs)
 
     def draw(self):
         from bokeh.models import NumericInput
@@ -2555,7 +2556,6 @@ class FaultModel(LaminarModel):
         )
 
         # Select lateral resolution
-        print('XXX', self.dx)
         dx_selector = NumericInput(
             value=self.dx.to('m').magnitude, low=0.5, high=50., title='Lateral resolution [m]',
             mode='float',
