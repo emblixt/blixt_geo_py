@@ -604,6 +604,7 @@ class TestCase(unittest.TestCase):
             LithoFluid(default='shale'),
             LithoFluid(default='oil_sst'),
             LithoFluid(name='Quasi 2D', vp=vp, vs=vs, rho=rho),
+            # LithoFluid(default='brine_sst'),
             LithoFluid(name='Basement', vp=2800, vs=1350, rho=2.46)
         ])
 

@@ -7,14 +7,14 @@ from bokeh.plotting import column, figure, show, curdoc, row
 
 
 # test = 'seismic__test_avo_qc'
-test = 'test_lf_table'
+# test = 'test_lf_table'
 # test = 'test_lf_quasi_2D_table'
 # test = 'test_model_table'
 # test = 'test_model_table_save'
 # test = 'test_laminar_model'
 # test = 'test_laminar_model_with_avo_points'
 # test = 'test_laminar_q2d_model'
-# test = 'test_wedge'
+test = 'test_wedge'
 # test = 'test_fault_model'
 
 

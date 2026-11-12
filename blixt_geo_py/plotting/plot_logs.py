@@ -1452,6 +1452,8 @@ def plot_trends(x_name: str, wells: list, log_table: LogTable, wis:Intervals, wi
                                                 calculate_depth_trend)
     from blixt_geo_py.plotting import crossplot as xp
 
+    print_info('This function is replaced by StatsCalculation', 'warning', logger)
+
     if skip is None:
         skip = ['Discrete flag']
     down_weight_outliers = kwargs.pop('down_weight_outliers', False)

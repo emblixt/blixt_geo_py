@@ -186,3 +186,6 @@ Collected on 2026-11-03. Each item gives the file (relative to this folder), the
 - ~~In calc_statistics, also calculate the cross correlation between the pairs: P velocity & S velocity, P velocity & Density and S velocity & Density. No need to plot it.~~ (StatsCalculation.correlations(), also written to the 'correlations' sheet by save_summary(). The RokDoc output now uses them too, instead of cutting the logs to the shortest)
 - ~~Rename LithoFluid and LithoFluids 'from_excel' methods to 'from_RokDoc'~~ (from_excel() still works, but warns that it is renamed)
 - ~~Add a new method to LithoFluids (and consequently to LithoFluid) that can read the StatsCalculation save_summary() output, and create LithoFluids based a given list of interval, suffix and well tuples. It should use the correlations from step above, if they exists~~ (LithoFluids.from_summary(file_name, [('Sand F', 'sand', 'All'), ...]) and LithoFluid.from_summary(). Lacking correlations get the default values, with a warning)
+
+### 2026-11-12
+- In test_laminar_q2d_model() I notice that the model isn't updating when I change LithoFluid for any of the model layers. Why is that? It needs to be fixed
