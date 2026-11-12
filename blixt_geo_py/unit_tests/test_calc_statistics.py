@@ -16,7 +16,7 @@ from blixt_geo_py.core.core import Cutoffs, CutoffRule, LithoFluid, LithoFluids,
 from blixt_geo_py.core.project import Project
 from blixt_geo_py.analysis.calc_statistics import (IntervalStats, StatsCalculation, break_at_gaps,
                                                 collect_interval_stats, fit_gardner, isolated_samples, linear_depth_trend,
-                                                read_gardner, to_cutoffs)
+                                                pair_correlation, read_gardner, to_cutoffs)
 
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
 project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx')
@@ -985,7 +985,12 @@ class TestCases(unittest.TestCase):
             file_name = os.path.join(tmp_dir, 'summary.xlsx')
             stats.save_summary(results, file_name)
             stats.save_summary(results, file_name)
-            saved = pd.read_excel(file_name)
+            saved = pd.read_excel(file_name, sheet_name='summary')
+            saved_correlations = pd.read_excel(file_name, sheet_name='correlations')
+
+        correlations = stats.correlations(results)
+        self.assertEqual(list(correlations.columns), list(saved_correlations.columns))
+        np.testing.assert_allclose(correlations['r'], saved_correlations['r'])
 
         self.assertEqual(list(summary.columns), list(saved.columns))
         self.assertEqual(len(summary), len(saved))
@@ -1060,6 +1065,71 @@ class TestCases(unittest.TestCase):
                 results = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand F'], log_table, [sand, shale],
                                            ['sand', 'shale'], exclude=[('WELL_F', _interval, 'S velocity')]).run()
                 self.assertEqual(_expected, {_k for _k, _s in results.items() if 'vs_dry' not in _s.per_well['WELL_F']})
+
+    def test_pair_correlation(self):
+        rng = np.random.default_rng(1)
+        x = rng.normal(0., 1., 200)
+        y = 2. * x + rng.normal(0., 0.5, 200)
+        r, n = pair_correlation(x, y)
+        self.assertAlmostEqual(np.corrcoef(x, y)[0, 1], r)
+        self.assertEqual(200, n)
+        # NaNs in either array are skipped pairwise
+        x[:10], y[10:20] = np.nan, np.nan
+        r, n = pair_correlation(x, y)
+        self.assertEqual(180, n)
+        self.assertAlmostEqual(np.corrcoef(x[20:], y[20:])[0, 1], r)
+        # Too few samples, or a constant, gives NaN
+        self.assertTrue(np.isnan(pair_correlation(np.array([1., 2.]), np.array([1., 3.]))[0]))
+        self.assertTrue(np.isnan(pair_correlation(np.ones(10), np.arange(10.))[0]))
+
+    def test_correlations(self):
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand E'], log_table, {'Volume': ['<', 0.5]},
+                                 project_to_burial_depth=Q_(2000., 'm'))
+        results = stats.run()
+        table = stats.correlations(results)
+        sand_f = results['Sand F']
+        # Three pairs, for each well, 'All', and the projected burial depth
+        rows = table[table['interval'] == 'Sand F']
+        self.assertEqual(3 * (len(sand_f.per_well) + 2), len(rows))
+        self.assertEqual({('P velocity', 'S velocity'), ('P velocity', 'Density'), ('S velocity', 'Density')},
+                         set(zip(rows['log type x'], rows['log type y'])))
+        self.assertTrue(np.all(np.abs(rows['r'].dropna()) <= 1.))
+
+        # The correlation of one well is that of its own samples
+        well_f = sand_f.per_well['WELL_F']
+        expected, n = pair_correlation(well_f['vp_dry'].magnitude, well_f['rho_dry'].magnitude)
+        row = rows[(rows['well'] == 'WELL_F') & (rows['log type y'] == 'Density') &
+                   (rows['log type x'] == 'P velocity')].iloc[0]
+        self.assertAlmostEqual(expected, row['r'])
+        self.assertEqual(n, row['n'])
+        # 'All' pairs the samples of each well, also when one well lacks a log of the pair
+        excluded = StatsCalculation(self.wells, self.wis, 'Sand F', log_table, {'Volume': ['<', 0.5]},
+                                    exclude=('WELL_F', 'Sand F', 'S velocity')).run()['Sand F']
+        vp, vs = excluded.paired('P velocity', 'S velocity')['All']
+        self.assertEqual(len(vp), len(vs))
+        self.assertNotIn('WELL_F', excluded.paired('P velocity', 'S velocity'))
+        self.assertIn('WELL_F', excluded.paired('P velocity', 'Density'))
+        all_rows = excluded.correlations()
+        all_rows = all_rows[(all_rows['well'] == 'All') & (all_rows['log type y'] == 'S velocity')]
+        self.assertAlmostEqual(pair_correlation(vp, vs)[0], all_rows['r'].iloc[0])
+
+        # The RokDoc file holds the same correlations
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_name = os.path.join(tmp_dir, 'SumsAndAverages.xlsx')
+            stats.save_rokdoc_output({'Sand F': excluded}, file_name)
+            lines = {_l['Name']: _l for _l in read_rokdoc_lines(file_name)}
+        self.assertAlmostEqual(all_rows['r'].iloc[0], lines['Sand F']['VpVsCorrCoef'])
+        self.assertEqual(-999.25, lines['WELL_F Sand F']['VpVsCorrCoef'])
+        vp_rho = excluded.correlations()
+        vp_rho = vp_rho[(vp_rho['well'] == 'WELL_F') & (vp_rho['log type x'] == 'P velocity') &
+                        (vp_rho['log type y'] == 'Density')]
+        self.assertAlmostEqual(vp_rho['r'].iloc[0], lines['WELL_F Sand F']['VpRhoCorrCoef'])
+
+    def test_correlations_need_the_log_types(self):
+        _log_table = {_k: _v for _k, _v in log_table.items() if _k != 'S velocity'}
+        results = StatsCalculation(self.wells, self.wis, 'Sand F', _log_table, {'Volume': ['<', 0.5]}).run()
+        table = results['Sand F'].correlations()
+        self.assertEqual({('P velocity', 'Density')}, set(zip(table['log type x'], table['log type y'])))
 
     def test_exclude_input_checks(self):
         for _exclude in ['WELL_F', ('WELL_F', 'Sand E'), [('WELL_F', 'Sand E', 1)]]:

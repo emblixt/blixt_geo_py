@@ -15,7 +15,8 @@ Usage:
                              exclude=[('WELL_F', 'Sand E', 'S velocity')])  # Optional, leaves out a bad log
     results = stats.run()
     print(results['Sand E'].summary())
-    stats.save_summary(results, 'summary.xlsx')
+    print(stats.correlations(results))  # Vp & Vs, Vp & Rho and Vs & Rho
+    stats.save_summary(results, 'summary.xlsx')  # With the correlations in a second sheet
     stats.plot_logs_vs_depth(results)
     stats.plot_averages(results)
     stats.plot_logs_vs_burial_depth(results)
@@ -41,12 +42,15 @@ from blixt_geo_py import Q_
 from blixt_geo_py.core.core import Cutoffs, CutoffRule, Intervals, LogTable
 from blixt_geo_py.core.well import Well
 from blixt_geo_py.plotting import crossplot as xp
-from blixt_geo_py.utils.utils import nan_corrcoef, print_info
+from blixt_geo_py.utils.utils import print_info
 
 logger = logging.getLogger(__name__)
 
 # Log types needed for writing a RokDoc compatible Sums and Averages file
 rokdoc_log_types = ['P velocity', 'S velocity', 'Density', 'Porosity', 'Volume']
+
+# The pairs of log types whose correlation is calculated, see IntervalStats.correlations()
+correlation_pairs = [('P velocity', 'S velocity'), ('P velocity', 'Density'), ('S velocity', 'Density')]
 
 # The published coefficients of the Gardner equation, for Vp in m/s and density in g/cm3
 gardner_a = 0.31
@@ -172,6 +176,26 @@ def linear_depth_trend(values: np.ndarray, depth: np.ndarray) -> dict | None:
             # Not testing std, which rounding can leave slightly above zero for constant values
             'r2': 1. - (std_detrended / std) ** 2 if np.ptp(_values) > 0. else 0.,
             'std': std, 'std_detrended': std_detrended, 'n': int(np.sum(valid))}
+
+
+def pair_correlation(x: np.ndarray, y: np.ndarray) -> tuple:
+    """
+    Returns the Pearson correlation coefficient between x and y, through the samples where both are finite
+
+    :param x:
+        np.ndarray
+    :param y:
+        np.ndarray of the same length as x
+    :return:
+        r, n
+        float, int
+        r is NaN if there are less than three valid samples, or if x or y is constant
+    """
+    valid = np.isfinite(x) & np.isfinite(y)
+    n = int(np.sum(valid))
+    if n < 3 or np.ptp(x[valid]) == 0. or np.ptp(y[valid]) == 0.:
+        return np.nan, n
+    return float(np.corrcoef(x[valid], y[valid])[0, 1]), n
 
 
 def _valid_vp_and_rho(vp: np.ndarray, rho: np.ndarray) -> np.ndarray:
@@ -453,6 +477,71 @@ class IntervalStats:
                          'vp units': 'm/s', 'rho units': 'g/cm3'})
         return pd.DataFrame(rows, columns=['interval', 'suffix', 'cutoffs', 'well', 'n', 'a', 'b', 'r2', 'vp units',
                                            'rho units'])
+
+    def paired(self, log_type_x: str, log_type_y: str, projected: bool = False) -> dict:
+        """
+        Returns the samples of two log types, for each well that has both, and for these wells together ('All').
+        The samples of each well belong together, as both logs are selected by the same interval and cutoffs
+
+        :param projected:
+            bool
+            If True, the data projected to project_to_burial_depth is used, see projected_per_well()
+        :return:
+            dict
+            {well name: (np.ndarray, np.ndarray)}
+            In the units of the first well. Empty if the log table lacks one of the log types
+        """
+        if log_type_x not in self.log_table or log_type_y not in self.log_table:
+            return {}
+        log_x, log_y = self.log_table[log_type_x], self.log_table[log_type_y]
+        source = self.projected_per_well() if projected else self.per_well
+        _wells = [_w for _w, _data in source.items() if log_x in _data and log_y in _data]
+        if len(_wells) == 0:
+            return {}
+        units_x, units_y = source[_wells[0]][log_x].units, source[_wells[0]][log_y].units
+        samples = {_w: (source[_w][log_x].to(units_x).magnitude, source[_w][log_y].to(units_y).magnitude)
+                   for _w in _wells}
+        samples['All'] = (np.concatenate([_x for _x, _ in samples.values()]),
+                          np.concatenate([_y for _, _y in samples.values()]))
+        return samples
+
+    def correlations(self) -> pd.DataFrame:
+        """
+        Returns the correlation coefficients between P velocity & S velocity, P velocity & Density and S velocity &
+        Density (see correlation_pairs), per well and for all wells together ('All'), see pair_correlation().
+        Only the samples where both logs are valid are used, and 'All' only holds the wells with both logs.
+        With project_to_burial_depth, there is also a line for all wells projected to that burial depth, named e.g.
+        'Projected to 2000 m', like in summary()
+        """
+        rows = []
+        for log_type_x, log_type_y in correlation_pairs:
+            sources = list(self.paired(log_type_x, log_type_y).items())
+            _projected = self.paired(log_type_x, log_type_y, projected=True)
+            if 'All' in _projected:
+                sources.append((self.projected_label, _projected['All']))
+            for _well_name, (_x, _y) in sources:
+                r, n = pair_correlation(_x, _y)
+                rows.append({'interval': self.wi_name, 'suffix': self.suffix, 'cutoffs': str(self.cutoffs),
+                             'well': _well_name, 'log type x': log_type_x, 'log x': self.log_table[log_type_x],
+                             'log type y': log_type_y, 'log y': self.log_table[log_type_y], 'n': n, 'r': r})
+        return pd.DataFrame(rows, columns=['interval', 'suffix', 'cutoffs', 'well', 'log type x', 'log x',
+                                           'log type y', 'log y', 'n', 'r'])
+
+    def rokdoc_correlations(self, projected: bool = False) -> dict:
+        """
+        Returns the correlation coefficients of correlation_pairs, in the order RokDoc wants them: (Vp & Vs, Vp & Rho,
+        Vs & Rho), per well and for 'All'. NaN where they can't be calculated
+
+        :param projected:
+            bool
+            If True, the data projected to project_to_burial_depth is used, see projected_per_well()
+        :return:
+            dict
+            {well name: (float, float, float)}
+        """
+        pairs = [self.paired(_x, _y, projected) for _x, _y in correlation_pairs]
+        wells = list(self.per_well) + ['All']
+        return {_w: tuple(pair_correlation(*_p[_w])[0] if _w in _p else np.nan for _p in pairs) for _w in wells}
 
     def summary(self) -> pd.DataFrame:
         """
@@ -750,6 +839,13 @@ class StatsCalculation:
     def summary(self, results: dict) -> pd.DataFrame:
         return pd.concat([_r.summary() for _r in results.values()], ignore_index=True)
 
+    def correlations(self, results: dict) -> pd.DataFrame:
+        """
+        Returns the correlation coefficients between P velocity & S velocity, P velocity & Density and S velocity &
+        Density of each interval and cutoff, see IntervalStats.correlations()
+        """
+        return pd.concat([_r.correlations() for _r in results.values()], ignore_index=True)
+
     def gardner(self, results: dict) -> pd.DataFrame:
         """
         Returns the Gardner coefficients of each interval and cutoff, see IntervalStats.gardner()
@@ -802,7 +898,8 @@ class StatsCalculation:
 
     def save_summary(self, results: dict, file_name: str):
         """
-        Writes the statistics from summary() to an excel file. An existing file is overwritten.
+        Writes the statistics from summary() to the sheet 'summary' of an excel file, and the correlation coefficients
+        from correlations() to the sheet 'correlations'. An existing file is overwritten.
         Statistics of intervals without samples are left empty
 
         :param results:
@@ -812,7 +909,9 @@ class StatsCalculation:
             str
             full pathname of the excel file
         """
-        self.summary(results).to_excel(file_name, index=False)
+        with pd.ExcelWriter(file_name) as writer:
+            self.summary(results).to_excel(writer, sheet_name='summary', index=False)
+            self.correlations(results).to_excel(writer, sheet_name='correlations', index=False)
 
     def plot_logs_vs_depth(self, results: dict, file_name: str | None = 'logs_vs_depth.png'):
         """
@@ -1184,13 +1283,16 @@ class StatsCalculation:
                     ', '.join(missing), stats.wi_name), 'warning', logger)
                 continue
             suffix = '_{}'.format(stats.suffix) if stats.suffix else ''
+            # Correlations from samples that belong together, see IntervalStats.paired()
+            correlations = stats.rokdoc_correlations()
             sources = [(None, stats.combined())] + list(stats.per_well.items())
             for well_name, data in sources:
                 # write_rokdoc_sums_and_averages expects arrays without units, for all logs in the log table
                 _arrays = {_log: data[_log].magnitude if _log in data else np.array([np.nan])
                            for _log in stats.log_table.log_names}
                 write_rokdoc_sums_and_averages(file_name, _arrays, stats.wi_name, stats.log_table,
-                                               str(stats.cutoffs), suffix, well_name=well_name)
+                                               str(stats.cutoffs), suffix, well_name=well_name,
+                                               correlations=correlations['All' if well_name is None else well_name])
             projected = stats.projected()
             if len(projected) > 0:
                 # Like the line of all wells, but its name tells the burial depth
@@ -1198,14 +1300,16 @@ class StatsCalculation:
                            for _log in stats.log_table.log_names}
                 write_rokdoc_sums_and_averages(
                     file_name, _arrays, stats.wi_name, stats.log_table, str(stats.cutoffs),
-                    '{}_projected_{:g}m'.format(suffix, stats.project_to_burial_depth.to('m').magnitude))
+                    '{}_projected_{:g}m'.format(suffix, stats.project_to_burial_depth.to('m').magnitude),
+                    correlations=stats.rokdoc_correlations(projected=True)['All'])
 
     def _save(self, fig, file_name: str | None):
         if self.working_dir is not None and file_name is not None:
             fig.savefig(os.path.join(self.working_dir, file_name), dpi=300)
 
 
-def write_rokdoc_sums_and_averages(rokdoc_output, results, wi_name, log_table, cutoffs_str, suffix, well_name=None):
+def write_rokdoc_sums_and_averages(rokdoc_output, results, wi_name, log_table, cutoffs_str, suffix, well_name=None,
+                                   correlations=None):
     """
     Writes one line of averages to a RokDoc compatible Sums and Averages excel file.
     Moved here from the old calc_stats.py (save_rokdoc_output())
@@ -1231,6 +1335,10 @@ def write_rokdoc_sums_and_averages(rokdoc_output, results, wi_name, log_table, c
     :param well_name:
         str
         If None, the line holds the averages of all wells
+    :param correlations:
+        tuple of three floats, or None
+        The correlation coefficients of Vp & Vs, Vp & Rho and Vs & Rho, e.g. from IntervalStats.rokdoc_correlations().
+        If None, they are calculated from the arrays in results, which must then be paired sample by sample
     """
     if well_name is not None:
         well_name = str(well_name)
@@ -1246,19 +1354,14 @@ def write_rokdoc_sums_and_averages(rokdoc_output, results, wi_name, log_table, c
         log_table_str += '{}: {}, '.format(key, log_table[key])
     log_table_str = log_table_str.rstrip(', ')
 
-    # To calculate correlation coefficients, the results for P-, and S- velocity, and Density, must
-    # be equal in length.
-    # Create a naive fix by cutting the data to the shortest
-    min_len = min([len(results[log_table['P velocity'].lower()]),
-                   len(results[log_table['S velocity'].lower()]),
-                   len(results[log_table['Density'].lower()])
-                   ])
-    cc_p_s = nan_corrcoef(results[log_table['P velocity'].lower()][:min_len],
-                          results[log_table['S velocity'].lower()][:min_len])[0, 1]
-    cc_p_d = nan_corrcoef(results[log_table['P velocity'].lower()][:min_len],
-                          results[log_table['Density'].lower()][:min_len])[0, 1]
-    cc_s_d = nan_corrcoef(results[log_table['S velocity'].lower()][:min_len],
-                          results[log_table['Density'].lower()][:min_len])[0, 1]
+    if correlations is None:
+        _vp, _vs, _rho = [np.asarray(results[log_table[_x].lower()], dtype=float)
+                          for _x in ['P velocity', 'S velocity', 'Density']]
+        if not len(_vp) == len(_vs) == len(_rho):
+            raise ValueError('The P velocity, S velocity and density must have the same number of samples to calculate '
+                             'their correlations, or the correlations must be given')
+        correlations = tuple(pair_correlation(_x, _y)[0] for _x, _y in [(_vp, _vs), (_vp, _rho), (_vs, _rho)])
+    cc_p_s, cc_p_d, cc_s_d = correlations
 
     if rokdoc_output is not None:
         uio.write_sums_and_averages(rokdoc_output,
