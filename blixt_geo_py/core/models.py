@@ -1685,6 +1685,11 @@ class LaminarModel:
     Creates an interactive laminar (1D & Quasi 2D) model together with a display of the synthetic response
     NOTE! Only works in depth domain ('Z')
     """
+    # The lateral distances [m] between the traces of a quasi 2D model that can be selected in draw_2d().
+    # None means that the lateral axis is simply the trace index
+    dx_options = [None, 5., 12.5, 25., 50., 100.]
+    # False for models whose geometry depends on a physical dx, like the FaultModel
+    dx_can_be_none = True
 
     def __init__(self,
                  model: Model | None = None,
@@ -1705,7 +1710,9 @@ class LaminarModel:
         :param dx:
             pint Quantity
             Lateral resolution, or, Distance between each 1D model
-            When set to None, the lateral direction is simply an index which parameterize the "lateral" variation
+            When set to None, the dx of the model is used. If that is None too, the lateral direction is simply an
+            index which parameterize the "lateral" variation
+            It can be changed interactively with the dX selector of draw_2d()
         :param wavelet:
         :param avo_or_eei:
         :param kwargs:
@@ -1714,6 +1721,8 @@ class LaminarModel:
                 time)
             freq:
                 Wavelet central frequency in Hz, which is used when calculating the synthetic response
+            x_origin:
+                pint Quantity, lateral position of the first trace when dx is given. Default is 0 m
             table_height:
                 int
                 Height of the table showing the layers
@@ -1745,7 +1754,16 @@ class LaminarModel:
         if resolution is None:
             resolution = Q_(0.1, 'm')
         self.resolution = resolution
+        if dx is None:
+            dx = getattr(model, 'dx', None)
         self.dx = dx
+        self.model.dx = dx
+        # Lateral position of the first trace, only used when dx is given
+        self.x_origin = kwargs.pop('x_origin', Q_(0., 'm'))
+        # Functions, without arguments, that are called when dx is changed with the dX selector of draw_2d()
+        self._dx_change_callbacks = []
+        # Updates the lateral axis of the plot made by draw_2d(), e.g. after the number of traces has changed
+        self._update_lateral_axis = None
         self.dt = kwargs.pop('dt', Q_(0.1, 'millisecond'))
         self.freq = kwargs.pop('freq', 20.)
         self.lf_width = kwargs.pop('lf_width', 300)
@@ -1790,6 +1808,48 @@ class LaminarModel:
         title_txt = '<div style="font-size:12px; font-weight:600; margin-bottom:0px; text-align:center">\n'
         title_txt += '{}\n </div>'.format(self.model.name)
         return Div(text=title_txt)
+
+    def dx_m(self) -> float | None:
+        # The lateral distance between the traces in meters, or None when the lateral axis is the trace index
+        if self.dx is None:
+            return None
+        return float(self.dx.to('m').magnitude)
+
+    def trace_x(self, trace_index: int) -> float:
+        """
+        Lateral position, in plot coordinates, of the center of the given trace in the 2D synthetic plot
+        When dx is None, the traces are plotted with a width of one, starting at the first trace index, as before
+        When dx is given, the trace is centered at x_origin + trace_index * dx [m]
+        """
+        if self.dx is None:
+            return trace_index + 0.5
+        return self.x_origin_m() + trace_index * self.dx_m()
+
+    def x_origin_m(self) -> float:
+        # The lateral position, in meters, of the first trace when dx is given
+        return float(self.x_origin.to('m').magnitude)
+
+    def trace_index_from_x(self, x: float) -> int:
+        # The index of the trace that is plotted at the lateral position x of the 2D synthetic plot
+        if self.dx is None:
+            _i = int(np.floor(x))
+        else:
+            _i = int(np.round((x - self.x_origin_m()) / self.dx_m()))
+        return int(np.clip(_i, np.min(self.model.trace_index_range), np.max(self.model.trace_index_range)))
+
+    def seismic_x_extent(self) -> tuple:
+        # The lateral position x0, and width dw, of the image with the 2D synthetic
+        _i0 = float(np.min(self.model.trace_index_range))
+        _n = float(np.max(self.model.trace_index_range)) - _i0 + 1.
+        if self.dx is None:
+            return _i0, _n
+        return self.trace_x(_i0) - 0.5 * self.dx_m(), _n * self.dx_m()
+
+    def trace_selector_options(self) -> list:
+        # The (value, label) options of the trace selector of draw_2d(). The value is always the trace index
+        if self.dx is None:
+            return [(str(_i), str(_i)) for _i in self.model.trace_index_range]
+        return [(str(_i), '{} ({:g} m)'.format(_i, self.trace_x(_i))) for _i in self.model.trace_index_range]
 
     def draw(self):
         from bokeh.models import Span, Slider, Div, CustomJS
@@ -1937,7 +1997,8 @@ class LaminarModel:
                 grid, freq_slider, synth_cds_base)
 
     def draw_2d(self):
-        from bokeh.models import Span, Slider, Select, Div, NumericInput
+        from bokeh.models import Span, Slider, Select, Range1d, GlyphRenderer
+        from bokeh.models.glyphs import Image, ImageRGBA, ImageURL
         from bokeh.plotting import row
 
         from blixt_geo_py.plotting.log_plotter import LogPlotter, LogColumn, Line, select_column
@@ -1958,25 +2019,34 @@ class LaminarModel:
         plotter = LogPlotter(width=int(1100 * (1.95 + self.layers_width) / 1.95), height=600)
 
         # Create controller widgets
+        # The value of the trace selector is always the trace index, while the label is the trace index, or the
+        # lateral position when dx is given
         trace_selector = Select(
             title='Trace #',
             value=str(self.model.trace_index),
-            options=[str(_i) for _i in list(self.model.trace_index_range)])
+            options=self.trace_selector_options())
         case_selector = Select(
             title='Case',
             value=global_base_case_name,
             options=self.model.case_names)
         freq_slider = Slider(title='Wavelet central freq. [Hz]', start=10, end=40, step=5, value=self.freq)
 
-        # Select lateral resolution
-        if self.dx is not None:
-            dx_selector = NumericInput(
-                value=self.dx.to('m').magnitude, low=0.5, high=50., title='Lateral resolution [m]',
-                mode='float',
-            )
-        else:
-            dx_selector = Div(text="<div></div")
+        # Select the lateral distance between the traces
+        def dx_label(_dx):
+            return 'None' if _dx is None else '{:g}'.format(_dx)
 
+        dx_values = [_dx for _dx in self.dx_options if (_dx is not None) or self.dx_can_be_none]
+        if dx_label(self.dx_m()) not in [dx_label(_dx) for _dx in dx_values]:
+            # A dx that is not among the default options
+            dx_values = sorted([_dx for _dx in dx_values if _dx is not None] + [self.dx_m()])
+            if self.dx_can_be_none:
+                dx_values = [None] + dx_values
+        dx_selector = Select(
+            title='dX [m]',
+            value=dx_label(self.dx_m()),
+            options=[dx_label(_dx) for _dx in dx_values],
+            width=80
+        )
 
         def freq_slider_change(attr, old, new):
             self.freq = new
@@ -2041,10 +2111,7 @@ class LaminarModel:
             float(freq_slider.value)
         )
 
-        # if self.model.dx is not None:
-        #     _x = self.model.trace_index_range * self.model.dx.to('m').magnitude
-        # else:
-        #     _x = self.model.trace_index_range
+        # The lateral position and width of the seismic image are set by update_lateral_axis() below
         _x = self.model.trace_index_range
         traces_base = create_traces(
             synth_2d_cds,
@@ -2069,7 +2136,7 @@ class LaminarModel:
 
         # Add vertical line indicating where the 1D model is extracted
         v_line = Span(
-            location = int(trace_selector.value) + 0.5,
+            location = self.trace_x(int(trace_selector.value)),
             dimension='height',
             line_dash='dashed'
         )
@@ -2078,6 +2145,37 @@ class LaminarModel:
 
         # Add a modifier to the seismic colorbar
         color_amp_factor = add_color_amp(_p)
+
+        # Use a fixed lateral range of the synthetic plot, so that we can update it when dx changes
+        seismic_image = [
+            _r for _r in _p.renderers
+            if isinstance(_r, GlyphRenderer) and isinstance(_r.glyph, (Image, ImageRGBA, ImageURL))
+        ][0].glyph
+        _x0, _dw = self.seismic_x_extent()
+        _p.x_range = Range1d(_x0, _x0 + _dw)
+        seismic_x_label = _p.xaxis[0].axis_label or ''
+
+        def update_lateral_axis():
+            # Updates the lateral axis of the synthetic plot, and the trace selector, to the current dx and
+            # number of traces
+            x0, dw = self.seismic_x_extent()
+            seismic_image.x = x0
+            seismic_image.dw = dw
+            _p.x_range.update(start=x0, end=x0 + dw, reset_start=x0, reset_end=x0 + dw)
+            if self.dx is None:
+                _p.xaxis.axis_label = seismic_x_label
+                trace_selector.title = 'Trace #'
+            else:
+                _p.xaxis.axis_label = '{}, X [m]'.format(seismic_x_label)
+                trace_selector.title = 'Trace # (X)'
+            trace_selector.options = self.trace_selector_options()
+            if trace_selector.value not in [_o[0] for _o in trace_selector.options]:
+                # The number of traces has changed. This triggers update_trace_function()
+                trace_selector.value = trace_selector.options[0][0]
+            v_line.location = self.trace_x(int(trace_selector.value))
+
+        update_lateral_axis()
+        self._update_lateral_axis = update_lateral_axis
 
         def update_m_function():
             update_2d_model_function(
@@ -2099,7 +2197,7 @@ class LaminarModel:
 
         def update_trace_function(attr, old, new):
             print('Trace: ', attr, old, new)
-            v_line.location = int(new) + 0.5
+            v_line.location = self.trace_x(int(new))
             # Update the elastic properties based on the new trace index
             _elastics_dict = self.model_table.realize(self.resolution, int(new))
 
@@ -2123,11 +2221,25 @@ class LaminarModel:
             )
             synth_2d_cds.data = dict(_synth_2d_cds.data)
 
+        def update_dx_function(attr, old, new):
+            print('dX: ', attr, old, new)
+            # Map the label back to its exact value, as the label of a non-default dx may be rounded
+            _dx = {dx_label(_v): _v for _v in dx_values}.get(new, None if new == 'None' else float(new))
+            self.dx = None if _dx is None else Q_(_dx, 'm')
+            self.model.dx = self.dx
+            update_lateral_axis()
+            # Let sub-classes react to the new dx, e.g. the FaultModel, whose geometry depends on dx
+            for _callback in self._dx_change_callbacks:
+                _callback()
+            # Re-draw the 1D model at the selected trace, as the model itself may have changed
+            update_trace_function('value', trace_selector.value, trace_selector.value)
+
         model_controls.children[2].on_click(update_m_function)
         # update_m.on_click(update_m_function)
 
         trace_selector.on_change("value", update_trace_function)
         case_selector.on_change("value", update_case_function)
+        dx_selector.on_change("value", update_dx_function)
 
         return (self.title_div(), lf_table, lf_controls, _model_table,
                 model_controls, grid,
@@ -2223,6 +2335,12 @@ class WedgeModel(LaminarModel):
             str
             Name of the model, displayed on top of the plot
         :param kwargs:
+            Passed on to LaminarModel
+            dx:
+                pint Quantity or None
+                Default is (max_thickness - min_thickness) / (n_traces - 1), and with the default x_origin equal to
+                min_thickness, the lateral axis is then the same as the wedge thickness
+                Use dx=None to get the trace index on the lateral axis
         """
 
         #
@@ -2294,6 +2412,12 @@ class WedgeModel(LaminarModel):
                       name=name,
                       trace_index_range=np.arange(n_traces)
                       )
+
+        # Let the lateral axis be the same as the wedge thickness, unless something else is asked for
+        if 'dx' not in kwargs:
+            kwargs['dx'] = ((max_thickness - min_thickness) / (n_traces - 1)).to('m')
+        if 'x_origin' not in kwargs:
+            kwargs['x_origin'] = min_thickness.to('m')
         super().__init__(
             model=model, litho_fluids=litho_fluids, resolution=resolution, **kwargs
         )
@@ -2304,7 +2428,7 @@ class WedgeModel(LaminarModel):
         from bokeh.layouts import gridplot
 
         from blixt_geo_py.core.seismic import picks_from_seismic_cds
-        from blixt_geo_py.plotting.log_plotter import default_tools
+        from blixt_geo_py.plotting.log_plotter import default_tools, select_column
 
         global max_amp
         global min_amp
@@ -2325,10 +2449,23 @@ class WedgeModel(LaminarModel):
 
         horizons_cds = self.model.horizons_cds(resolution=self.resolution)
 
+        # The column with the wedge synthetics. Selected by name, as its position depends on the layer names column
+        p_synth = select_column(grid, 'SYNTH_2D')
+
+        def update_horizons_x():
+            # Lateral position of the horizons and picks in the synthetic plot. As before, the trace index when dx
+            # is None
+            horizons_cds.data['x'] = [
+                float(_i) if self.dx is None else self.trace_x(_i) for _i in self.model.trace_index_range
+            ]
+
+        update_horizons_x()
+        self._dx_change_callbacks.append(update_horizons_x)
+
         # Draw the outline of the wedge
         # for h_name in ['Top Top', 'Top Wedge', 'Top Bottom']:
         for h_name in ['Top Wedge', 'Top Bottom']:
-            grid.children[0].children[2][0].scatter(x='x', y=h_name, marker='dash', source=horizons_cds, size=10)
+            p_synth.scatter(x='x', y=h_name, marker='dash', source=horizons_cds, size=10)
 
         top_picker = Select(
             title='Pick top wedge:',
@@ -2391,8 +2528,8 @@ class WedgeModel(LaminarModel):
         #
         # Draw the picks
         #
-        grid.children[0].children[2][0].scatter(x='x', y='Top pick', marker='circle', source=horizons_cds, size=7)
-        grid.children[0].children[2][0].scatter(x='x', y='Base pick', marker='square', source=horizons_cds, size=7)
+        p_synth.scatter(x='x', y='Top pick', marker='circle', source=horizons_cds, size=7)
+        p_synth.scatter(x='x', y='Base pick', marker='square', source=horizons_cds, size=7)
 
         top_picker.on_change('value', top_picker_function)
         base_picker.on_change('value', base_picker_function)
@@ -2456,6 +2593,9 @@ class FaultModel(LaminarModel):
     """
     Creates a seismic model of a fault
     """
+    # The geometry of the fault is calculated in meters, so dx can not be None
+    dx_can_be_none = False
+
     def __init__(self,
         litho_fluids: LithoFluids | None = None,
         layers: List[Layer] | None = None,
@@ -2483,7 +2623,8 @@ class FaultModel(LaminarModel):
             resolution in depth
 
         :param dx:
-            Distance between each 1D model
+            Distance between each 1D model. Default is 12.5 m
+            It can be changed interactively with the dX selector of LaminarModel.draw_2d(), which re-builds the fault
         :param n_traces:
 
         :param depth_to_top:
@@ -2555,11 +2696,7 @@ class FaultModel(LaminarModel):
             value=self.n_traces, low=50., high=2000, title='Number of traces'
         )
 
-        # Select lateral resolution
-        dx_selector = NumericInput(
-            value=self.dx.to('m').magnitude, low=0.5, high=50., title='Lateral resolution [m]',
-            mode='float',
-        )
+        # The lateral distance between the traces is selected with the dX selector of draw_2d(), which sets self.dx
 
         # Add functionality to the update model button
         def update_faulting():
@@ -2570,7 +2707,7 @@ class FaultModel(LaminarModel):
             # But we can re-build the faulted model based on Fault input
             self.model = build_faulted_model(
                 self.model.layers,
-                Q_(dx_selector.value, 'm'),
+                self.dx,
                 self.depth_to_top,
                 Q_(throw_selector.value, 'm'),
                 Q_(dip_selector.value, 'deg'),
@@ -2593,13 +2730,19 @@ class FaultModel(LaminarModel):
             )
             synth_2d_cds.data = dict(_synth_2d_cds.data)
 
+            # The number of traces may have changed
+            self._update_lateral_axis()
+
         model_controls.children[2].on_click(update_faulting)
         # update_m.on_click(update_faulting)
+
+        # The geometry of the fault depends on dx, so the model is re-built when dx is changed
+        self._dx_change_callbacks.append(update_faulting)
 
         return (title, lf_table, lf_controls, model_table,
                 model_controls, grid,
                 controls, synth_2d_cds,
-                dip_selector, throw_selector, n_traces_selector, dx_selector)
+                dip_selector, throw_selector, n_traces_selector)
 
 
 def build_layered_model(depth_to_target, overburden_thickness, target_thickness,

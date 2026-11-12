@@ -473,6 +473,54 @@ class TestCase(unittest.TestCase):
         trace_selector.value = '3'
         np.testing.assert_allclose([50., 17., 50.], layers_cds.data['thickness'])
 
+    def test_laminar_model_dx(self):
+        from bokeh.models import GlyphRenderer
+        from bokeh.models.glyphs import Image
+        from blixt_geo_py.plotting.log_plotter import select_column
+
+        wedge = Layer('Wedge', 'Base', thickness=lambda _i: Q_(20. - _i, 'm'), litho_fluid=l2)
+        lm_2d = LaminarModel(
+            model=Model(layers=[layer1, wedge, layer5], trace_index_range=np.arange(5)),
+            resolution=Q_(0.1, 'm'))
+        draw_output = lm_2d.draw_2d()
+        _p = select_column(draw_output[5], 'SYNTH_2D')
+        image = [_r.glyph for _r in _p.renderers
+                 if isinstance(_r, GlyphRenderer) and isinstance(_r.glyph, Image)][0]
+        trace_selector = draw_output[6].children[0]
+        dx_selector = draw_output[6].children[4]
+        self.assertEqual(['None', '5', '12.5', '25', '50', '100'], dx_selector.options)
+
+        # Without dx, the lateral axis is the trace index, as before
+        self.assertEqual('None', dx_selector.value)
+        self.assertEqual((0., 5.), (image.x, image.dw))
+        self.assertEqual((0., 5.), (_p.x_range.start, _p.x_range.end))
+        self.assertEqual(['0', '1', '2', '3', '4'], [_o[1] for _o in trace_selector.options])
+        self.assertEqual(2, lm_2d.trace_index_from_x(2.7))
+
+        # With dx, the traces are centered at trace_index * dx
+        trace_selector.value = '3'
+        dx_selector.value = '25'
+        self.assertEqual(Q_(25., 'm'), lm_2d.dx)
+        self.assertEqual((-12.5, 125.), (image.x, image.dw))
+        self.assertEqual((-12.5, 112.5), (_p.x_range.start, _p.x_range.end))
+        self.assertEqual(['0 (0 m)', '1 (25 m)', '2 (50 m)', '3 (75 m)', '4 (100 m)'],
+                         [_o[1] for _o in trace_selector.options])
+        self.assertEqual(['0', '1', '2', '3', '4'], [_o[0] for _o in trace_selector.options])
+        self.assertEqual('3', trace_selector.value)
+        self.assertEqual(3, lm_2d.trace_index_from_x(80.))
+
+        # And back again
+        dx_selector.value = 'None'
+        self.assertIsNone(lm_2d.dx)
+        self.assertEqual((0., 5.), (_p.x_range.start, _p.x_range.end))
+
+        # A dx which is not among the default options is added to them, and a FaultModel can not have dx = None
+        lm_2d = LaminarModel(
+            model=Model(layers=[layer1, wedge, layer5], trace_index_range=np.arange(5)),
+            resolution=Q_(0.1, 'm'), dx=Q_(10., 'm'))
+        self.assertEqual(['None', '5', '10', '12.5', '25', '50', '100'], lm_2d.draw_2d()[6].children[4].options)
+        self.assertNotIn('None', FaultModel(n_traces=51).draw_2d()[6].children[4].options)
+
     def test_laminar_model_layers_width(self):
         from blixt_geo_py.plotting.log_plotter import select_column
 
@@ -651,7 +699,7 @@ class TestCase(unittest.TestCase):
         (title, lf_table, lf_controls, model_table,
                 model_controls, grid,
                 controls, synth_2d_cds,
-                dip_selector, throw_selector, n_traces_selector, dx_selector) = fm.draw()
+                dip_selector, throw_selector, n_traces_selector) = fm.draw()
 
         if unit_test:
             show(
@@ -663,14 +711,14 @@ class TestCase(unittest.TestCase):
                                 column(model_table, model_controls),
                                 column(lf_table, lf_controls)
                             )),
-                     column(dip_selector, throw_selector, n_traces_selector, dx_selector)
+                     column(dip_selector, throw_selector, n_traces_selector)
                  ))
             return None
         else:
             return (title, lf_table, lf_controls, model_table,
                  model_controls, grid,
                  controls, synth_2d_cds,
-                 dip_selector, throw_selector, n_traces_selector, dx_selector)
+                 dip_selector, throw_selector, n_traces_selector)
 
     def test_faulted_horizons(self):
         from blixt_geo_py.core.models import faulted_layer_top, faulted_layer_thickness

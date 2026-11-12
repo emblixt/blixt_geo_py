@@ -110,9 +110,10 @@ Collected on 2026-11-03. Each item gives the file (relative to this folder), the
 - `core/models.py:1469`, ModelTable.realize(): Sometimes I get a "TypeError: float() argument must be a string or a real number, not 'datetime.datetime'" when using this_rho.magnitude here. But when I first write it out, it doesn't occur??!!
 - `core/models.py:1548`, ModelTable.draw.update_table_function(): It doesn't seem to catch if I change name of a layer correctly. The names are updated in the table, but if I by mistake had several layers with the same name and case, I can't fix that interactively
 - `core/models.py:1601`, ModelTable.draw.update_table_function(): Unsure if the name of the lithofluid will update correctly
-- `core/models.py:1948`, LaminarModel.draw_2d(): The lateral resolution selector (dx_selector) was just inserted. Needs work to be put in use
-- `core/models.py:2021`, LaminarModel.draw_2d(): Tried to plot the physical x axis range when dx is given. It works (the commented out code is still here), but adds two follow-up problems: 1. The x-axis range does not update when we change dx interactively. 2. The trace-index selector needs to be updated too
-- `core/models.py:2453`, FaultModel.__init__(): We are moving the parameters dx and n_traces to the mother LaminarModel object
+- ~~`core/models.py:1948`, LaminarModel.draw_2d(): The lateral resolution selector (dx_selector) was just inserted. Needs work to be put in use~~
+- ~~`core/models.py:2021`, LaminarModel.draw_2d(): Tried to plot the physical x axis range when dx is given. It works (the commented out code is still here), but adds two follow-up problems: 1. The x-axis range does not update when we change dx interactively. 2. The trace-index selector needs to be updated too~~
+- ~~`core/models.py:2453`, FaultModel.__init__(): We are moving the parameters dx and n_traces to the mother LaminarModel object~~ (dx is moved; n_traces is still in FaultModel)
+  draw_2d() has a dX selector (None, 5, 12.5, 25, 50, 100 m) that sets the lateral distance between the traces. With None the lateral axis is the trace index, as before. Otherwise the traces are centered at trace_index * dX, and the x-axis range, the vertical trace line and the labels of the trace selector follow the selected dX. FaultModel uses the same selector (without None) and re-builds the fault when dX changes
 - `core/models.py:2782`, tuning_wedge_analysis(): Double check that it should be domain='TWT' in the call to build_wedge()
 - `core/models.py:2870`, laminar_model_analysis(): Try using a shared y axis for the wiggle and model axes
 - `core/models.py:3245`, update_1d_model_function(): Handle the situation when a case is removed. Only adding a new case is handled, for now

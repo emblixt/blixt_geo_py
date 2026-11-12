@@ -137,7 +137,7 @@ elif test == 'test_fault_model':
     (title, lf_table, lf_controls, model_table,
      model_controls, grid,
      controls, synth_2d_cds,
-     dip_selector, throw_selector, n_traces_selector, dx_selector) = test.test_fault_model(unit_test=False)
+     dip_selector, throw_selector, n_traces_selector) = test.test_fault_model(unit_test=False)
 
     curdoc().add_root(
             row(
@@ -148,6 +148,6 @@ elif test == 'test_fault_model':
                         column(model_table, model_controls),
                         column(lf_table, lf_controls)
                     )),
-                column(dip_selector, throw_selector, n_traces_selector, dx_selector)
+                column(dip_selector, throw_selector, n_traces_selector)
             )
     )

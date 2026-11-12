@@ -332,8 +332,9 @@ class AvoAmplitudes:
         for _point_no, _p in enumerate(points_cds.data['name']):
 
             if section_type in ['line section', 'avo section'] and model is not None:
-                # Extract the trace index from the current point
-                trace_index = int(points_cds.data['x'][_point_no])
+                # Extract the trace index from the lateral position of the current point, which is in meters when
+                # the model has a dx
+                trace_index = model.trace_index_from_x(points_cds.data['x'][_point_no])
 
                 # Realize the model at the current trace index to get the elastics of the model
                 elastics_dict = model.model_table.realize(model.resolution, trace_index)
@@ -434,8 +435,9 @@ class AvoAmplitudes:
                 pass
 
             elif section_type in ['line section', 'avo section'] and model is not None:
-                # Extract the trace index from the current point
-                trace_index = int(points_cds.data['x'][_point_no])
+                # Extract the trace index from the lateral position of the current point, which is in meters when
+                # the model has a dx
+                trace_index = model.trace_index_from_x(points_cds.data['x'][_point_no])
 
                 # Realize the model at the current trace index to get the elastics of the model
                 elastics_dict = model.model_table.realize(model.resolution, trace_index)
