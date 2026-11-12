@@ -17,6 +17,8 @@ Usage:
     print(results['Sand E'].summary())
     print(stats.correlations(results))  # Vp & Vs, Vp & Rho and Vs & Rho
     stats.save_summary(results, 'summary.xlsx')  # With the correlations in a second sheet
+    lfs = LithoFluids()
+    lfs.from_summary('summary.xlsx', [('Sand E', '', 'All'), ('Sand F', '', 'WELL_A')])
     stats.plot_logs_vs_depth(results)
     stats.plot_averages(results)
     stats.plot_logs_vs_burial_depth(results)
@@ -269,6 +271,91 @@ def read_gardner(file_name: str, wi_name: str, suffix: str = '', well: str = 'Al
         raise ValueError('No Gardner coefficients for {} in {}, it has too few samples ({})'.format(
             description, file_name, rows['n'].iloc[0]))
     return a, b
+
+
+def read_litho_fluid_stats(file_name: str, wi_name: str, suffix: str | None = '', well: str | None = 'All',
+                           avg_type: str = 'mean') -> tuple:
+    """
+    Reads the elastic properties of one interval, suffix and well from a file written by StatsCalculation.save_summary(),
+    as keyword arguments for LithoFluid. The correlation coefficients are read from its 'correlations' sheet. Where they
+    are lacking, e.g. in a file written before that sheet existed, or NaN because of too few samples, they are left
+    out, so that LithoFluid uses its default values, with a warning
+
+    :param file_name:
+        str
+        full pathname of the excel file
+    :param wi_name:
+        str
+        Name of the working interval
+    :param suffix:
+        str
+        The suffix used for the working interval. Leave out, or None, if it had none
+    :param well:
+        str
+        Name of the well, 'All' (or None) for all wells together, or e.g. 'Projected to 2000 m' for all wells projected
+        to that burial depth (see StatsCalculation, project_to_burial_depth)
+    :param avg_type:
+        str
+        'mean' or 'median'
+    :return:
+        kwargs, (interval, suffix, well)
+        kwargs is a dict
+            {'vp': , 'vs': , 'rho': , 'vp_std_dev': , 'vs_std_dev': , 'rho_std_dev': } as pint Quantities, and
+            'vp_vs_cc', 'vp_rho_cc' and 'vs_rho_cc' as floats, where they are known
+        The names are spelled as in the file, since the names given are not case sensitive
+    """
+    if avg_type not in ['mean', 'median']:
+        raise ValueError('avg_type can be either "mean" or "median", not {}'.format(avg_type))
+    suffix = suffix or ''
+    well = well or 'All'
+    _numbers = ['n', 'mean', 'median', 'std', 'p10', 'p90', 'r']
+    # Empty text must stay empty, so that an interval without a suffix can be found, and a well named e.g. 'NA' is kept
+    sheets = pd.read_excel(file_name, sheet_name=None, keep_default_na=False,
+                           na_values={_c: [''] for _c in _numbers})
+    # The first sheet, so that a file written before the sheets were named can be read too
+    summary = sheets.get('summary', next(iter(sheets.values())))
+    description = 'interval {}, suffix "{}" and well {}'.format(wi_name, suffix, well)
+
+    def _select(table: pd.DataFrame) -> pd.DataFrame:
+        return table[(table['interval'].astype(str).str.lower() == wi_name.lower()) &
+                     (table['suffix'].astype(str).str.lower() == suffix.lower()) &
+                     (table['well'].astype(str).str.lower() == well.lower())]
+
+    rows = _select(summary)
+    if len(rows) == 0:
+        available = sorted({'{}, suffix "{}", well {}'.format(_i, _s, _w)
+                            for _i, _s, _w in zip(summary['interval'], summary['suffix'], summary['well'])})
+        raise ValueError('Found no statistics for {} in {}. The file holds: {}'.format(
+            description, file_name, '; '.join(available)))
+
+    kwargs = {}
+    for _log_type, _key, _units in [('P velocity', 'vp', 'm/s'), ('S velocity', 'vs', 'm/s'),
+                                    ('Density', 'rho', 'g/cm**3')]:
+        _row = rows[rows['log type'] == _log_type]
+        if len(_row) != 1:
+            raise ValueError('Found {} lines of {} for {} in {}, expected one'.format(
+                len(_row), _log_type, description, file_name))
+        _row = _row.iloc[0]
+        kwargs[_key] = Q_(float(_row[avg_type]), _row['units']).to(_units)
+        kwargs['{}_std_dev'.format(_key)] = Q_(float(_row['std']), _row['units']).to(_units)
+    if any(np.isnan(_q.magnitude) for _q in kwargs.values()):
+        print_info('The statistics of {} in {} have no samples, so the litho fluid has NaN values'.format(
+            description, file_name), 'warning', logger)
+
+    lacking = []
+    correlations = _select(sheets['correlations']) if 'correlations' in sheets else None
+    for (_x, _y), _key in zip(correlation_pairs, ['vp_vs_cc', 'vp_rho_cc', 'vs_rho_cc']):
+        _row = None if correlations is None else \
+            correlations[(correlations['log type x'] == _x) & (correlations['log type y'] == _y)]
+        if _row is None or len(_row) == 0 or np.isnan(float(_row['r'].iloc[0])):
+            lacking.append('{} & {}'.format(_x, _y))
+            continue
+        kwargs[_key] = float(_row['r'].iloc[0])
+    if len(lacking) > 0:
+        print_info('No correlation of {} for {} in {}, the default values of LithoFluid are used'.format(
+            ', '.join(lacking), description, file_name), 'warning', logger)
+    _first = rows.iloc[0]
+    return kwargs, (str(_first['interval']), str(_first['suffix']), str(_first['well']))
 
 
 def _log_in_well(data: dict, log_name: str) -> bool:

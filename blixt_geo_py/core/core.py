@@ -2223,6 +2223,51 @@ class LithoFluid:
         self.vp_rho_cc = Q_(all_data[name]['VpRhoCorrCoef'])
         self.vs_rho_cc= Q_(all_data[name]['VsRhoCorrCoef'])
 
+    @staticmethod
+    def summary_name(wi_name: str, suffix: str | None = '', well: str | None = 'All') -> str:
+        """
+        Returns the default name of a litho fluid read by from_summary(), e.g. 'Sand F_sand' for all wells, and
+        'WELL_A Sand F_sand' for one well, like the names in StatsCalculation.save_rokdoc_output()
+        """
+        name = '{}_{}'.format(wi_name, suffix) if suffix else wi_name
+        return name if (well or 'All') == 'All' else '{} {}'.format(well, name)
+
+    def from_summary(self,
+                     file_name: str,
+                     wi_name: str,
+                     suffix: str | None = '',
+                     well: str | None = 'All',
+                     avg_type: str = 'mean',
+                     name: str | None = None):
+        """
+        Reads litho fluid properties from an excel file written by StatsCalculation.save_summary(), for one interval,
+        suffix and well. The correlation coefficients are taken from its 'correlations' sheet, and where these are
+        lacking, the default values are kept, see analysis.calc_statistics.read_litho_fluid_stats()
+
+        :param file_name:
+            str
+            full pathname of the excel file
+        :param wi_name:
+            str
+            Name of the working interval
+        :param suffix:
+            str
+            The suffix used for the working interval. Leave out if it had none
+        :param well:
+            str
+            Name of the well, 'All' for all wells together, or e.g. 'Projected to 2000 m'
+        :param avg_type:
+            str
+            'mean' or 'median'
+        :param name:
+            str
+            Name of the litho fluid. By default, see summary_name()
+        """
+        from blixt_geo_py.analysis.calc_statistics import read_litho_fluid_stats
+        kwargs, names_in_file = read_litho_fluid_stats(file_name, wi_name, suffix, well, avg_type)
+        # Through __init__(), so that lacking correlations get the default values
+        self.__init__(name=name or self.summary_name(*names_in_file), **kwargs)
+
     def plot(self,
              ax = None,
              label: str | None = None,
@@ -2512,6 +2557,54 @@ class LithoFluids:
                 )
             )
             self.litho_fluids = all_litho_fluids
+
+    def from_summary(self,
+                     file_name: str,
+                     selection: tuple | list,
+                     avg_type: str = 'mean',
+                     names: list | None = None):
+        """
+        Reads litho fluid properties from an excel file written by StatsCalculation.save_summary(), one litho fluid for
+        each (interval, suffix, well) in selection, see LithoFluid.from_summary(). They replace the current list of
+        LithoFluids, like from_RokDoc() does
+
+        :param file_name:
+            str
+            full pathname of the excel file
+        :param selection:
+            (interval, suffix, well) tuple, or a list of these, e.g.
+                [('Sand F', 'sand', 'All'), ('Sand F', 'shale', 'All'), ('Sand E', '', 'WELL_A')]
+            The suffix may be '' or None if the interval had none, and the well None for 'All'
+        :param avg_type:
+            str
+            'mean' or 'median'
+        :param names:
+            list of str, one per item in selection
+            Names of the litho fluids. By default, see LithoFluid.summary_name()
+        """
+        if isinstance(selection, tuple):
+            selection = [selection]
+        for _item in selection:
+            if not isinstance(_item, (tuple, list)) or len(_item) != 3:
+                raise TypeError('Each item in selection must be an (interval, suffix, well) tuple, not {!r}'.format(
+                    _item))
+        if names is None:
+            names = [None] * len(selection)
+        if len(names) != len(selection):
+            raise ValueError('The number of names, {}, must be same as the number of selections, {}'.format(
+                len(names), len(selection)))
+        litho_fluids = []
+        for (_wi_name, _suffix, _well), _name in zip(selection, names):
+            _lf = LithoFluid()
+            _lf.from_summary(file_name, _wi_name, _suffix, _well, avg_type, _name)
+            litho_fluids.append(_lf)
+        # LithoFluids finds a litho fluid by its name, regardless of case
+        _names = [_lf.name.lower() for _lf in litho_fluids]
+        repeated = sorted({_lf.name for _lf in litho_fluids if _names.count(_lf.name.lower()) > 1})
+        if len(repeated) > 0:
+            raise ValueError('The litho fluid names {} are repeated, give each a different name with "names"'.format(
+                ', '.join(repeated)))
+        self.litho_fluids = litho_fluids
 
 
 class LithoFluidsTable:

@@ -1131,6 +1131,95 @@ class TestCases(unittest.TestCase):
         table = results['Sand F'].correlations()
         self.assertEqual({('P velocity', 'Density')}, set(zip(table['log type x'], table['log type y'])))
 
+    def test_litho_fluids_from_summary(self):
+        """
+        Create litho fluids from the statistics and correlations written by save_summary()
+        """
+        sand, shale = {'Volume': ['<', 0.5]}, {'Volume': ['>', 0.5]}
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand F', 'Sand D'], log_table, [sand, shale, sand],
+                                 ['sand', 'shale', ''], project_to_burial_depth=Q_(2000., 'm'))
+        results = stats.run()
+        summary, correlations = stats.summary(results), stats.correlations(results)
+        selection = [('Sand F', 'sand', 'All'), ('Sand F', 'shale', None), ('Sand D', None, 'WELL_A'),
+                     ('Sand F', 'sand', 'Projected to 2000 m')]
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_name = os.path.join(tmp_dir, 'summary.xlsx')
+            stats.save_summary(results, file_name)
+            lfs = LithoFluids()
+            lfs.from_summary(file_name, selection)
+            medians = LithoFluids()
+            medians.from_summary(file_name, selection[:1], avg_type='median', names=['my sand'])
+            single = LithoFluid()
+            single.from_summary(file_name, 'sand f', 'SAND', 'well_a')  # Not case sensitive
+
+        self.assertEqual(['Sand F_sand', 'Sand F_shale', 'WELL_A Sand D', 'Projected to 2000 m Sand F_sand'],
+                         [_lf.name for _lf in lfs.litho_fluids])
+        for (_wi, _suffix, _well), _lf in zip(selection, lfs.litho_fluids):
+            with self.subTest(litho_fluid=_lf.name):
+                _rows = summary[(summary['interval'] == _wi) & (summary['suffix'] == (_suffix or '')) &
+                                (summary['well'] == (_well or 'All'))].set_index('log type')
+                self.assertAlmostEqual(_rows.loc['P velocity', 'mean'], _lf.vp.to('m/s').magnitude)
+                self.assertAlmostEqual(_rows.loc['S velocity', 'std'], _lf.vs_std_dev.to('m/s').magnitude)
+                # The density is in g/cm3 in both
+                self.assertAlmostEqual(_rows.loc['Density', 'mean'], _lf.rho.to('g/cm**3').magnitude)
+                _cc = correlations[(correlations['interval'] == _wi) & (correlations['suffix'] == (_suffix or '')) &
+                                   (correlations['well'] == (_well or 'All'))]
+                _vp_rho = _cc[(_cc['log type x'] == 'P velocity') & (_cc['log type y'] == 'Density')]['r'].iloc[0]
+                self.assertAlmostEqual(_vp_rho, _lf.vp_rho_cc.magnitude)
+        self.assertEqual('my sand', medians.litho_fluids[0].name)
+        _row = summary[(summary['interval'] == 'Sand F') & (summary['suffix'] == 'sand') &
+                       (summary['well'] == 'All') & (summary['log type'] == 'P velocity')].iloc[0]
+        self.assertAlmostEqual(_row['median'], medians.litho_fluids[0].vp.to('m/s').magnitude)
+        # The default name is spelled as in the file
+        self.assertEqual('WELL_A Sand F_sand', single.name)
+        # The litho fluids can be used further, e.g. in a model
+        self.assertEqual(lfs['WELL_A Sand D'].to_sums_dict()['VpMean'], lfs['WELL_A Sand D'].vp.magnitude)
+
+    def test_litho_fluids_from_summary_without_correlations(self):
+        """
+        A file without the correlations sheet, or without the samples to calculate them, gives the default correlations
+        """
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand D'], log_table,
+                                 {'Volume': ['<', 0.5], 'Porosity': ['>', 0.1]})
+        results = stats.run()
+        defaults = LithoFluid()
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            old_file = os.path.join(tmp_dir, 'old_summary.xlsx')
+            stats.summary(results).to_excel(old_file, index=False)
+            old = LithoFluid()
+            old.from_summary(old_file, 'Sand F')
+            file_name = os.path.join(tmp_dir, 'summary.xlsx')
+            stats.save_summary(results, file_name)
+            # The cutoffs leave no samples of Sand D in WELL_B
+            empty = LithoFluid()
+            empty.from_summary(file_name, 'Sand D', well='WELL_B')
+        self.assertGreater(old.vp.magnitude, 0.)
+        for _lf in [old, empty]:
+            for _cc in ['vp_vs_cc', 'vp_rho_cc', 'vs_rho_cc']:
+                self.assertEqual(getattr(defaults, _cc), getattr(_lf, _cc))
+        self.assertTrue(np.isnan(empty.vp.magnitude))
+
+    def test_litho_fluids_from_summary_input_checks(self):
+        stats = StatsCalculation(self.wells, self.wis, 'Sand F', log_table, {'Volume': ['<', 0.5]})
+        no_vs = StatsCalculation(self.wells, self.wis, 'Sand F', {_k: _v for _k, _v in log_table.items()
+                                                                if _k != 'S velocity'}, {'Volume': ['<', 0.5]})
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_name = os.path.join(tmp_dir, 'summary.xlsx')
+            stats.save_summary(stats.run(), file_name)
+            no_vs_file = os.path.join(tmp_dir, 'no_vs.xlsx')
+            no_vs.save_summary(no_vs.run(), no_vs_file)
+            with self.assertRaisesRegex(ValueError, 'The file holds'):
+                LithoFluid().from_summary(file_name, 'Sand X')
+            with self.assertRaisesRegex(ValueError, 'S velocity'):
+                LithoFluid().from_summary(no_vs_file, 'Sand F')
+            with self.assertRaises(ValueError):
+                LithoFluid().from_summary(file_name, 'Sand F', avg_type='mode')
+            with self.assertRaises(TypeError):
+                LithoFluids().from_summary(file_name, [('Sand F', '')])
+            # Two litho fluids can't have the same name
+            with self.assertRaisesRegex(ValueError, 'repeated'):
+                LithoFluids().from_summary(file_name, [('Sand F', '', 'All'), ('Sand F', None, None)])
+
     def test_exclude_input_checks(self):
         for _exclude in ['WELL_F', ('WELL_F', 'Sand E'), [('WELL_F', 'Sand E', 1)]]:
             with self.subTest(exclude=_exclude):
