@@ -2606,6 +2606,76 @@ class LithoFluids:
                 ', '.join(repeated)))
         self.litho_fluids = litho_fluids
 
+    def save_rokdoc_output(self,
+                           file_name: str,
+                           mode: str = 'append',
+                           avg_type: str = 'mean'):
+        """
+        Writes all litho fluids to a RokDoc compatible Sums and Averages excel file, one line per litho fluid, which
+        from_RokDoc() can read back.
+        Vp, Vs and Rho are written to the 'Mean' columns (G, H & I) by default, and the standard deviations and
+        correlation coefficients to their columns. Values that are NaN, and all other columns, get the null
+        value -999.25.
+        Note that a LithoFluid created without standard deviations or correlation coefficients holds default values
+        for these, which are then written too.
+        A quasi 2D litho fluid, where Vp, Vs or Rho are functions, is written with the values of its first trace
+
+        :param file_name:
+            str
+            full pathname of the excel file. A '.xls' file name is changed to '.xlsx'
+        :param mode:
+            str
+            'append' adds the lines to an existing file, or creates it.
+            'overwrite' replaces any existing file
+        :param avg_type:
+            str
+            'mean', 'median' or 'mode': the columns that Vp, Vs and Rho are written to
+        """
+        from blixt_geo_py.io.io import read_sums_and_averages, rokdoc_columns, write_sums_and_averages
+        if mode not in ['append', 'overwrite']:
+            raise ValueError('mode can be either "append" or "overwrite", not {}'.format(mode))
+        postfixes = {'mean': 'Mean', 'median': 'Median', 'mode': 'Mode'}
+        if avg_type not in postfixes:
+            raise ValueError('avg_type can be either "mean", "median" or "mode", not {}'.format(avg_type))
+        postfix = postfixes[avg_type]
+        unnamed = [str(_i) for _i, _lf in enumerate(self.litho_fluids) if not _lf.name]
+        if len(unnamed) > 0:
+            raise ValueError('The litho fluids number {} have no name, which a RokDoc file needs'.format(
+                ', '.join(unnamed)))
+        # write_sums_and_averages() does the same
+        if file_name.split('.')[-1] == 'xls':
+            file_name += 'x'
+
+        existing = []
+        if os.path.isfile(file_name):
+            if mode == 'overwrite':
+                os.remove(file_name)
+            else:
+                existing = [_n.lower() for _n in read_sums_and_averages(file_name)]
+        names = [_lf.name.lower() for _lf in self.litho_fluids]
+        repeated = sorted({_lf.name for _lf in self.litho_fluids
+                           if _lf.name.lower() in existing or names.count(_lf.name.lower()) > 1})
+        if len(repeated) > 0:
+            # from_RokDoc() only keeps the last line of each name
+            print_info('The litho fluids {} occur more than once in {}'.format(', '.join(repeated), file_name),
+                       'warning', logger)
+
+        for _lf in self.litho_fluids:
+            if _lf.type == 'quasi 2D':
+                print_info('{} is a quasi 2D litho fluid, only the values of its first trace are written to {}'.format(
+                    _lf.name, file_name), 'warning', logger)
+            sums = _lf.to_sums_dict(index=0)
+            values = {'Name': _lf.name, 'Well': 'NONE', 'ZType': 'MD', 'PorosityType': 'NONE',
+                      'ShaleVolumeInclusionShape': 'None', 'ShaleVolumeAspectRatio': 0.0, 'Classification': 'NONE',
+                      'LogsUsed': 'NONE', 'DateAdded': datetime.now()}
+            for _x in ['Vp', 'Vs', 'Rho']:
+                values['{}{}'.format(_x, postfix)] = sums['{}Mean'.format(_x)]
+                values['{}StdDev'.format(_x)] = sums['{}StdDev'.format(_x)]
+            for _key in ['VpVsCorrCoef', 'VpRhoCorrCoef', 'VsRhoCorrCoef']:
+                values[_key] = sums[_key]
+            write_sums_and_averages(file_name, [float(values[_c]) if isinstance(values.get(_c), np.floating)
+                                                else values.get(_c, -999.25) for _c in rokdoc_columns])
+
 
 class LithoFluidsTable:
     """

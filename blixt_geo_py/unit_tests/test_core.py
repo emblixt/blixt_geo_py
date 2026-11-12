@@ -806,6 +806,76 @@ class LithoFluidTests(unittest.TestCase):
         # print('Heavy oil: ', lf_heavy_oil.name, lf_heavy_oil.vp.magnitude, lf_heavy_oil.vs.magnitude, lf_heavy_oil.rho.magnitude)
 
 
+    def test_save_rokdoc_output(self):
+        """
+        Write litho fluids to a RokDoc Sums and Averages file, and read them back with from_RokDoc()
+        """
+        import tempfile
+        from openpyxl import load_workbook
+        from blixt_geo_py.core.core import LithoFluid, LithoFluids
+        from blixt_geo_py.io.io import rokdoc_columns
+        lfs = LithoFluids([LithoFluid(default='shale'), LithoFluid(default='brine_sst'),
+                           LithoFluid('No stats', 3000., 1500., 2.3, vp_std_dev=Q_(np.nan, 'm/s'))])
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_name = os.path.join(tmp_dir, 'litho_fluids.xlsx')
+            lfs.save_rokdoc_output(file_name)
+            read = LithoFluids()
+            read.from_RokDoc(file_name)
+            # Vp, Vs & Rho are in the 'Mean' columns, G, H & I
+            wb = load_workbook(file_name)
+            ws = wb.active
+            header_row = [_c.value for _c in ws['A']].index('Name') + 1
+            self.assertEqual(['VpMean', 'VsMean', 'RhoMean'], [ws['{}{}'.format(_c, header_row)].value for _c in 'GHI'])
+            self.assertEqual([3445, 1767, 2.6], [ws['{}{}'.format(_c, header_row + 1)].value for _c in 'GHI'])
+            self.assertEqual(-999.25, ws['J{}'.format(header_row + 1)].value)  # VpMedian
+            self.assertEqual(rokdoc_columns, [_c.value for _c in ws[header_row]])
+            wb.close()
+
+            # Appending, the default, adds the lines
+            lfs.save_rokdoc_output(file_name)
+            appended = LithoFluids()
+            appended.from_RokDoc(file_name)
+            # Overwriting replaces the file
+            LithoFluids([LithoFluid(default='gas_sst')]).save_rokdoc_output(file_name, mode='overwrite')
+            overwritten = LithoFluids()
+            overwritten.from_RokDoc(file_name)
+
+            medians = os.path.join(tmp_dir, 'medians.xls')  # Written as .xlsx
+            lfs.save_rokdoc_output(medians, avg_type='median')
+            read_medians = LithoFluids()
+            read_medians.from_RokDoc(medians + 'x', avg_type='median')
+            read_means = LithoFluid()
+            read_means.from_RokDoc(medians + 'x', 'shale')
+
+        # from_RokDoc() sorts them by name
+        self.assertEqual({'shale', 'brine_sst', 'No stats'}, {_lf.name for _lf in read.litho_fluids})
+        for _lf in lfs.litho_fluids:
+            with self.subTest(litho_fluid=_lf.name):
+                for _key, _value in _lf.to_sums_dict().items():
+                    if np.isnan(_value):
+                        self.assertTrue(np.isnan(read[_lf.name].to_sums_dict()[_key]))
+                    else:
+                        self.assertAlmostEqual(_value, read[_lf.name].to_sums_dict()[_key])
+                self.assertAlmostEqual(_lf.vs.magnitude, read_medians[_lf.name].vs.magnitude)
+        # A file read back holds each name once, from_RokDoc() keeps the last of them
+        self.assertEqual(3, len(appended))
+        self.assertEqual(['gas_sst'], [_lf.name for _lf in overwritten.litho_fluids])
+        self.assertTrue(np.isnan(read_means.vp.magnitude))
+
+    def test_save_rokdoc_output_input_checks(self):
+        import tempfile
+        from blixt_geo_py.core.core import LithoFluid, LithoFluids
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_name = os.path.join(tmp_dir, 'litho_fluids.xlsx')
+            with self.assertRaises(ValueError):
+                LithoFluids([LithoFluid(default='shale')]).save_rokdoc_output(file_name, mode='replace')
+            with self.assertRaises(ValueError):
+                LithoFluids([LithoFluid(default='shale')]).save_rokdoc_output(file_name, avg_type='p50')
+            # RokDoc needs a name
+            with self.assertRaisesRegex(ValueError, 'no name'):
+                LithoFluids([LithoFluid(default='shale'), LithoFluid()]).save_rokdoc_output(file_name)
+            self.assertFalse(os.path.isfile(file_name))
+
     def test_2d_lf(self):
         from blixt_geo_py.core.core import LithoFluid
         def vp(_i):

@@ -1059,6 +1059,23 @@ def read_sums_and_averages(filename, header=20):
     return answer
 
 
+# The columns of a RokDoc Sums and Averages file, in the order write_sums_and_averages() writes them
+rokdoc_columns = [
+    'Name', 'Well', 'ZType', 'TopDepth', 'BaseDepth', 'MidPointDepth',
+    'VpMean', 'VsMean', 'RhoMean', 'VpMedian', 'VsMedian', 'RhoMedian',
+    'VpMode', 'VsMode', 'RhoMode', 'PorosityType', 'PorosityMean',
+    'PorosityStdDev', 'Net', 'NetToGross', 'EpsilonMean', 'DeltaMean',
+    'GammaMean', 'EpsilonMedian', 'DeltaMedian', 'GammaMedian',
+    'EpsilonMode', 'DeltaMode', 'GammaMode', 'VpStdDev', 'VsStdDev',
+    'RhoStdDev', 'EpsilonStdDev', 'DeltaStdDev', 'GammaStdDev',
+    'VpVsCorrCoef', 'VpRhoCorrCoef', 'VsRhoCorrCoef', 'AI', 'SI',
+    'M', 'MU', 'KBulkModulus', 'PR', 'Lambda', 'E', 'LambdaMu',
+    'MuRho', 'LambdaRho', 'ShaleVolumeMean', 'ShaleVolumeStdDev',
+    'ShaleVolumeInclusionShape', 'ShaleVolumeAspectRatio', 'Classification',
+    'LogsUsed', 'DateAdded'
+]
+
+
 def write_sums_and_averages(filename, line_of_data):
     # This function creates xlsx files. so please use Excel to save them as
     # xls files before attempting to load them into RokDoc
@@ -1100,22 +1117,7 @@ def write_sums_and_averages(filename, line_of_data):
         ws.append(['Saturation units:        fract'])
         ws.append(['Volume units:            fract'])
         ws.append(['TableStart:'])
-        ws.append(
-            [
-                'Name', 'Well', 'ZType', 'TopDepth', 'BaseDepth', 'MidPointDepth',
-                'VpMean', 'VsMean', 'RhoMean', 'VpMedian', 'VsMedian', 'RhoMedian',
-                'VpMode', 'VsMode', 'RhoMode', 'PorosityType', 'PorosityMean',
-                'PorosityStdDev', 'Net', 'NetToGross', 'EpsilonMean', 'DeltaMean',
-                'GammaMean', 'EpsilonMedian', 'DeltaMedian', 'GammaMedian',
-                'EpsilonMode', 'DeltaMode', 'GammaMode', 'VpStdDev', 'VsStdDev',
-                'RhoStdDev', 'EpsilonStdDev', 'DeltaStdDev', 'GammaStdDev',
-                'VpVsCorrCoef', 'VpRhoCorrCoef', 'VsRhoCorrCoef', 'AI', 'SI',
-                'M', 'MU', 'KBulkModulus', 'PR', 'Lambda', 'E', 'LambdaMu',
-                'MuRho', 'LambdaRho', 'ShaleVolumeMean', 'ShaleVolumeStdDev',
-                'ShaleVolumeInclusionShape', 'ShaleVolumeAspectRatio', 'Classification',
-                'LogsUsed', 'DateAdded'
-            ]
-        )
+        ws.append(rokdoc_columns)
     # openpyxl writes NaN as an empty cell, use the same null value as for the unused columns
     ws.append([-999.25 if isinstance(_v, float) and np.isnan(_v) else _v for _v in line_of_data])
     wb.save(filename)
