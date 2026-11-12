@@ -770,11 +770,11 @@ class TestCases(unittest.TestCase):
             lines = {_l['Name']: _l for _l in read_rokdoc_lines(file_name)}
             # The file is read back as litho fluids, where a lack of samples must not give a velocity of -999.25
             lf_data = LithoFluid()
-            lf_data.from_excel(file_name, 'WELL_A Sand F')
+            lf_data.from_RokDoc(file_name, 'WELL_A Sand F')
             lf_empty = LithoFluid()
-            lf_empty.from_excel(file_name, 'WELL_B Sand D')
+            lf_empty.from_RokDoc(file_name, 'WELL_B Sand D')
             lfs = LithoFluids()
-            lfs.from_excel(file_name)
+            lfs.from_RokDoc(file_name)
 
         self.assertEqual(len(lines), len(lfs.litho_fluids))
         self.assertAlmostEqual(lines['WELL_A Sand F']['VpMean'], lf_data.vp.magnitude)

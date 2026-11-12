@@ -2178,12 +2178,20 @@ class LithoFluid:
         return return_dict
 
 
-    def from_excel(self,
-                   excel_file: str,
-                   name: str,
-                   avg_type: str | None = None):
+    def from_excel(self, *args, **kwargs):
         """
-        Reads litho fluid properties from a RokDoc 'sums and averages' excel file
+        Deprecated, use from_RokDoc()
+        """
+        print_info('LithoFluid.from_excel() is renamed to from_RokDoc()', 'warning', logger)
+        return self.from_RokDoc(*args, **kwargs)
+
+    def from_RokDoc(self,
+                    excel_file: str,
+                    name: str,
+                    avg_type: str | None = None):
+        """
+        Reads litho fluid properties from a RokDoc 'sums and averages' excel file, e.g. one written by
+        StatsCalculation.save_rokdoc_output()
         :param excel_file:
         :param name:
         :param avg_type:
@@ -2455,12 +2463,19 @@ class LithoFluids:
         print_info('No litho fluid named {} is found'.format(item), 'warning', logger)
         return None
 
-    def from_excel(self,
-                   excel_file: str,
-                   avg_type: str | None = None):
+    def from_excel(self, *args, **kwargs):
         """
-        Reads litho fluid properties from a RokDoc 'sums and averages' excel file, and adds them to the list of
-        LithoFluids
+        Deprecated, use from_RokDoc()
+        """
+        print_info('LithoFluids.from_excel() is renamed to from_RokDoc()', 'warning', logger)
+        return self.from_RokDoc(*args, **kwargs)
+
+    def from_RokDoc(self,
+                    excel_file: str,
+                    avg_type: str | None = None):
+        """
+        Reads litho fluid properties from a RokDoc 'sums and averages' excel file, e.g. one written by
+        StatsCalculation.save_rokdoc_output(), and adds them to the list of LithoFluids
         :param excel_file:
         :param avg_type:
         :return:

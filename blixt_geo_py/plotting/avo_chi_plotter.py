@@ -250,7 +250,7 @@ def create_mc_avo_plot(sums_average_file: str | None = None,
             litho_fluids_list.append(rt)
     else:
         lfs = LithoFluids()
-        lfs.from_excel(sums_average_file, avg_type)
+        lfs.from_RokDoc(sums_average_file, avg_type)
         litho_fluids_list = lfs.litho_fluids
 
 
