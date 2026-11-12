@@ -11,7 +11,8 @@ Usage:
     wp.load_all_wells()
     stats = StatsCalculation(wp.wells, wp.load_all_wis(), ['Sand E', 'Sand F'],
                              log_table={'P velocity': 'vp_dry', 'Porosity': 'phie', 'Volume': 'vcl'},
-                             cutoffs='Volume<0.5[], Porosity>0.1[]')  # Leave out to use all samples of the intervals
+                             cutoffs='Volume<0.5[], Porosity>0.1[]',  # Leave out to use all samples of the intervals
+                             exclude=[('WELL_F', 'Sand E', 'S velocity')])  # Optional, leaves out a bad log
     results = stats.run()
     print(results['Sand E'].summary())
     stats.save_summary(results, 'summary.xlsx')
@@ -489,12 +490,43 @@ def _lacking_burial_depth(results: dict) -> list:
     return wells
 
 
+def to_exclude(exclude: tuple | list | None) -> list:
+    """
+    Returns the exclusions of StatsCalculation as a list of (well name, interval name, log type) tuples
+
+    :param exclude:
+        tuple, list of tuples, or None
+        e.g. ('WELL_F', 'Sand E', 'S velocity') or [('WELL_F', 'Sand E', 'S velocity'), ('WELL_B', None, 'Density')]
+        None in a tuple matches any well, interval or log type
+    """
+    if exclude is None:
+        return []
+    if isinstance(exclude, tuple):
+        exclude = [exclude]
+    if not isinstance(exclude, list):
+        raise TypeError('exclude must be a (well, interval, log type) tuple, or a list of these, not {}'.format(
+            type(exclude)))
+    for _item in exclude:
+        if not isinstance(_item, (tuple, list)) or len(_item) != 3 or \
+                not all(isinstance(_x, (str, type(None))) for _x in _item):
+            raise TypeError('Each item in exclude must be a (well, interval, log type) tuple of strings or None, '
+                            'not {!r}'.format(_item))
+        if all(_x is None for _x in _item):
+            raise ValueError('An exclusion of (None, None, None) would exclude everything')
+    return [tuple(_item) for _item in exclude]
+
+
+def _matches(name: str | None, *candidates: str) -> bool:
+    return name is None or name.lower() in [_c.lower() for _c in candidates]
+
+
 def collect_interval_stats(wells: list,
                            intervals: Intervals,
                            wi_name: str,
                            log_table: LogTable,
                            cutoffs: Cutoffs,
-                           suffix: str = '') -> IntervalStats:
+                           suffix: str = '',
+                           exclude: list | None = None) -> IntervalStats:
     """
     Collects the log data within the given working interval in each well, which also pass the cutoffs
 
@@ -515,6 +547,10 @@ def collect_interval_stats(wells: list,
     :param suffix:
         str
         Tags the results, e.g. 'sands'
+    :param exclude:
+        list of (well name, interval name, log type) tuples, see StatsCalculation
+        The interval name may be the name of the working interval, or its label with the suffix (e.g. 'Sand F, sand').
+        None matches any well, interval or log type
     :return:
         IntervalStats
     """
@@ -522,6 +558,8 @@ def collect_interval_stats(wells: list,
     # Convert rules on log types (e.g. 'Volume') to rules on log names (e.g. 'vcl')
     rules = cutoffs.use_log_table(log_table).cutoffs
     stats = IntervalStats(wi_name=wi_name, log_table=log_table, cutoffs=cutoffs, suffix=suffix)
+    # Only the exclusions of this interval
+    exclude = [(_well, _log_type) for _well, _wi, _log_type in (exclude or []) if _matches(_wi, wi_name, stats.label)]
 
     for well in wells:
         # Intervals.get_cutoff_rule() falls back to the whole well when the interval is missing, so check first.
@@ -529,9 +567,18 @@ def collect_interval_stats(wells: list,
         if len(intervals.get_intervals(wi_name, well.name)) == 0:
             print_info('Interval {} not present in {}'.format(wi_name, well.name), 'info', logger)
             continue
+        excluded_types = [_log_type for _well, _log_type in exclude if _matches(_well, well.name)]
+        if None in excluded_types:
+            print_info('Well {} is excluded from interval {}'.format(well.name, stats.label), 'info', logger)
+            continue
+        excluded_logs = [log_table[_log_type] for _log_type in log_table if _matches(_log_type, *excluded_types)] \
+            if len(excluded_types) > 0 else []
+        if len(excluded_logs) > 0:
+            print_info('Excluded from interval {} in well {}: {}'.format(
+                stats.label, well.name, ', '.join(excluded_logs)), 'info', logger)
         interval_rule = intervals.get_cutoff_rule(wi_name, well.name)
 
-        missing = [_log for _log in log_table.log_names if _log not in well.get_log_names]
+        missing = [_log for _log in log_table.log_names if _log not in well.get_log_names and _log not in excluded_logs]
         if len(missing) > 0:
             print_info('Well {} lacks the logs: {}'.format(well.name, ', '.join(missing)), 'warning', logger)
 
@@ -546,7 +593,9 @@ def collect_interval_stats(wells: list,
         well_cutoffs = Cutoffs(cutoffs=deepcopy(rules) + [interval_rule])
         _data = well.dict(cutoffs=well_cutoffs, use_cutoffs=True)
 
-        stats.per_well[well.name] = {_log: _data[_log] for _log in log_table.log_names if _log in _data}
+        # An excluded log is left out, but its cutoffs still select the samples of the other logs
+        stats.per_well[well.name] = {_log: _data[_log] for _log in log_table.log_names
+                                     if _log in _data and _log not in excluded_logs}
         # Distance to the top of the occurrence of the interval that contains each sample
         stats.depth_from_top[well.name] = intervals.distance_to_top(wi_name, well.name, _data['md'])
         # The burial depth is NaN when the kelly bushing or water depth is lacking in the project table.
@@ -571,7 +620,8 @@ class StatsCalculation:
                  cutoffs: Cutoffs | str | dict | list | None = None,
                  suffix: str | list = '',
                  working_dir: str | None = None,
-                 project_to_burial_depth: pint.Quantity | list | None = None):
+                 project_to_burial_depth: pint.Quantity | list | None = None,
+                 exclude: tuple | list | None = None):
         """
         :param wells:
             list of Well, or dict of Well
@@ -610,6 +660,15 @@ class StatsCalculation:
             depth, to this burial depth, before the statistics are calculated. See IntervalStats.projected().
             It is included in summary(), plot_averages() and save_rokdoc_output(), and
             plot_logs_vs_burial_depth() marks where the trends cross this burial depth
+        :param exclude:
+            (well name, interval name, log type) tuple, or a list of these, e.g.
+                [('WELL_F', 'Sand E', 'S velocity'), ('WELL_B', 'Sand F', None)]
+            Leaves the log of that type in that well and interval out of all the statistics and plots, e.g. a bad S
+            velocity log. None matches any well, interval or log type, so ('WELL_B', 'Sand F', None) leaves WELL_B out
+            of Sand F, and ('WELL_B', None, 'Density') leaves its density out of all intervals.
+            The interval name excludes from all runs of a repeated interval, while its label with the suffix (e.g.
+            'Sand F, sand') only excludes from that one. The names are not case sensitive.
+            Cutoffs on an excluded log still apply to the other logs
         """
         if isinstance(wells, dict):
             wells = list(wells.values())
@@ -651,7 +710,25 @@ class StatsCalculation:
         if len(_repeated) > 0:
             raise ValueError('The working intervals {} are repeated with the same suffix. Give each a different '
                              'suffix, e.g. suffix=["sand", "shale"]'.format(', '.join(_repeated)))
+        self.exclude = to_exclude(exclude)
+        self._check_exclude()
         self.working_dir = working_dir
+
+    def _check_exclude(self):
+        """
+        Raises a ValueError for exclusions with a well, interval or log type that is not used, so that a misspelled
+        name doesn't go unnoticed
+        """
+        _labels = [_wi if self.wi_names.count(_wi) == 1 else '{}, {}'.format(_wi, _s)
+                   for _wi, _s in zip(self.wi_names, self.suffixes)]
+        known = {'well': [_w.name for _w in self.wells],
+                 'interval': self.wi_names + _labels,
+                 'log type': [_lt for _log_table in self.log_tables for _lt in _log_table]}
+        for _item in self.exclude:
+            for _name, (_kind, _known) in zip(_item, known.items()):
+                if not _matches(_name, *_known):
+                    raise ValueError('Unknown {} {!r} in exclude {}. Expected one of: {}'.format(
+                        _kind, _name, _item, ', '.join(dict.fromkeys(_known))))
 
     def run(self) -> dict:
         """
@@ -664,7 +741,8 @@ class StatsCalculation:
         for wi_name, cutoffs, log_table, suffix, burial_depth in zip(
                 self.wi_names, self.cutoffs, self.log_tables, self.suffixes, self.project_to_burial_depths):
             print_info('Interval: {}. Cutoffs: {}'.format(wi_name, cutoffs), 'info', logger)
-            stats = collect_interval_stats(self.wells, self.intervals, wi_name, log_table, cutoffs, suffix)
+            stats = collect_interval_stats(self.wells, self.intervals, wi_name, log_table, cutoffs, suffix,
+                                           self.exclude)
             stats.project_to_burial_depth = burial_depth
             results[wi_name if self.wi_names.count(wi_name) == 1 else stats.label] = stats
         return results

@@ -995,6 +995,84 @@ class TestCases(unittest.TestCase):
         self.assertTrue((empty['n'] == 0).all())
         self.assertTrue(empty['mean'].isna().all())
 
+    def test_exclude(self):
+        """
+        A log type can be left out of one well and interval, without affecting the other logs, wells or intervals
+        """
+        _cutoffs = {'Volume': ['<', 0.5]}
+        plain = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand E'], log_table, _cutoffs).run()
+        stats = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand E'], log_table, _cutoffs,
+                                 exclude=('well_f', 'sand e', 'S velocity'))  # Not case sensitive
+        results = stats.run()
+        self.assertGreater(len(plain['Sand E'].per_well['WELL_F']['vs_dry']), 0)
+        self.assertNotIn('vs_dry', results['Sand E'].per_well['WELL_F'])
+        # The other logs keep the same samples
+        np.testing.assert_array_equal(results['Sand E'].per_well['WELL_F']['vp_dry'].magnitude,
+                                      plain['Sand E'].per_well['WELL_F']['vp_dry'].magnitude)
+        # The other interval, and the other wells, are untouched
+        self.assertIn('vs_dry', results['Sand F'].per_well['WELL_F'])
+        other_wells = [_w for _w in results['Sand E'].well_names if _w != 'WELL_F']
+        self.assertGreater(len(other_wells), 0)
+        for _well in other_wells:
+            self.assertEqual(set(results['Sand E'].per_well[_well]), set(plain['Sand E'].per_well[_well]))
+
+        summary = stats.summary(results)
+        rows = summary[(summary['interval'] == 'Sand E') & (summary['log type'] == 'S velocity')]
+        self.assertNotIn('WELL_F', set(rows['well']))
+        # 'All' no longer holds the S velocity of WELL_F
+        n_all = rows[rows['well'] == 'All']['n'].iloc[0]
+        plain_summary = stats.summary(plain)
+        plain_rows = plain_summary[(plain_summary['interval'] == 'Sand E') &
+                                   (plain_summary['log type'] == 'S velocity')]
+        n_well_f = plain_rows[plain_rows['well'] == 'WELL_F']['n'].iloc[0]
+        self.assertEqual(n_all, plain_rows[plain_rows['well'] == 'All']['n'].iloc[0] - n_well_f)
+        # Without the S velocity, WELL_F has no elastics in Sand E, but still a Gardner calibration
+        self.assertNotIn('WELL_F', results['Sand E'].ai_and_vpvs())
+        self.assertIn('WELL_F', results['Sand E'].vp_and_rho())
+
+        # All the outputs work with an excluded log
+        stats.plot_logs_vs_depth(results, file_name=None)
+        stats.plot_averages(results)
+        stats.plot_logs_vs_burial_depth(results, file_name=None)
+        stats.plot_gardner(results, file_name=None)
+        stats.plot_elastics(results, file_name=None)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            stats.save_rokdoc_output(results, os.path.join(tmp_dir, 'SumsAndAverages.xlsx'))
+        show_or_close()
+
+    def test_exclude_wildcards_and_suffixes(self):
+        _cutoffs = {'Volume': ['<', 0.5]}
+        # None as log type leaves the well out of the interval
+        results = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand E'], log_table, _cutoffs,
+                                   exclude=[('WELL_F', 'Sand E', None)]).run()
+        self.assertNotIn('WELL_F', results['Sand E'].well_names)
+        self.assertIn('WELL_F', results['Sand F'].well_names)
+        # None as interval leaves the log out of all intervals
+        results = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand E'], log_table, _cutoffs,
+                                   exclude=[('WELL_F', None, 'Density')]).run()
+        for _stats in results.values():
+            self.assertNotIn('rho_dry', _stats.per_well['WELL_F'])
+            self.assertIn('vp_dry', _stats.per_well['WELL_F'])
+        # The label of a repeated interval only excludes from that run, its name from all of them
+        sand, shale = {'Volume': ['<', 0.5]}, {'Volume': ['>', 0.5]}
+        for _interval, _expected in [('Sand F, sand', {'Sand F, sand'}), ('Sand F', {'Sand F, sand', 'Sand F, shale'})]:
+            with self.subTest(interval=_interval):
+                results = StatsCalculation(self.wells, self.wis, ['Sand F', 'Sand F'], log_table, [sand, shale],
+                                           ['sand', 'shale'], exclude=[('WELL_F', _interval, 'S velocity')]).run()
+                self.assertEqual(_expected, {_k for _k, _s in results.items() if 'vs_dry' not in _s.per_well['WELL_F']})
+
+    def test_exclude_input_checks(self):
+        for _exclude in ['WELL_F', ('WELL_F', 'Sand E'), [('WELL_F', 'Sand E', 1)]]:
+            with self.subTest(exclude=_exclude):
+                with self.assertRaises(TypeError):
+                    StatsCalculation(self.wells, self.wis, 'Sand E', log_table, exclude=_exclude)
+        # Misspelled names are caught
+        for _exclude in [('WELL_X', 'Sand E', 'S velocity'), ('WELL_F', 'Sand X', 'S velocity'),
+                         ('WELL_F', 'Sand E', 'Shear velocity'), (None, None, None)]:
+            with self.subTest(exclude=_exclude):
+                with self.assertRaises(ValueError):
+                    StatsCalculation(self.wells, self.wis, 'Sand E', log_table, exclude=_exclude)
+
 
 if __name__ == '__main__':
     unittest.main()
