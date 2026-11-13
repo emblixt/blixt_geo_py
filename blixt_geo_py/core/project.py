@@ -6,6 +6,7 @@ import logging
 import os
 from datetime import datetime
 
+import numpy as np
 import pandas as pd
 
 from blixt_geo_py.core.well import Well
@@ -28,6 +29,11 @@ LOGGED_ATTRIBUTES = {
 }
 
 IF_WELL_EXISTS_OPTIONS = ('append', 'overwrite', 'ask', 'ignore')
+
+# Default columns of the 'Well settings' sheet in the project table that are shown in the well log table
+WELL_TABLE_COLUMNS = ('Color', 'Symbol', 'Content', 'KB', 'Water depth')
+# Light red background of the Log cells, in the Bokeh well log table, for logs that do not appear in all wells
+MISSING_LOG_COLOR = '#f8d7da'
 
 
 class Project(object):
@@ -399,6 +405,229 @@ class Project(object):
         if self.project_table is not None:
             wis.read_blixt_tops(self.project_table)
         return wis
+
+    def well_settings(self, well_columns: list[str] | tuple[str, ...] = WELL_TABLE_COLUMNS) -> dict:
+        """
+        Reads the 'Well settings' sheet of the project table
+
+        :param well_columns:
+            list of str
+            Columns of the 'Well settings' sheet to read
+        :return:
+            dict
+            {well name: {column: value}}, where the well names are cleaned by fix_well_name(), and empty cells are None.
+            If a well is listed several times, the first row is used
+        """
+        from blixt_geo_py.utils.utils import fix_well_name
+        table = pd.read_excel(self.project_table, header=1, sheet_name='Well settings', engine='openpyxl')
+        missing = [_col for _col in well_columns if _col not in table.columns]
+        if missing:
+            raise ValueError("Column(s) {} not found in the 'Well settings' sheet of {}. Available columns: {}".format(
+                ', '.join(missing), self.project_table, ', '.join(str(_c) for _c in table.columns)))
+        settings = {}
+        for _, _row in table.iterrows():
+            _name = fix_well_name(_row['Given well name'])
+            if _name is None or _name in settings:
+                continue
+            settings[_name] = {_col: (None if pd.isna(_row[_col]) else _row[_col]) for _col in well_columns}
+        return settings
+
+    def well_log_table(self, wells: str | list[str] | None = None,
+                       well_columns: list[str] | tuple[str, ...] = WELL_TABLE_COLUMNS) -> pd.DataFrame:
+        """
+        Returns a table with one row per log, listing the well, the well information taken from the
+        'Well settings' sheet of the project table (color, symbol, content, KB, water depth by default), and the log
+        name, log type, units and depth range of each log.
+
+        :param wells:
+            str or list of str
+            Name(s) of the wells to include. Default is all wells loaded in the project
+        :param well_columns:
+            list of str
+            Columns of the 'Well settings' sheet that are added to the table, e.g. also 'Discovery in' or 'Note'
+        :return:
+            pandas.DataFrame
+            with columns: Well, <well_columns>, Log, Log type, Units, Top, Base, Samples, Depth type, Depth units
+            where Samples is the number of valid (not NaN or infinite) data points of the log
+        """
+        from blixt_geo_py.utils.utils import fix_well_name
+        well_columns = list(well_columns)
+        log_columns = ['Log', 'Log type', 'Units', 'Top', 'Base', 'Samples', 'Depth type', 'Depth units']
+        if isinstance(wells, str):
+            wells = [wells]
+        settings = self.well_settings(well_columns)
+
+        rows = []
+        for _well in self.wells:
+            if wells is not None and _well.name.lower() not in [_w.lower() for _w in wells]:
+                continue
+            _settings = settings.get(fix_well_name(_well.name), {})
+            _well_part = [_well.name] + [_settings.get(_col) for _col in well_columns]
+            if not _well.logs:
+                rows.append(_well_part + [None] * len(log_columns))
+                continue
+            for _log in _well.logs:
+                try:
+                    _top, _base = _log.depth.top.magnitude, _log.depth.base.magnitude
+                except (IndexError, AttributeError):
+                    _top, _base = None, None
+                try:
+                    # Only valid data points are counted, i.e. not NaN or infinite values
+                    _samples = int(np.count_nonzero(np.isfinite(np.asarray(_log.values, dtype=float))))
+                except (TypeError, ValueError):
+                    _samples = None
+                rows.append(_well_part + [_log.name, _log.log_type, str(_log.units), _top, _base, _samples,
+                                          _log.depth_type, str(_log.depth_units)])
+        df = pd.DataFrame(rows, columns=['Well'] + well_columns + log_columns)
+        # Integers that allow empty cells, for wells without logs
+        df['Samples'] = df['Samples'].astype('Int64')
+        return df
+
+    @staticmethod
+    def logs_not_in_all_wells(df: pd.DataFrame) -> pd.Series:
+        """
+        Finds the logs of a well log table (see well_log_table()) whose log name does not appear in all wells of the
+        table. Log names are compared regardless of upper or lower case.
+        Wells without logs are not considered, as they would otherwise make every log missing in some well
+
+        :param df:
+            pandas.DataFrame
+            Well log table, as returned by well_log_table()
+        :return:
+            pandas.Series of bool
+            True for the rows whose log is missing in at least one of the other wells
+        """
+        has_log = df['Log'].notna()
+        log_names = df['Log'].where(has_log, '').astype(str).str.lower()
+        n_wells = df.loc[has_log, 'Well'].nunique()
+        n_wells_per_log = df[has_log].groupby(log_names[has_log])['Well'].nunique()
+        return has_log & (log_names.map(n_wells_per_log) < n_wells)
+
+    def print_well_log_table(self, wells: str | list[str] | None = None, show_depths: bool = True,
+                             well_columns: list[str] | tuple[str, ...] = WELL_TABLE_COLUMNS) -> str:
+        """
+        Prints, and returns, the well log table (see well_log_table()) as text, where the well name and the well
+        information are only written on the first line of each well.
+        Logs that do not appear in all wells are marked with a '*'
+
+        :param wells:
+            str or list of str
+            Name(s) of the wells to include. Default is all wells loaded in the project
+        :param show_depths:
+            bool
+            If False, the depth type, top, base and depth units columns are left out. The samples column is kept
+        :param well_columns:
+            list of str
+            Columns of the 'Well settings' sheet that are added to the table
+        :return:
+            str
+        """
+        df = self.well_log_table(wells, well_columns=well_columns)
+        missing = self.logs_not_in_all_wells(df)
+        if not show_depths:
+            df = df.drop(columns=['Depth type', 'Top', 'Base', 'Depth units'])
+        df = df.astype(object).where(df.notna(), '')
+        df.loc[missing, 'Log'] = df.loc[missing, 'Log'] + '*'
+        repeated = df['Well'].eq(df['Well'].shift())
+        df.loc[repeated, ['Well'] + list(well_columns)] = ''
+        txt = df.to_string(index=False, float_format=lambda _x: '{:.1f}'.format(_x))
+        if missing.any():
+            txt += '\n* Log does not appear in all wells'
+        print(txt)
+        return txt
+
+    def bokeh_well_log_table(self, wells: str | list[str] | None = None, show_table: bool = True,
+                             file_name: str | None = None, width: int = 1200, height: int | None = None,
+                             well_columns: list[str] | tuple[str, ...] = WELL_TABLE_COLUMNS):
+        """
+        Creates a Bokeh DataTable of the well log table (see well_log_table()), where the Color column shows a
+        sample of the well color, and the Log cells of logs that do not appear in all wells are colored light red
+
+        :param wells:
+            str or list of str
+            Name(s) of the wells to include. Default is all wells loaded in the project
+        :param show_table:
+            bool
+            If True, the table is shown (in the browser, or in the notebook if bokeh.io.output_notebook() is used)
+        :param file_name:
+            str
+            Name of the html file the table is saved to when shown. A relative path is taken relative to the
+            results folder. Default is <results_folder>/<project name>_well_log_table.html
+        :param width:
+            int
+            Width of the table in pixels
+        :param height:
+            int
+            Height of the table in pixels. Default fits all rows, up to 800 pixels
+        :param well_columns:
+            list of str
+            Columns of the 'Well settings' sheet that are added to the table
+        :return:
+            bokeh.models.DataTable
+        """
+        from bokeh.models import ColumnDataSource, DataTable, TableColumn, HTMLTemplateFormatter, NumberFormatter
+        from bokeh.io import output_file, show
+        from matplotlib.colors import to_hex
+
+        df = self.well_log_table(wells, well_columns=well_columns)
+        table_columns = list(df.columns)
+        missing = self.logs_not_in_all_wells(df)
+
+        def _to_hex(_c):
+            try:
+                return to_hex(_c)
+            except (ValueError, TypeError):
+                return None
+
+        has_color = 'Color' in df.columns
+        if has_color:
+            df['Color_hex'] = [_to_hex(_c) for _c in df['Color']]
+        # Numeric columns keep NaN for empty cells, so that Bokeh can format them, while text columns get ''
+        numeric = [_col for _col in df.columns if pd.api.types.is_numeric_dtype(df[_col])]
+        for _col in df.columns:
+            if _col in numeric:
+                # pd.NA in integer columns, like Samples, can not be serialized by Bokeh
+                df[_col] = df[_col].astype(float)
+            else:
+                df[_col] = [('' if (_v is None or (isinstance(_v, float) and pd.isna(_v))) else _v)
+                            for _v in df[_col]]
+        # Added after the conversion above, so that it stays bool
+        df['Log_missing'] = missing.tolist()
+
+        color_formatter = HTMLTemplateFormatter(template=(
+            '<% if (Color_hex) { %>'
+            '<span style="display:inline-block;width:12px;height:12px;margin-right:4px;vertical-align:middle;'
+            'border:1px solid #888;background:<%= Color_hex %>"></span><% } %><%= value %>'))
+        # Light red background of the cell for logs that do not appear in all wells
+        log_formatter = HTMLTemplateFormatter(template=(
+            '<div style="background:<%= Log_missing ? \'' + MISSING_LOG_COLOR + '\' : \'transparent\' %>;'
+            'margin:0 -4px;padding:0 4px;height:100%"><%= value %></div>'))
+        # A dict, and not the DataFrame, avoids a pandas deprecation warning from Bokeh
+        source = ColumnDataSource(data={_col: df[_col].tolist() for _col in df.columns})
+        columns = []
+        for _col in table_columns:
+            if _col == 'Color' and has_color:
+                columns.append(TableColumn(field=_col, title=_col, formatter=color_formatter))
+            elif _col == 'Log':
+                columns.append(TableColumn(field=_col, title=_col, formatter=log_formatter))
+            elif _col in numeric:
+                _format = '0' if _col == 'Samples' else '0.0'
+                columns.append(TableColumn(field=_col, title=_col, formatter=NumberFormatter(format=_format)))
+            else:
+                columns.append(TableColumn(field=_col, title=_col))
+
+        if height is None:
+            height = min(800, 30 + 25 * max(len(df), 1))
+        table = DataTable(source=source, columns=columns, width=width, height=height, index_position=None)
+
+        if show_table:
+            if file_name is None:
+                file_name = '{}_well_log_table.html'.format(self.name)
+            if not os.path.isabs(file_name):
+                file_name = os.path.join(self.results_folder, file_name)
+            output_file(file_name, title='{}: wells and logs'.format(self.name))
+            show(table)
+        return table
 
     def dict(self, wells: list | None = None, intervals: list | None = None, logs: list | None = None):
         """

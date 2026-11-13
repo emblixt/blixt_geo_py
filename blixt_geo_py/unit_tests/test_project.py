@@ -234,6 +234,172 @@ class ProjectTestCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             Project(name='MyProject', log_to_stdout=True).add_well(None, if_well_exists='unknown')
 
+    def test_well_log_table(self):
+        """
+        The well log table lists every log of every loaded well, with the well information (color, symbol, content,
+        KB and water depth) taken from the 'Well settings' sheet of the project table. The project table is read
+        directly, independently of the project code, to find the expected well information.
+        Assumes that Well_A has a las file in use in the 'Well logs' sheet, and has a KB and a water depth in the
+        'Well settings' sheet
+        """
+        import numpy as np
+        import pandas as pd
+        from bokeh.models import DataTable
+
+        well_columns = ['Color', 'Symbol', 'Content', 'KB', 'Water depth']
+        wp = Project(name='MyProject', log_to_stdout=False)
+        wp.load_wells('Well_A')
+        self.assertTrue(len(wp) > 0, 'No wells loaded, so the well log table can not be tested')
+
+        settings = pd.read_excel(wp.project_table, header=1, sheet_name='Well settings', engine='openpyxl')
+        expected_info = {}
+        for _, _row in settings.iterrows():
+            _name = _row['Given well name']
+            if isinstance(_name, str) and _name.upper().strip() not in expected_info:
+                expected_info[_name.upper().strip()] = {
+                    _col: (None if pd.isna(_row[_col]) else _row[_col]) for _col in well_columns + ['Note']}
+
+        def _value(_v):
+            return None if pd.isna(_v) else _v
+
+        with self.subTest('DataFrame'):
+            df = wp.well_log_table()
+            self.assertListEqual(['Well'] + well_columns + ['Log', 'Log type', 'Units', 'Top', 'Base', 'Samples',
+                                                            'Depth type', 'Depth units'], list(df.columns))
+            # One row per log, and every log of every well is listed with its log type
+            self.assertEqual(sum(len(_w.logs) for _w in wp.wells), len(df))
+            for _w in wp.wells:
+                _rows = df[df['Well'] == _w.name]
+                self.assertDictEqual({_l.name: _l.log_type for _l in _w.logs},
+                                     dict(zip(_rows['Log'], _rows['Log type'])))
+                # The well information is taken from the project table, and repeated on every row of the well
+                for _col in well_columns:
+                    for _v in _rows[_col]:
+                        self.assertEqual(expected_info[_w.name.upper().strip()][_col], _value(_v), _col)
+                # The top is above the base, in the depth units of the log
+                self.assertTrue(all(_rows['Top'] <= _rows['Base']))
+                # Only the valid data points of each log are counted, i.e. not NaN or infinite values
+                self.assertDictEqual({_l.name: int(np.sum(~np.isnan(_l.data.magnitude) & ~np.isinf(_l.data.magnitude)))
+                                      for _l in _w.logs},
+                                     dict(zip(_rows['Log'], _rows['Samples'])))
+                for _l, _n in zip(_rows['Log'], _rows['Samples']):
+                    self.assertLessEqual(_n, len(_w.get_log_curve(_l)))
+            self.assertTrue(pd.api.types.is_integer_dtype(df['Samples']))
+            # Well_A has a KB and a water depth, so these must be filled in
+            _rows = df[df['Well'].str.upper() == 'WELL_A']
+            self.assertFalse(_rows['KB'].isna().any())
+            self.assertFalse(_rows['Water depth'].isna().any())
+
+        with self.subTest('Other well columns'):
+            # Any column of the 'Well settings' sheet can be chosen
+            df_note = wp.well_log_table(well_columns=['Note'])
+            self.assertListEqual(['Well', 'Note'], list(df_note.columns[:2]))
+            for _name, _v in zip(df_note['Well'], df_note['Note']):
+                self.assertEqual(expected_info[_name.upper().strip()]['Note'], _value(_v))
+            # No well columns at all
+            self.assertEqual('Log', wp.well_log_table(well_columns=[]).columns[1])
+            # A column that does not exist in the 'Well settings' sheet raises an error
+            with self.assertRaises(ValueError):
+                wp.well_log_table(well_columns=['No such column'])
+
+        with self.subTest('Selected wells'):
+            # Well names are matched regardless of upper or lower case
+            name = wp.wells[0].name
+            self.assertSetEqual({name}, set(wp.well_log_table(name.lower())['Well']))
+            # A well that is not loaded gives an empty table
+            self.assertEqual(0, len(wp.well_log_table('No_such_well')))
+
+        with self.subTest('Well without logs'):
+            # A well without logs is listed on one row, without log information
+            from blixt_geo_py.core.well import Well
+            empty_well = Well()
+            empty_well.name = 'EMPTY_WELL'
+            wp.add_well(empty_well)
+            _rows = wp.well_log_table('EMPTY_WELL')
+            self.assertEqual(1, len(_rows))
+            self.assertTrue(pd.isna(_rows['Log'].iloc[0]))
+            self.assertTrue(pd.isna(_rows['Samples'].iloc[0]))
+            # The empty cells must not break the text, or the Bokeh table, where the json serialization is tested
+            self.assertIn('EMPTY_WELL', wp.print_well_log_table())
+            from bokeh.embed import json_item
+            json_item(wp.bokeh_well_log_table(show_table=False))
+            wp.wells.remove(empty_well)
+
+        with self.subTest('Text'):
+            txt = wp.print_well_log_table()
+            for _w in wp.wells:
+                # The well name is only written on the first line of each well
+                self.assertEqual(1, txt.count(_w.name))
+                for _l in _w.logs:
+                    self.assertIn(_l.name, txt)
+            for _col in well_columns:
+                self.assertIn(_col, txt)
+            self.assertIn('Samples', txt)
+            # The depth columns can be left out, but the samples column is kept
+            txt = wp.print_well_log_table(show_depths=False)
+            self.assertNotIn('Depth type', txt)
+            self.assertIn('Samples', txt)
+
+        with self.subTest('Bokeh'):
+            table = wp.bokeh_well_log_table(show_table=False)
+            self.assertIsInstance(table, DataTable)
+            self.assertEqual(len(df), len(table.source.data['Well']))
+            self.assertListEqual(list(df.columns), [_c.field for _c in table.columns])
+            # Without a Color column, there is no color sample
+            table = wp.bokeh_well_log_table(show_table=False, well_columns=['KB'])
+            self.assertNotIn('Color_hex', table.source.data)
+            table = wp.bokeh_well_log_table(show_table=False)
+            # The colors are converted to hex for the color sample in the table
+            for _color, _hex in zip(table.source.data['Color'], table.source.data['Color_hex']):
+                if _color:
+                    self.assertTrue(_hex is None or _hex.startswith('#'))
+
+        with self.subTest('Logs not in all wells'):
+            import copy
+            from blixt_geo_py.core.well import Well
+            # With only one well loaded, every log appears in all wells
+            self.assertFalse(Project.logs_not_in_all_wells(wp.well_log_table()).any())
+            self.assertNotIn('*', wp.print_well_log_table())
+            self.assertFalse(any(wp.bokeh_well_log_table(show_table=False).source.data['Log_missing']))
+
+            # Add a second well that only has a copy of the first log of the first well, with the log name in upper
+            # case, as log names are compared regardless of case. Then all the other logs of the first well are
+            # missing in the second well
+            first_well = wp.wells[0]
+            shared_log = copy.deepcopy(first_well.logs[0])
+            shared_log.name = shared_log.name.upper()
+            other_well = Well(logs=[shared_log])
+            other_well.name = 'OTHER_WELL'
+            wp.add_well(other_well)
+            # A well without logs is not considered, otherwise every log would be missing in it
+            empty_well = Well()
+            empty_well.name = 'EMPTY_WELL'
+            wp.add_well(empty_well)
+
+            df = wp.well_log_table()
+            missing = Project.logs_not_in_all_wells(df)
+            expected = {(first_well.name, _l.name): _l.name.lower() != shared_log.name.lower()
+                        for _l in first_well.logs}
+            expected[('OTHER_WELL', shared_log.name)] = False
+            self.assertDictEqual(expected, {(_w, _l): bool(_m) for _w, _l, _m in zip(df['Well'], df['Log'], missing)
+                                            if _w != 'EMPTY_WELL'})
+            self.assertFalse(missing[df['Well'] == 'EMPTY_WELL'].any())
+
+            # In the text, the missing logs are marked with a '*', and explained below the table
+            txt = wp.print_well_log_table()
+            for (_w, _l), _m in expected.items():
+                self.assertEqual(_m, '{}*'.format(_l) in txt, _l)
+            self.assertIn('* Log does not appear in all wells', txt)
+
+            # In the Bokeh table, the Log cells of the missing logs get a light red background
+            from blixt_geo_py.core.project import MISSING_LOG_COLOR
+            table = wp.bokeh_well_log_table(show_table=False)
+            self.assertListEqual(missing.tolist(), table.source.data['Log_missing'])
+            log_column = [_c for _c in table.columns if _c.field == 'Log'][0]
+            self.assertIn(MISSING_LOG_COLOR, log_column.formatter.template)
+            wp.wells.remove(other_well)
+            wp.wells.remove(empty_well)
+
     def test_load_wells_with_rename(self):
         """
         Set only Well A active in the project table (_new), because it has a rename in it
