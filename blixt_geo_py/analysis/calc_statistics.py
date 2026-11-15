@@ -1087,7 +1087,7 @@ class StatsCalculation:
         QC plot of how much the statistics of each interval are affected by its burial depth varying between the
         wells. Plots each log versus burial depth (TVD below the sea floor), one row per interval, with:
             - the selected samples, the mean and the standard deviation of each well, colored by well
-            - the mean of all wells together
+            - the mean of all wells together, when more than one well has data in the interval
             - a linear trend through the samples of all wells, its slope and its R2
             - the standard deviation of all wells together, with and without the trend. When these differ, part of
               the spread of the combined statistics follows depth
@@ -1137,6 +1137,7 @@ class StatsCalculation:
             for i, log_name in enumerate(stats.log_table.log_names):
                 ax = axes[j][i]
                 units = None
+                n_plotted = 0  # wells with valid samples of this log in this interval
                 for well_name, data in stats.per_well.items():
                     if well_name not in stats.burial_depth or not _log_in_well(data, log_name):
                         continue
@@ -1145,6 +1146,7 @@ class StatsCalculation:
                     valid = np.isfinite(x) & np.isfinite(y)
                     if not np.any(valid):
                         continue
+                    n_plotted += 1
                     color, marker = self.well_style(well_name, all_wells.index(well_name))
                     ax.scatter(x[valid], y[valid], s=4, alpha=0.3, color=color, edgecolors='none', rasterized=True)
                     legend_items[well_name] = ax.errorbar(
@@ -1155,7 +1157,8 @@ class StatsCalculation:
                 if values is not None:
                     x = values.magnitude
                     valid = np.isfinite(x) & np.isfinite(depth)
-                    if np.any(valid):
+                    # With only one well, the mean of all wells is the mean of that well, and would hide its symbol
+                    if np.any(valid) and n_plotted > 1:
                         legend_items['All wells with burial depth'] = ax.scatter(
                             np.mean(x[valid]), np.mean(depth[valid]), marker='*', s=220, c='pink', edgecolors='k',
                             zorder=5)

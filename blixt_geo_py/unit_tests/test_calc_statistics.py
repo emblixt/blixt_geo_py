@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 # Imported before any plots are made. Set BLIXT_SHOW_PLOTS=1 to view the plots, see plot_settings.py
 from blixt_geo_py.unit_tests.plot_settings import show_plots, show_or_close
+from matplotlib.collections import PathCollection
 import matplotlib.pyplot as plt
 import numpy as np
 from openpyxl import load_workbook
@@ -671,6 +672,13 @@ class TestCases(unittest.TestCase):
         self.assertIn('R2 = {:.2f}'.format(trend['r2']), ax.get_title(loc='left'))
         # WELL_B has no samples in Sand D, so that trend is only based on one well
         self.assertIn('1 well,', fig.axes[len(log_table)].get_title(loc='left'))
+
+        # The mean of all wells is only plotted with more than one well, else it hides the symbol of the single well
+        def n_all_wells_stars(_ax):
+            return len([_c for _c in _ax.collections if isinstance(_c, PathCollection) and
+                        list(_c.get_sizes()) == [220]])
+        self.assertEqual(1, n_all_wells_stars(ax))
+        self.assertEqual(0, n_all_wells_stars(fig.axes[len(log_table)]))
         show_or_close()
 
     def test_plot_logs_vs_burial_depth_many_intervals(self):

@@ -190,3 +190,4 @@ Collected on 2026-11-03. Each item gives the file (relative to this folder), the
 ### 2026-11-12
 - In test_laminar_q2d_model() I notice that the model isn't updating when I change LithoFluid for any of the model layers. Why is that? It needs to be fixed
 - ~~I keep getting this warning when load wells using Project().load_all_wells(): WARNING: <FILE NAME>.las: Curve <CURVE NAME> occurs more than once (after any renaming). Only the first is kept~~ It is because it is a RokDoc exported las file that contains "." in the curve name, which is not LAS compatible
+- ~~In plot_logs_vs_burial_depth, when there is only one well with data in an interval, don't plot the "All" wells symbol, as it hides the well symbol of the single well~~ (the "All wells" star is only plotted when more than one well has valid data of the log in the interval)
