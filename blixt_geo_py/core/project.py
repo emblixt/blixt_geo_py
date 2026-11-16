@@ -418,6 +418,38 @@ class Project(object):
         return ProjectTemplatesTable(self.project_table, width=width, allow_save=allow_save,
                                      on_save=self.load_all_templates)
 
+    def fluid_substitution_dialog(self, log_table, cutoffs: list | None = None, pvt_table: dict | None = None,
+                                  wells: dict | None = None, width: int | None = None):
+        """
+        Returns an interactive version of the 'Fluids', 'Fluid mixtures', 'Minerals' and 'Mineral mixtures' sheets of
+        the project table, which runs the fluid substitution of the wells, see FluidSubstitutionDialog.
+        Needs a Bokeh server (bokeh serve)
+
+        :param log_table:
+            LogTable
+            The logs of 'P velocity', 'S velocity', 'Density' and 'Porosity' that are used
+        :param cutoffs:
+            list of Cutoffs
+            The named lithologies (e.g. sand), with log names (see Cutoffs.use_log_table()), that can be selected in
+            the Cutoffs column of the fluid mixtures
+        :param pvt_table:
+            dict
+            See run_fluid_substitution()
+        :param wells:
+            dict
+            {WELL NAME: Well}. Default is the loaded wells of the project, see load_all_wells()
+        :param width:
+            int
+            Width of the tables in the dialog
+        :return:
+            FluidSubstitutionDialog
+        """
+        from blixt_geo_py.analysis.fluid_substitution_dialog import FluidSubstitutionDialog
+        if wells is None:
+            wells = {_w.name.upper(): _w for _w in (self.wells or [])}
+        return FluidSubstitutionDialog(self.project_table, wells, log_table, self.load_all_wis(), cutoffs=cutoffs,
+                                       pvt_table=pvt_table, results_folder=self.results_folder, width=width)
+
     def load_all_wis(self):
         from blixt_geo_py.core.core import Intervals
         wis = Intervals()

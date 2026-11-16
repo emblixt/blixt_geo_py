@@ -574,6 +574,16 @@ class Well(object):
             '# ----------                                        -------------------------------\n'
         )
         ref_depth = self.logs[0].depth
+        # The logs with the same step as the reference depth, the other logs can not be written to the las file.
+        # Calculated once, as step() is slow
+        ref_step = ref_depth.step()
+        las_logs = []
+        for _lc in self.logs:
+            if _lc.step() != ref_step:
+                print_info('Not using the same step, {} can not be added to .las file. Skipping'.format(_lc.name),
+                           'warning', logger)
+            else:
+                las_logs.append(_lc)
         i = 1
         out += '{0: <20}.{1: <33}: {2: <9}{3:}\n'.format(
             'DEPTH',
@@ -581,10 +591,7 @@ class Well(object):
             i,
             ''
         )
-        for _lc in self.logs:
-            if _lc.step() != ref_depth.step():
-                print_info('Not using the same step, {} can not be added to .las file. Skipping', 'warning', logger)
-                continue
+        for _lc in las_logs:
             i += 1
             out += '{0: <20}.{1: <33}: {2: <9}{3:}\n'.format(
                 _lc.name.upper(),
@@ -599,25 +606,20 @@ class Well(object):
         )
 
         # write data column headers
-        for _lc in self.logs:
-            if _lc.step() != ref_depth.step():
-                continue
+        for _lc in las_logs:
             out += '{0: <20}'.format(_lc.name.upper())
         out += '\n'
 
         # start writing data
+        null_value = self.header['well_info']['null'].value
+        values = [np.asarray(_lc.values) for _lc in las_logs]
+        lines = []
         for i, md in enumerate(ref_depth.values):
-            out += '{0: <20}'.format(md)
-            for _lc in self.logs:
-                if _lc.step() != ref_depth.step():
-                    continue
-                out += '{:<20.8f}'.format(
-                    self.header['well_info']['null'].value if np.isnan(_lc.values[i]) else _lc.values[i]
-                )
-            out += '\n'
+            lines.append('{0: <20}'.format(md) + ''.join(
+                '{:<20.8f}'.format(null_value if np.isnan(_v[i]) else _v[i]) for _v in values) + '\n')
 
         with open(file_name, 'w+') as f:
-            f.write(out)
+            f.write(out + ''.join(lines))
 
     def dict(self, harmonize: bool = True, down_sample: int | None = None, cutoffs: Cutoffs | None = None,
              use_cutoffs: bool = True) -> dict:

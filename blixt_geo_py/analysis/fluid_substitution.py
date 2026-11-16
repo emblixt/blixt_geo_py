@@ -21,6 +21,7 @@ from pathlib import Path
 
 from bokeh.models import Button, ColumnDataSource, Dialog, Div, Select, Spinner, TextInput
 from bokeh.plotting import column, row
+import numpy as np
 import pint
 
 from blixt_geo_py import Q_
@@ -37,13 +38,17 @@ def run_fluid_substitution(
         wells: dict,
         project_table: str | Path,
         log_table: LogTable,
-        lithology_cutoffs: Cutoffs,
+        lithology_cutoffs: Cutoffs | None,
         working_intervals: Intervals,
         pvt_table: dict | None = None,
         save_result_folder: Path | str | None = None,
         result_file_postfix: str | None = 'FS',
-        verbose: bool = False
-):
+        verbose: bool = False,
+        fluid_cases: list | None = None,
+        mineral_cases: list | None = None,
+        overwrite: bool = False,
+        cutoffs: list | dict | None = None
+) -> dict[str, list[str]]:
 
     """
 
@@ -101,7 +106,10 @@ def run_fluid_substitution(
         LogTable
         LogTable object contain the mapping between a log type (e.g. 'P velocity') and a specific log (e.g. 'vp_oil')
     :param lithology_cutoffs:
-        Cutoffs
+        Cutoffs | None
+        The default lithology of the substitution cases that have no Cutoffs name (see the 'Cutoffs' column of the
+        'Fluid mixtures' sheet, and the cutoffs parameter). If None, these cases are fluid substituted in the whole
+        interval.
         The Cutoffs object contains a list of cut-off rules which are used to define the lithology the
         fluid substitution should be applied to (that is, preferably sands)
 
@@ -133,18 +141,44 @@ def run_fluid_substitution(
         default 'FS'
         Postfix added to the resulting las file,
     :param verbose:
+    :param fluid_cases:
+        list | None
+        List of SubstitutionCase's of the fluid mixtures. If given, they are used instead of the
+        'Fluid mixtures' (and 'Fluids') sheet of the project_table. See substitution_cases_from_frame()
+    :param mineral_cases:
+        list | None
+        As fluid_cases, but for the 'Mineral mixtures' (and 'Minerals') sheet
+    :param overwrite:
+        bool
+        If False, an IOError is raised when a fluid substituted log already exists in a well.
+        If True, the existing fluid substituted logs are replaced (which allows re-running the fluid substitution
+        on the same wells), and existing las files are overwritten.
+    :param cutoffs:
+        list | dict | None
+        The Cutoffs (with log names, see Cutoffs.use_log_table()) that the substitution cases refer to by name,
+        in the optional 'Cutoffs' column of the 'Fluid mixtures' sheet. A list of Cutoffs is looked up by Cutoffs.name
     :return:
+        dict
+        {well name: [names of the fluid substituted logs]} for each well that was fluid substituted.
+        The fluid substituted logs are named <log>_fs when the Tag is empty, else <log>_<tag>
     """
     log_table = log_table.single_log(['P velocity', 'S velocity', 'Density', 'Porosity'])
+    table_name = os.path.basename(project_table) if project_table is not None else 'the mineral cases'
+    if cutoffs is None:
+        cutoffs = {}
+    elif not isinstance(cutoffs, dict):
+        cutoffs = {_c.name: _c for _c in cutoffs}
 
     # Load all fluid substitution cases:
-    fluid_subst_cases = load_substitution_cases(project_table)
+    fluid_subst_cases = fluid_cases if fluid_cases is not None else load_substitution_cases(project_table)
 
     # Load all mineral mixtures
-    mineral_subst_cases = load_substitution_cases(project_table, from_fluid_mixture=False)
+    mineral_subst_cases = mineral_cases if mineral_cases is not None else \
+        load_substitution_cases(project_table, from_fluid_mixture=False)
 
-    last_well = None
-    last_mod_history = ''
+    # The fluid substituted logs, and the modification history, of each well
+    results: dict[str, list[str]] = {}
+    mod_histories: dict[str, str] = {}
     # Iterate over all fluid substitution cases:
     for fsc in fluid_subst_cases:
         print('\n-----------------------------------------------------------------------------' )
@@ -158,7 +192,7 @@ def run_fluid_substitution(
             if _msc.well == fsc.well and _msc.interval == fsc.interval:
                 msc = _msc
         if msc is None:
-            err_txt = f'There is no mineral case listed in {os.path.basename(project_table)} that matches well {fsc.well} and interval {fsc.interval}'
+            err_txt = f'There is no mineral case listed in {table_name} that matches well {fsc.well} and interval {fsc.interval}'
             print_info(err_txt, 'error', logger, raiser='IOError')
 
         # Check if the well exist
@@ -168,24 +202,7 @@ def run_fluid_substitution(
 
         # Extract current well from the input
         well = wells[fsc.well.upper()]
-
-        # For the first iteration:
-        if last_well is None:
-            last_well = well
-
-        # Identify if we have met a new well in fsc
-        if last_well.name != fsc.well.upper():
-            new_well = True
-            # Save the last well if we have asked for it
-            if save_result_folder is not None:
-                _tag = '' if result_file_postfix is None else '_{}'.format(result_file_postfix)
-                _file_name = os.path.join(save_result_folder, '{}{}.las'.format(last_well.name, _tag))
-                print('Saving to {}'.format(_file_name))
-                last_well.header.modification_history += last_mod_history
-                last_well.write_las(_file_name)
-            last_mod_history = ''
-        else:
-            new_well = False
+        well_logs = results.setdefault(fsc.well.upper(), [])
 
         # Prepare the well to be used as input for the fluid and mineral elastics calculation
         # The dict method harmonizes the logs in this well.
@@ -198,18 +215,30 @@ def run_fluid_substitution(
         # Get the cut-off rule that corresponds to this specific well and interval pair
         interval_rule = working_intervals.get_cutoff_rule(fsc.interval, fsc.well)
 
-        # Make a copy of the lithology_cutoffs so that you can modify this local version of it
-        local_cutoffs = deepcopy(lithology_cutoffs)
-
-        # Add the interval_rule to these cutoffs
-        local_cutoffs.append([interval_rule])
-        # And calculate the mask. This mask identifies the lithology defined by the input lithology_cutoffs (hopefully sands)
-        # within this interval
-        local_mask = local_cutoffs.create_mask(well_dict)
+        # The lithology of this case: its named cutoffs, else the default lithology_cutoffs, else the whole interval
+        if fsc.cutoffs is not None:
+            if fsc.cutoffs not in cutoffs:
+                err_txt = 'The cutoffs {} of well {}, interval {} and tag {} is not among the given cutoffs: {}'.format(
+                    fsc.cutoffs, fsc.well, fsc.interval, fsc.tag, ', '.join(cutoffs) or 'None')
+                print_info(err_txt, 'error', logger, raiser='IOError')
+            case_cutoffs = cutoffs[fsc.cutoffs]
+        else:
+            case_cutoffs = lithology_cutoffs
 
         # Calculate the interval mask given the interval rules and input data
         interval_cutoffs = Cutoffs([interval_rule])
         interval_mask = interval_cutoffs.create_mask(well_dict)
+
+        if case_cutoffs is None:
+            local_mask = interval_mask
+        else:
+            # Make a copy of the case_cutoffs so that you can modify this local version of it
+            local_cutoffs = deepcopy(case_cutoffs)
+            # Add the interval_rule to these cutoffs
+            local_cutoffs.append([interval_rule])
+            # And calculate the mask. This mask identifies the lithology defined by the case_cutoffs (hopefully sands)
+            # within this interval
+            local_mask = local_cutoffs.create_mask(well_dict)
 
         # In the unit-ignorant version of the dictionary, used by the mineral elastic calculation,
         # apply the interval mask
@@ -241,9 +270,14 @@ def run_fluid_substitution(
         # Because we previously masked out everything outside our interval, we now identify the lithology within
         # this interval that matches the initial cutoff (hopefully sands)
         # To do that, we first create a data set that just contain the data needed by the cutoff rule
-        _data = {_param.lower(): well_dict_wo_units[_param.lower()] for _param in lithology_cutoffs.cutoff_params}
-        # Then we calculate the mask
-        lithology_mask = lithology_cutoffs.create_mask(_data)
+        if case_cutoffs is None:
+            lithology_mask = np.ones(len(well_dict_wo_units['vp']), dtype=bool)
+        else:
+            _data = {_param.lower(): well_dict_wo_units[_param.lower()] for _param in case_cutoffs.cutoff_params}
+            # Then we calculate the mask
+            lithology_mask = case_cutoffs.create_mask(_data)
+        mod_history += ' -Cutoffs: {}\n'.format('None (whole interval)' if case_cutoffs is None else
+                                                (case_cutoffs.name or str(case_cutoffs)))
 
 
         # check consistency of input data
@@ -291,40 +325,56 @@ def run_fluid_substitution(
             _log = well.get_log_curve(log_table[_type])
             _units = _log.units
 
-            # Create a new name for the fluid substituted log
-            _suffix = 'fs_{}'.format(fsc.tag) if fsc.tag is not None else '{}_fs'.format(_log.name)
+            # Create a new name for the fluid substituted log, <log>_fs, or <log>_<tag>
+            _suffix = fs_suffix(fsc.tag)
             _name = '{}_{}'.format(_log.name, _suffix)
 
-            # If the well is new, the new fluid_substituted log should not exist
-            if new_well and _name in well.get_log_names:
-                err_txt = 'The log {} already exists in well {}'.format(_name, well.name)
-                print_info(err_txt, 'error', logger, raiser='IOError')
-
-            # Only copy the LogCurve if the new log doesn't exist within the well, else modify the existing substituted log
-            if _name not in well.get_log_names:
-                # Copy the existing _log
+            if _name not in well_logs:
+                # The first case of this run that creates this log in this well.
+                # It should not exist from before, unless we're allowed to overwrite it
+                if _name in well.get_log_names and not overwrite:
+                    err_txt = 'The log {} already exists in well {}'.format(_name, well.name)
+                    print_info(err_txt, 'error', logger, raiser='IOError')
+                # Start from a fresh copy of the input log
                 fs_log = _log.copy(_suffix)
+                well.add_log(fs_log, if_log_exists='overwrite')
+                well_logs.append(_name)
             else:
-                # Get the fluid substituted log
+                # Another interval of the same well and tag, modify the fluid substituted log
                 fs_log = well.get_log_curve(_name)
 
             # Now replace the original with the fluid substituted results
             fs_log.data[local_mask] = Q_(_result, _result_units).to(_units)
 
-            # Add the new fluid substituted log to the well if it wasn't there before
-            if _name not in well.get_log_names:
-                well.add_log(fs_log, if_log_exists='ask')
+        mod_histories[fsc.well.upper()] = mod_histories.get(fsc.well.upper(), '') + mod_history
 
-        last_well = well
-        last_mod_history += mod_history
-
-    # Save the last well if we have asked for it
+    # Save the wells if we have asked for it
     if save_result_folder is not None:
-        _tag = '' if result_file_postfix is None else '_{}'.format(result_file_postfix)
-        _file_name = os.path.join(save_result_folder, '{}{}.las'.format(last_well.name, _tag))
-        print('Saving to {}'.format(_file_name))
-        last_well.header.modification_history += last_mod_history
-        last_well.write_las(_file_name)
+        for _well_name in results:
+            write_fs_las(wells[_well_name], save_result_folder, result_file_postfix, overwrite=overwrite,
+                         mod_history=mod_histories[_well_name])
+
+    return results
+
+
+def fs_suffix(tag: str | None) -> str:
+    """
+    Returns the suffix added to the log names of the fluid substituted logs. 'fs' when there is no tag, else the tag
+    """
+    return 'fs' if tag is None or str(tag).strip() == '' else str(tag).strip()
+
+
+def write_fs_las(well: Well, folder: Path | str, postfix: str | None = 'FS', overwrite: bool = False,
+                 mod_history: str = '') -> str:
+    """
+    Writes the well to <folder>/<WELL NAME>_<postfix>.las, and returns the file name
+    """
+    _tag = '' if postfix is None or postfix == '' else '_{}'.format(postfix)
+    _file_name = os.path.join(folder, '{}{}.las'.format(well.name, _tag))
+    print('Saving to {}'.format(_file_name))
+    well.header.modification_history += mod_history
+    well.write_las(_file_name, overwrite=overwrite)
+    return _file_name
 
 class InteractiveFluidSub:
     """

@@ -2,6 +2,7 @@ import os
 import unittest
 
 import numpy as np
+import pandas as pd
 
 from blixt_geo_py import Q_
 from blixt_geo_py.core.core import Cutoffs
@@ -9,7 +10,9 @@ from blixt_geo_py.core.fluids_and_minerals import (FluidSpec, InterpolatedFluid,
                                                    SubstitutionCase, VolumeFraction, component_from_row,
                                                    load_fluid_specs, load_mineral_specs, load_substitution_cases,
                                                    make_logs_lowercase, read_sheet_table, resolve_volume_fractions,
-                                                   validate_component_set)
+                                                   validate_component_set, fluid_specs_from_frame,
+                                                   mineral_specs_from_frame, substitution_cases_from_frame,
+                                                   FLUIDS_REQUIRED, MINERALS_REQUIRED, FLUID_MIXTURES_REQUIRED)
 
 project_dir = str(os.path.dirname(__file__).replace('blixt_geo_py\\blixt_geo_py\\unit_tests', ''))
 
@@ -298,3 +301,49 @@ class TestCases(unittest.TestCase):
 
         for p in [Q_(_p, 'Pa') for _p in [12.5E+6, 15.E+6, 17.5E+6, 60.E+6]]:
             print(p, eos_fluid.rho(p), eos_fluid.k(p))
+
+    def test_specs_from_frame(self):
+        # The DataFrame versions of the loaders give the same specs as reading the project table
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx')
+        fluids = fluid_specs_from_frame(read_sheet_table(project_table, 'Fluids', FLUIDS_REQUIRED))
+        self.assertEqual(fluids, load_fluid_specs(project_table))
+        minerals = mineral_specs_from_frame(read_sheet_table(project_table, 'Minerals', MINERALS_REQUIRED))
+        self.assertEqual(list(minerals), list(load_mineral_specs(project_table)))
+        self.assertIsInstance(minerals['Shale'], MineralSpec)
+
+    def test_substitution_cases_from_frame(self):
+        project_table = os.path.join(project_dir, 'blixt_geo_py\\excels\\project_table.xlsx')
+        fluids = load_fluid_specs(project_table)
+        mix = read_sheet_table(project_table, 'Fluid mixtures', FLUID_MIXTURES_REQUIRED)
+
+        def summary(cases):
+            return [(c.well, c.interval, c.tag,
+                     [(x.mother_name, x.type, x.volume.mode, x.volume.value) for x in c.initial],
+                     [(x.mother_name, x.type, x.volume.mode, x.volume.value) for x in c.final]) for c in cases]
+
+        cases = substitution_cases_from_frame(mix, fluids)
+        self.assertEqual(summary(cases), summary(load_substitution_cases(project_table)))
+
+        # Rows with Use = 'No' are ignored, so switching off a tag removes its cases
+        mix.loc[mix['Tag'] == 'Cond', 'Use'] = 'No'
+        self.assertNotIn('Cond', [c.tag for c in substitution_cases_from_frame(mix, fluids)])
+
+        # A mixture that refers to an unknown fluid is an error
+        mix.loc[mix.index[-1], ['Use', 'Fluid name']] = ['Yes', 'NoSuchFluid']
+        with self.assertRaises(ValueError):
+            substitution_cases_from_frame(mix, fluids)
+
+    def test_substitution_cases_with_cutoffs(self):
+        # The optional Cutoffs column is part of the key of a case, so one interval and tag can have a mixture in the
+        # sand and another in the shale
+        project_table = os.path.join(project_dir, 'blixt_geo_py\excels\project_table.xlsx')
+        fluids = load_fluid_specs(project_table)
+        mix = read_sheet_table(project_table, 'Fluid mixtures', FLUID_MIXTURES_REQUIRED)
+        self.assertEqual({c.cutoffs for c in substitution_cases_from_frame(mix, fluids)}, {None})
+
+        rows = mix[(mix['Use'] == 'Yes') & (mix['Interval name'] == 'Sand F') & (mix['Tag'] == 'MyTag')]
+        sand, shale = rows.copy(), rows.copy()
+        sand['Cutoffs'], shale['Cutoffs'] = 'sand', 'shale'
+        cases = substitution_cases_from_frame(pd.concat([sand, shale]), fluids)
+        self.assertEqual([(c.interval, c.tag, c.cutoffs) for c in cases],
+                         [('Sand F', 'MyTag', 'sand'), ('Sand F', 'MyTag', 'shale')])

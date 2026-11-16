@@ -269,7 +269,7 @@ class MixtureComponent:
 @dataclass()
 class SubstitutionCase:
     """
-    One substitution case object per well, interval and tag
+    One substitution case object per well, interval, tag and cutoffs
     """
     well: str
     interval: str
@@ -282,6 +282,9 @@ class SubstitutionCase:
     final_bulk_gpa: np.ndarray | float | None = None
     final_shear_gpa: np.ndarray | float | None = 0.0
     final_density_gcc: np.ndarray | float | None = None
+    # Name of the Cutoffs (e.g. 'sand') that limits the fluid substitution within the interval.
+    # None means the whole interval, or the default lithology cutoffs of run_fluid_substitution()
+    cutoffs: str | None = None
 
     def calc_elastics(self, logs: dict[str, np.ndarray], burial_depth: pint.Quantity | None = None,
                       pvt_table: dict | None = None,
@@ -503,8 +506,21 @@ def as_float_or_none(x: Any) -> float | None:
         return None
     return float(x)
 
+FLUIDS_REQUIRED = {'Name', 'Calculation method'}
+MINERALS_REQUIRED = {'Name', 'Calculation method', 'Cutoffs'}
+FLUID_MIXTURES_REQUIRED = {'Use', 'Substitution order', 'Well name', 'Interval name', 'Fluid name', 'Fluid type',
+                           'Volume fraction'}
+MINERAL_MIXTURES_REQUIRED = {'Use', 'Well name', 'Interval name', 'Mineral name', 'Volume fraction'}
+
+
 def load_fluid_specs(xlsx: str | Path) -> dict[str, FluidSpec]:
-    fluids = read_sheet_table(xlsx, 'Fluids', {'Name', 'Calculation method'})
+    return fluid_specs_from_frame(read_sheet_table(xlsx, 'Fluids', FLUIDS_REQUIRED))
+
+
+def fluid_specs_from_frame(fluids: pd.DataFrame) -> dict[str, FluidSpec]:
+    """
+    Returns the FluidSpec's of a table with the same columns as the 'Fluids' sheet of the project table
+    """
     fluids = fluids[fluids['Name'].notna()].copy()
     if fluids['Name'].duplicated().any():
         dups = fluids.loc[fluids['Name'].duplicated(), 'Name'].tolist()
@@ -532,12 +548,18 @@ def load_fluid_specs(xlsx: str | Path) -> dict[str, FluidSpec]:
         )
     return out
 
-def load_mineral_specs(xlsx: str | Path) -> dict[str, FluidSpec]:
-    minerals = read_sheet_table(xlsx, 'Minerals', {'Name', 'Calculation method', 'Cutoffs'})
+def load_mineral_specs(xlsx: str | Path) -> dict[str, MineralSpec]:
+    return mineral_specs_from_frame(read_sheet_table(xlsx, 'Minerals', MINERALS_REQUIRED))
+
+
+def mineral_specs_from_frame(minerals: pd.DataFrame) -> dict[str, MineralSpec]:
+    """
+    Returns the MineralSpec's of a table with the same columns as the 'Minerals' sheet of the project table
+    """
     minerals = minerals[minerals['Name'].notna()].copy()
     if minerals['Name'].duplicated().any():
         dups = minerals.loc[minerals['Name'].duplicated(), 'Name'].tolist()
-        raise ValueError(f'Duplicate fluid names in Fluids sheet: {dups}')
+        raise ValueError(f'Duplicate mineral names in Minerals sheet: {dups}')
     out = {}
     for _, r in minerals.iterrows():
         name = clean_str(r['Name'])
@@ -623,15 +645,31 @@ def load_substitution_cases(xlsx: str | Path, from_fluid_mixture: bool = True) -
     """
     # Load the fluid or mineral mixtures
     if from_fluid_mixture:
-        fluids = load_fluid_specs(xlsx)
-        minerals = None
-        mix = read_sheet_table(xlsx, 'Fluid mixtures', {'Use', 'Substitution order', 'Well name', 'Interval name',
-                                                        'Fluid name', 'Fluid type', 'Volume fraction'})
+        sources = load_fluid_specs(xlsx)
+        mix = read_sheet_table(xlsx, 'Fluid mixtures', FLUID_MIXTURES_REQUIRED)
     else:
-        fluids = None
-        minerals = load_mineral_specs(xlsx)
-        mix = read_sheet_table(xlsx, 'Mineral mixtures', {'Use', 'Well name', 'Interval name',
-                                                          'Mineral name', 'Volume fraction'})
+        sources = load_mineral_specs(xlsx)
+        mix = read_sheet_table(xlsx, 'Mineral mixtures', MINERAL_MIXTURES_REQUIRED)
+    return substitution_cases_from_frame(mix, sources, from_fluid_mixture=from_fluid_mixture)
+
+
+def substitution_cases_from_frame(mix: pd.DataFrame, sources: dict[str, FluidSpec | MineralSpec],
+                                  from_fluid_mixture: bool = True) -> list[SubstitutionCase]:
+    """
+    Returns the substitution cases of a table with the same columns as the 'Fluid mixtures' (or 'Mineral mixtures'
+    when from_fluid_mixture is False) sheet of the project table.
+
+    :param mix:
+        pd.DataFrame
+    :param sources:
+        dict
+        The FluidSpec's (or MineralSpec's) the mixture rows refer to, by name
+    :param from_fluid_mixture:
+        bool
+        See load_substitution_cases()
+    """
+    fluids = sources if from_fluid_mixture else None
+    minerals = None if from_fluid_mixture else sources
 
     # Only keep the mixtures which have a 'Yes' in the 'Use' column
     mix = mix[mix['Use'].astype(str).str.strip().str.lower().eq('yes')].copy()
@@ -650,15 +688,22 @@ def load_substitution_cases(xlsx: str | Path, from_fluid_mixture: bool = True) -
             raise ValueError(f'Missing {col} in enabled mixtures rows')
     if 'Tag' not in mix.columns:
         mix['Tag'] = None
+    if 'Cutoffs' not in mix.columns:
+        mix['Cutoffs'] = None
 
     # Create an empty results container to begin with
     cases: list[SubstitutionCase] = []
 
     # Group the table and start iterating
+    # The Cutoffs are part of the key, so the same interval and tag can be fluid substituted with e.g. one mixture
+    # in the sand, and another in the shale
     group_cols = ['Well name', 'Interval name', 'Tag']
+    if from_fluid_mixture:
+        group_cols.append('Cutoffs')
     for key, g in mix.groupby(group_cols, dropna=False, sort=False):
-        well, interval, tag = key
-        well, interval, tag = clean_str(well), clean_str(interval), clean_str(tag)
+        well, interval, tag = clean_str(key[0]), clean_str(key[1]), clean_str(key[2])
+        cutoffs = clean_str(key[3]) if from_fluid_mixture else None
+        label = f'{well}/{interval}/{tag}' + ('' if cutoffs is None else f'/{cutoffs}')
         if from_fluid_mixture:
             initial = [component_from_row(r, fluids) for _, r in g[g['Substitution order'].eq('Initial')].iterrows()]
             final = [component_from_row(r, fluids) for _, r in g[g['Substitution order'].eq('Final')].iterrows()]
@@ -668,10 +713,11 @@ def load_substitution_cases(xlsx: str | Path, from_fluid_mixture: bool = True) -
             final = [component_from_row(r, minerals) for _, r in g.iterrows()]
 
         if not initial or not final:
-            raise ValueError(f'{well}/{interval}/{tag}: need both Initial and Final mixture rows')
-        validate_component_set(initial, f'{well}/{interval}/{tag}/Initial')
-        validate_component_set(final, f'{well}/{interval}/{tag}/Final')
-        cases.append(SubstitutionCase(well=well, interval=interval, tag=tag, initial=initial, final=final))
+            raise ValueError(f'{label}: need both Initial and Final mixture rows')
+        validate_component_set(initial, f'{label}/Initial')
+        validate_component_set(final, f'{label}/Final')
+        cases.append(SubstitutionCase(well=well, interval=interval, tag=tag, initial=initial, final=final,
+                                      cutoffs=cutoffs))
     return cases
 
 def resolve_volume_fractions(components: list[MixtureComponent], logs: dict[str, np.ndarray], n: int) -> dict[str, np.ndarray]:

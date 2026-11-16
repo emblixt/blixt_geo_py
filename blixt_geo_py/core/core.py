@@ -889,7 +889,7 @@ class Cutoffs:
                 #     _rule.param, ', '.join(list(log_table.keys())))
                 # print_info(warn_txt, 'warning', logger=logger)
                 continue
-        return Cutoffs(cutoffs=new_rules)
+        return Cutoffs(cutoffs=new_rules, name=self.name)
 
     def from_string(self, input_string: str):
         """

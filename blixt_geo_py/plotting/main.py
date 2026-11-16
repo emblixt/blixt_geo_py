@@ -11,7 +11,8 @@ from bokeh.plotting import column, figure, show, curdoc, row
 # test = 'cross_plotter__test_both'
 # test = 'rp_plotter__test_well'
 # test = 'rp_plotter__test_well_with_rpt'
-test = 'templates_table__test_dialog'
+# test = 'templates_table__test_dialog'
+test = 'fluid_substitution__dialog'
 # test = 'plot_logs__test_compare_model_with_well'
 
 
@@ -157,3 +158,22 @@ elif test == 'templates_table__test_dialog':
             row(grid, column(xplot, row(x_menu, y_menu), style_table))
         )
     )
+
+elif test == 'fluid_substitution__dialog':
+    # The interactive fluid substitution of Well_F, using the Fluids, Fluid mixtures, Minerals and Mineral mixtures
+    # sheets of the project table. Save writes to the project table, so it is saved to a copy of it
+    import os
+    import shutil
+    import tempfile
+    from blixt_geo_py.unit_tests.test_fluid_substitution_dialog import (FluidSubstitutionDialogTests, project_table,
+                                                                        log_table, pvt_table)
+    from blixt_geo_py.analysis.fluid_substitution_dialog import FluidSubstitutionDialog
+    tmp_dir = tempfile.mkdtemp()
+    table_copy = os.path.join(tmp_dir, 'project_table.xlsx')
+    shutil.copy2(project_table, table_copy)
+    print('The fluid substitution tables are saved to {}, and the las files to {}'.format(table_copy, tmp_dir))
+    FluidSubstitutionDialogTests.setUpClass()
+    fs_dialog = FluidSubstitutionDialog(table_copy, FluidSubstitutionDialogTests.wells, log_table,
+                                        FluidSubstitutionDialogTests.wis, cutoffs=[FluidSubstitutionDialogTests.cutoffs],
+                                        pvt_table=pvt_table, results_folder=tmp_dir)
+    curdoc().add_root(fs_dialog.widget())

@@ -13,13 +13,13 @@ Only the Save button, which writes the edited cells back to the project table, n
 """
 import logging
 import os
-import shutil
 from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
 from bokeh.models import ColumnDataSource
 
+from blixt_geo_py.io.project_table_writer import normalize, to_cell, backup, write_cells
 from blixt_geo_py.utils.utils import print_info
 
 logger = logging.getLogger(__name__)
@@ -81,35 +81,9 @@ def bokeh_marker(symbol) -> str:
     return MPL_TO_BOKEH_MARKER.get(symbol.strip(), DEFAULT_BOKEH_MARKER)
 
 
-def _normalize(value, numeric: bool = False):
-    """
-    Returns the value in the form it is compared and written to the project table with: None for empty cells,
-    a float for numbers and a stripped string for text
-    """
-    if value is None:
-        return None
-    if isinstance(value, str):
-        value = value.strip()
-        if value == '':
-            return None
-        if not numeric:
-            return value
-    try:
-        value = float(value)
-    except (TypeError, ValueError):
-        return value
-    if np.isnan(value):
-        return None
-    return value
-
-
-def _to_cell(value):
-    """
-    Returns the value as written to a cell, with whole numbers as int, e.g. 200 and not 200.0
-    """
-    if isinstance(value, float) and value.is_integer():
-        return int(value)
-    return value
+# The helpers are shared with the other dialogs that write to the project table
+_normalize = normalize
+_to_cell = to_cell
 
 
 class ProjectTemplatesTable:
@@ -240,9 +214,7 @@ class ProjectTemplatesTable:
             return []
 
         if self.backup_file is None:
-            self.backup_file = '{}.bak.xlsx'.format(os.path.splitext(file_name)[0])
-            shutil.copy2(file_name, self.backup_file)
-            print_info('Backup of {} is saved to {}'.format(file_name, self.backup_file), 'info', logger)
+            self.backup_file = backup(file_name)
 
         if not check_if_excelfile_writable(file_name):
             self._show_message('Could not write to {}. Is it open in Excel?'.format(os.path.basename(file_name)))
@@ -250,17 +222,9 @@ class ProjectTemplatesTable:
 
         wb = load_workbook(file_name)
         written = []
-        for sheet, key_header, key, header, value in changes:
-            ws = wb[sheet]
-            headers = {str(_c.value).strip(): _c.column for _c in ws[_HEADER_ROW] if _c.value is not None}
-            if header not in headers or key_header not in headers:
-                print_info('Column {} or {} is missing in the {} sheet of {}'.format(
-                    header, key_header, sheet, file_name), 'warning', logger)
-                continue
-            for _row in range(_HEADER_ROW + 1, ws.max_row + 1):
-                if _normalize(ws.cell(_row, headers[key_header]).value) == key:
-                    ws.cell(_row, headers[header]).value = _to_cell(value)
-                    written.append((sheet, key_header, key, header, value))
+        for sheet, key_header, _, _ in _SHEETS.values():
+            cells = [(_c[2], _c[3], _c[4]) for _c in changes if _c[0] == sheet]
+            written += [(sheet, key_header) + _c for _c in write_cells(wb, sheet, _HEADER_ROW, key_header, cells)]
         wb.save(file_name)
 
         self._snapshot = {'log': self._values('log'), 'well': self._values('well')}

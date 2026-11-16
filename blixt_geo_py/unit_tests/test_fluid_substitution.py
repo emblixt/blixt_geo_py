@@ -74,8 +74,8 @@ class TestCases(unittest.TestCase):
         for _w in wells.values():
             _file = os.path.join(project_dir, 'blixt_geo_py\\results_folder\\fs_plot_{}.html'.format(_w.name))
             _w.plot([
-                ['vp_dry', 'vp_dry_fs_MyTag', 'vp_dry_fs_Cond'],
-                ['vs_dry', 'vs_dry_fs_MyTag', 'vs_dry_fs_Cond'],
-                ['rho_dry', 'rho_dry_fs_MyTag', 'rho_dry_fs_Cond']],
+                ['vp_dry', 'vp_dry_MyTag', 'vp_dry_Cond'],
+                ['vs_dry', 'vs_dry_MyTag', 'vs_dry_Cond'],
+                ['rho_dry', 'rho_dry_MyTag', 'rho_dry_Cond']],
                 _file,
                 wis=wis)
