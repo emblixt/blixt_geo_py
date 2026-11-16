@@ -11,7 +11,8 @@ from bokeh.plotting import column, figure, show, curdoc, row
 # test = 'cross_plotter__test_both'
 # test = 'rp_plotter__test_well'
 # test = 'rp_plotter__test_well_with_rpt'
-test = 'plot_logs__test_compare_model_with_well'
+test = 'templates_table__test_dialog'
+# test = 'plot_logs__test_compare_model_with_well'
 
 
 if test == 'log_plotter__test_cutoffs':
@@ -126,4 +127,33 @@ elif test == 'plot_logs__test_compare_model_with_well':
         )
     )
 
-
+elif test == 'templates_table__test_dialog':
+    # The templates dialog linked to a WellPlotter and a CrossPlotter. The Save button writes to the project table,
+    # so it is saved to a copy of it
+    import os
+    import shutil
+    import tempfile
+    from blixt_geo_py.unit_tests.test_log_plotter import make_well_data, project_table
+    from blixt_geo_py.plotting.log_plotter import WellPlotter
+    from blixt_geo_py.plotting.cross_plotter import CrossPlotter
+    from blixt_geo_py.core.templates_table import ProjectTemplatesTable, log_types_of
+    table_copy = os.path.join(tempfile.mkdtemp(), 'project_table.xlsx')
+    shutil.copy2(project_table, table_copy)
+    print('The templates are saved to {}'.format(table_copy))
+    templates = ProjectTemplatesTable(table_copy)
+    well, cutoffs = make_well_data()
+    well_plot = WellPlotter(well, [['vsh'], ['phie'], ['vp_dry', 'vp_sg08']])
+    grid = well_plot.draw(title=well.name)
+    well_plot.link_templates(grid, templates.log_cds)
+    ds = well.data_source()
+    xp = CrossPlotter({ds.name: ds}, x='vp_dry', y='phie')
+    x_cds = xp.cds
+    xplot, x_menu, y_menu, size_menu, color_menu, apply_mask, reset_mask, ct_guis, wis_guis = xp.draw(x_cds)
+    style_table = xp.add_data_source_style(x_cds)
+    xp.link_templates(x_cds, templates.log_cds, templates.well_cds, log_types=log_types_of(well))
+    curdoc().add_root(
+        column(
+            templates.widget(),
+            row(grid, column(xplot, row(x_menu, y_menu), style_table))
+        )
+    )

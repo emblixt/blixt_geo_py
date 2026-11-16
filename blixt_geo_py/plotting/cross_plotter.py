@@ -369,6 +369,24 @@ class DataSource:
 
     #     return _dict
 
+def _well_style(source_name: str, well_styles: dict) -> tuple | None:
+    """
+    Returns the (color, marker) of the well a data source belongs to, or None.
+    A data source belongs to a well when its name is the well name, or starts with the well name followed by a space
+
+    :param well_styles:
+        dict
+        {upper case well name: (color, bokeh marker)}
+    """
+    _name = str(source_name).strip().upper()
+    if _name in well_styles:
+        return well_styles[_name]
+    for _well, _style in well_styles.items():
+        if _name.startswith(_well + ' '):
+            return _style
+    return None
+
+
 class DataSourceStyle:
     from bokeh.models import DataTable
     def __init__(self,
@@ -538,6 +556,9 @@ class CrossPlotter:
         self.xplot = None
         self._source_renderers = {}
         self._size_menu = None
+        self._x_menu = None
+        self._y_menu = None
+        self._menu_callbacks = []
         self._style_table = DataSourceStyle(self._data_sources)
         self.cutoffs = cutoffs
         self._cutoffs_table = None
@@ -1073,6 +1094,155 @@ class CrossPlotter:
 
         return style_table.draw(style_cds)
 
+    def link_templates(self,
+                       cds: ColumnDataSource,
+                       log_cds: ColumnDataSource | None = None,
+                       well_cds: ColumnDataSource | None = None,
+                       log_types: dict | None = None):
+        """
+        Links the cross plot to a ProjectTemplatesTable, so that edits in the templates dialog update the plot:
+            - The color and symbol of a well (well_cds) are used for the data sources of that well, through the data
+              source style table. A data source belongs to a well when its name is the well name, or starts with the
+              well name followed by a space, as when a LogTable with a name is used in Well.data_source()
+            - The min and max of a log type (log_cds) sets the range of the x or y axis when it shows a log of
+              that log type
+        The current well colors and symbols are applied directly.
+        Must be called after draw() and add_data_source_style(). It is a JavaScript callback, so it also works in a
+        static html page
+
+        :param cds:
+            ColumnDataSource
+            The same cds as was used in draw()
+        :param log_cds:
+            ColumnDataSource
+            ProjectTemplatesTable.log_cds
+        :param well_cds:
+            ColumnDataSource
+            ProjectTemplatesTable.well_cds
+        :param log_types:
+            dict
+            {variable: log type}, e.g. {'vp_dry': 'P velocity'}, see templates_table.log_types_of().
+            A variable which is not in log_types is linked to the log type with the same name, if any
+        """
+        from blixt_geo_py.core.templates_table import MPL_TO_BOKEH_MARKER, bokeh_marker
+        if self.xplot is None or self._x_menu is None:
+            raise ValueError('link_templates() must be called after draw()')
+        style_cds = self._style_table.cds
+
+        if well_cds is not None:
+            # Apply the current well styles, to the style table and to the points directly, as the style table
+            # callback only runs when the style table is edited
+            well_styles = {_w.strip().upper(): (_c, bokeh_marker(_s)) for _w, _c, _s in zip(
+                well_cds.data['well'], well_cds.data['color'], well_cds.data['symbol'])}
+            style_data = {_key: list(_val) for _key, _val in style_cds.data.items()}
+            cds_data = dict(cds.data)
+            color = np.array(cds_data['color'], dtype=object)
+            marker = np.array(cds_data['marker'], dtype=object)
+            groups = np.array(cds_data['legend_group'])
+            for _i, _name in enumerate(style_data['name']):
+                _style = _well_style(_name, well_styles)
+                if _style is None:
+                    continue
+                style_data['color'][_i], style_data['marker'][_i] = _style
+                color[groups == _name] = _style[0]
+                marker[groups == _name] = _style[1]
+            style_cds.data = style_data
+            cds_data['color'] = color
+            cds_data['marker'] = marker
+            cds.data = cds_data
+
+            well_code = """
+                const w = well_source.data;
+                const s = style_source.data;
+                const patches = {color: [], marker: []};
+                for (let i = 0; i < w['well'].length; i++) {
+                    const well = String(w['well'][i]).trim().toUpperCase();
+                    const marker = marker_map[String(w['symbol'][i]).trim()] ?? 'circle';
+                    for (let j = 0; j < s['name'].length; j++) {
+                        const name = String(s['name'][j]).trim().toUpperCase();
+                        if (name !== well && !name.startsWith(well + ' ')) {
+                            continue;
+                        }
+                        if (s['color'][j] !== w['color'][i]) {
+                            patches.color.push([j, w['color'][i]]);
+                        }
+                        if (s['marker'][j] !== marker) {
+                            patches.marker.push([j, marker]);
+                        }
+                    }
+                }
+                for (const key of Object.keys(patches)) {
+                    if (patches[key].length === 0) {
+                        delete patches[key];
+                    }
+                }
+                // Patching the style table runs its own callback, which updates the plot
+                if (Object.keys(patches).length > 0) {
+                    style_source.patch(patches);
+                }
+            """
+            well_callback = CustomJS(
+                args=dict(well_source=well_cds, style_source=style_cds, marker_map=MPL_TO_BOKEH_MARKER),
+                code=well_code)
+            well_cds.js_on_change('patching', well_callback)
+            well_cds.js_on_change('data', well_callback)
+
+        if log_cds is not None:
+            # The log type of each variable, as the templates dialog has one row per log type
+            var_types = {_var: _var for _var in self.common_variables}
+            if log_types is not None:
+                var_types.update({_var: _type for _var, _type in log_types.items() if _var in var_types})
+            range_code = """
+                const d = log_source.data;
+                function is_number(v) {
+                    return v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
+                }
+                function set_range(drop, range) {
+                    const log_type = var_types[drop.value];
+                    if (log_type === undefined) {
+                        return;
+                    }
+                    const i = d['log_type'].indexOf(log_type);
+                    if (i < 0) {
+                        return;
+                    }
+                    if (is_number(d['min'][i])) {
+                        range.start = Number(d['min'][i]);
+                    }
+                    if (is_number(d['max'][i])) {
+                        range.end = Number(d['max'][i]);
+                    }
+                }
+                // The axis menus set the ranges from their own templates, so these are updated too
+                for (const [variable, log_type] of Object.entries(var_types)) {
+                    const i = d['log_type'].indexOf(log_type);
+                    if (i < 0) {
+                        continue;
+                    }
+                    for (const cb of menu_callbacks) {
+                        const templates = cb.args.templates;
+                        if (templates === undefined || templates[variable] === undefined) {
+                            continue;
+                        }
+                        if (is_number(d['min'][i])) {
+                            templates[variable]['min'] = Number(d['min'][i]);
+                        }
+                        if (is_number(d['max'][i])) {
+                            templates[variable]['max'] = Number(d['max'][i]);
+                        }
+                    }
+                }
+                set_range(x_drop, x_range);
+                set_range(y_drop, y_range);
+            """
+            range_callback = CustomJS(
+                args=dict(log_source=log_cds, var_types=var_types, x_drop=self._x_menu, y_drop=self._y_menu,
+                          x_range=self.xplot.x_range, y_range=self.xplot.y_range,
+                          menu_callbacks=self._menu_callbacks),
+                code=range_code)
+            log_cds.js_on_change('patching', range_callback)
+            log_cds.js_on_change('data', range_callback)
+
     def fig(self) -> figure:
         xplot = figure(width=self.width, height=self.height, tools=self._tools)
         xplot.toolbar.active_inspect = None
@@ -1089,6 +1259,8 @@ class CrossPlotter:
         # set up drop down menus
         x_menu, y_menu, size_menu, color_menu, marker_menu, legend_menu = self.drop_down_menus()
         self._size_menu = size_menu
+        self._x_menu = x_menu
+        self._y_menu = y_menu
         # Make non-working menus inactive
         color_menu.disabled = True
         marker_menu.disabled = True
@@ -1187,31 +1359,23 @@ class CrossPlotter:
                          # # bar=bar
                          )
 
-        x_menu.js_on_change(
-            'value',
-            CustomJS(
-                args=args_dict,
-                code=self.js_code(console_only=False)))
+        # The callbacks that set the axis ranges from the templates. link_templates() updates their templates
+        self._menu_callbacks = [CustomJS(args=args_dict, code=self.js_code(console_only=False))]
+        x_menu.js_on_change('value', self._menu_callbacks[0])
         # # Update self.x   DIDN'T WORK
         # x_menu.js_on_change('value', CustomJS(args=dict(x_drop=x_menu, x=self.x),
         #                                       code= """ const x_param = x_drop.value;
         #                                         x = x_param; """))
 
-        y_menu.js_on_change(
-            'value',
-            CustomJS(
-                args=args_dict,
-                code=self.js_code()))
+        self._menu_callbacks.append(CustomJS(args=args_dict, code=self.js_code()))
+        y_menu.js_on_change('value', self._menu_callbacks[-1])
         # y_menu.js_on_change('value', CustomJS(args=dict(y_drop=y_menu, y=self.y),
         #                                       code= """ const y_param = y_drop.value;
         #                                         console.log('TEST', y_param)
         #                                         y = y_param; """))
 
-        size_menu.js_on_change(
-            'value',
-            CustomJS(
-                args=args_dict,
-                code=self.js_code()))
+        self._menu_callbacks.append(CustomJS(args=args_dict, code=self.js_code()))
+        size_menu.js_on_change('value', self._menu_callbacks[-1])
 
         cds.js_on_change('patching', CustomJS(
             args=dict(source=cds),
@@ -1271,7 +1435,8 @@ class CrossPlotter:
             """
         ))
         # This is a test to see if reset_mask can update the plot, and with this extra call it did
-        reset_mask.js_on_click(CustomJS(args=args_dict, code=self.js_code()))
+        self._menu_callbacks.append(CustomJS(args=args_dict, code=self.js_code()))
+        reset_mask.js_on_click(self._menu_callbacks[-1])
 
         cds.js_on_change('data', data_change_callback)
 

@@ -187,9 +187,13 @@ class LogPlotter:
                         for (let i = 0; i < nrows; i++) {
                             if (r.name === data['name'][i]) {
                                 console.log(data['name'][i]);
-                                r.glyph.line_color = data['line_color'][i];
-                                r.glyph.line_width = data['line_width'][i];
-                                r.glyph.line_dash = styles[data['line_style'][i]] ?? 'solid';
+                                // sync: false, as the Python properties of the glyph can't take the
+                                // values BokehJS sends, which fails with a Bokeh server
+                                r.glyph.setv({
+                                    line_color: data['line_color'][i],
+                                    line_width: Number(data['line_width'][i]),
+                                    line_dash: styles[data['line_style'][i]] ?? 'solid'
+                                }, {sync: false});
                             }
                         }
                     }
@@ -223,6 +227,85 @@ class LogPlotter:
 
         # returns a settings table
         return table.draw(cds)
+
+    def link_templates(self, grid: gridplot, log_cds: ColumnDataSource, log_types: dict | None = None):
+        """
+        Links the lines of the plot to the log types in the log_cds of a ProjectTemplatesTable, so that editing the
+        line color, line style, line width, min or max of a log type in the templates dialog updates the plot.
+        It is a JavaScript callback, so it also works in a static html page
+
+        :param grid:
+            The gridplot returned by draw(), or the column layout it returns when it is given a title
+        :param log_cds:
+            ColumnDataSource
+            ProjectTemplatesTable.log_cds
+        :param log_types:
+            dict
+            {line name: log type}, e.g. {'vp_dry': 'P velocity'}, see templates_table.log_types_of().
+            A line which is not in log_types is linked to the log type with the same name as the line, if any
+        """
+        grid = get_grid_plot(grid)
+        if log_types is None:
+            log_types = {}
+        code = """
+            const d = log_source.data;
+            const rows = {};
+            for (let i = 0; i < d['log_type'].length; i++) {
+                rows[d['log_type'][i]] = i;
+            }
+            function is_number(v) {
+                return v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
+            }
+            for (const child of grid.children) {
+                const p = child[0];
+                if (!p.renderers) {
+                    continue;
+                }
+                let first = true;
+                for (const r of p.renderers) {
+                    if (!(r.glyph && r.glyph.type === 'Line')) {
+                        continue;
+                    }
+                    const is_first = first;
+                    first = false;
+                    const log_type = log_types[r.name] ?? r.name;
+                    if (!(log_type in rows)) {
+                        continue;
+                    }
+                    const i = rows[log_type];
+                    // The style is only changed in the browser (sync: false). With a Bokeh server, BokehJS would
+                    // send it as a Value(...), which the Python properties of the Line glyph reject
+                    r.glyph.setv({
+                        line_color: d['line_color'][i],
+                        line_width: Number(d['line_width'][i]),
+                        line_dash: styles[d['line_style'][i]] ?? 'solid'
+                    }, {sync: false});
+                    // The first line of a column uses the x range of the column. The other lines either share it,
+                    // or have their own extra x range
+                    let range = null;
+                    if (r.x_range_name === 'default') {
+                        if (is_first) {
+                            range = p.x_range;
+                        }
+                    } else {
+                        const extra = p.extra_x_ranges;
+                        range = (extra instanceof Map) ? extra.get(r.x_range_name) : extra[r.x_range_name];
+                    }
+                    if (range) {
+                        if (is_number(d['min'][i])) {
+                            range.start = Number(d['min'][i]);
+                        }
+                        if (is_number(d['max'][i])) {
+                            range.end = Number(d['max'][i]);
+                        }
+                    }
+                }
+            }
+        """
+        callback = CustomJS(args=dict(log_source=log_cds, grid=grid, styles=line_dashes, log_types=log_types),
+                            code=code)
+        log_cds.js_on_change('patching', callback)
+        log_cds.js_on_change('data', callback)
 
     def add_cutoffs_table(
             self,
@@ -709,10 +792,20 @@ class WellPlotter(LogPlotter):
                     scale=scales[_i])
             )
         super().__init__(width=width, height=height, columns=plot_columns, tools=None)
+        # The log type of each log, used to link the lines to the templates dialog
+        self.log_types = {_log.name: _log.log_type for _log in (well.logs or []) if _log.log_type is not None}
 
 
     def add_cutoffs_table(self, cutoffs: Cutoffs | None = None, width: int | None = None):
         return super().add_cutoffs_table(self.cds, cutoffs, width)
+
+    def link_templates(self, grid: gridplot, log_cds: ColumnDataSource, log_types: dict | None = None):
+        """
+        Same as LogPlotter.link_templates(), but the log types are taken from the logs of the well
+        """
+        if log_types is None:
+            log_types = self.log_types
+        super().link_templates(grid, log_cds, log_types)
 
 def create_column_figure(_column: LogColumn,
                          _w: Span | None,

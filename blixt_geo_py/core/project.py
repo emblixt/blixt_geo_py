@@ -399,6 +399,25 @@ class Project(object):
                     _templates[_key] = Template.from_dict(template_dict[_key])
         self.templates = _templates
 
+    def templates_table(self, width: int | None = None, allow_save: bool = True):
+        """
+        Returns an interactive version of the 'Templates' and 'Well settings' sheets of the project table, which
+        is shown in a dialog, and can be linked to the LogPlotter and the CrossPlotter.
+        Saving it reloads the templates of the project
+
+        :param width:
+            int
+            Width of the tables in the dialog
+        :param allow_save:
+            bool
+            Set to False in a static html page, where there is no Bokeh server to save the project table
+        :return:
+            ProjectTemplatesTable
+        """
+        from blixt_geo_py.core.templates_table import ProjectTemplatesTable
+        return ProjectTemplatesTable(self.project_table, width=width, allow_save=allow_save,
+                                     on_save=self.load_all_templates)
+
     def load_all_wis(self):
         from blixt_geo_py.core.core import Intervals
         wis = Intervals()

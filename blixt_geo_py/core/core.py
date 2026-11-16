@@ -2967,6 +2967,8 @@ def templates_from_table(table: pd.DataFrame | dict, well_style=False) -> dict:
         return_dict[ans]['center'] = None if isnan(table['center'][i]) else table['center'][i]
         return_dict[ans]['colormap'] = None if isnan(table['colormap'][i]) else table['colormap'][i]
         return_dict[ans]['bounds'] = None if isnan(table['bounds'][i]) else table['bounds'][i]
+        if 'scale' in table:
+            return_dict[ans]['scale'] = None if isnan(table['scale'][i]) else table['scale'][i]
         return_dict[ans]['line_color'] = None if isnan(table['line color'][i]) else table['line color'][i]
         return_dict[ans]['line_style'] = None if isnan(table['line style'][i]) else table['line style'][i]
         return_dict[ans]['line_width'] = None if isnan(table['line width'][i]) else table['line width'][i]
